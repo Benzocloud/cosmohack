@@ -3,7 +3,7 @@ package source
 import (
 	"fmt"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/geom"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 )
 
 const limitsProvider = "collector"

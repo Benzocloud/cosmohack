@@ -15,7 +15,7 @@ import (
 
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/cdse"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/geom"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 )
 
 type stubService struct {

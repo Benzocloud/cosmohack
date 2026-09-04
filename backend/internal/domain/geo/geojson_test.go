@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/geom"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 )
 
 func fixture(t *testing.T, name string) []byte {

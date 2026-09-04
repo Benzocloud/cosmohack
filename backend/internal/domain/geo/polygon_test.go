@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/geom"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 )
 
 func ring(pairs ...[2]float64) []geom.Coordinate {

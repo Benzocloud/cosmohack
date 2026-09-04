@@ -13,6 +13,9 @@ const (
 	FailureTimeout        = domain.FailureTimeout
 	FailureMalformed      = domain.FailureMalformed
 	FailureLimitExceeded  = domain.FailureLimitExceeded
+	ErrSettingsLookup     = domain.ErrSettingsLookup
+	ErrInvalidInteger     = domain.ErrInvalidInteger
+	ErrInvalidNumber      = domain.ErrInvalidNumber
 )
 
 var NewProviderError = domain.NewProviderError

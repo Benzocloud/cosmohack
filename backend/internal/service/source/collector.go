@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/geom"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 )
 
 type Clock func() time.Time
