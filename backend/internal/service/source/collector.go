@@ -10,16 +10,14 @@ import (
 	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 )
 
-type Clock = domain.Clock
-
 type CollectRequest struct {
 	areaID  string
 	polygon *geom.Polygon
-	period  DateRange
+	period  domainsource.DateRange
 }
 
-func NewCollectRequest(areaID string, polygon *geom.Polygon, period DateRange) (CollectRequest, error) {
-	if err := requireIdentifier("area_id", areaID); err != nil {
+func NewCollectRequest(areaID string, polygon *geom.Polygon, period domainsource.DateRange) (CollectRequest, error) {
+	if err := domainsource.RequireIdentifier("area_id", areaID); err != nil {
 		return CollectRequest{}, domain.NewProviderError(domain.FailureInvalidRequest, domainsource.LimitsProvider, "%v", err)
 	}
 	if polygon == nil {
@@ -39,7 +37,7 @@ func (r CollectRequest) Polygon() *geom.Polygon {
 	return r.polygon
 }
 
-func (r CollectRequest) Period() DateRange {
+func (r CollectRequest) Period() domainsource.DateRange {
 	return r.period
 }
 
@@ -52,7 +50,7 @@ func WithLimits(limits domainsource.Limits) CollectorOption {
 	}
 }
 
-func WithClock(clock Clock) CollectorOption {
+func WithClock(clock domain.Clock) CollectorOption {
 	return func(collector *Collector) error {
 		if clock == nil {
 			return fmt.Errorf("часы сборщика не заданы")
@@ -63,13 +61,13 @@ func WithClock(clock Clock) CollectorOption {
 }
 
 type Collector struct {
-	satellite SatelliteProvider
-	weather   WeatherProvider
+	satellite domainsource.SatelliteProvider
+	weather   domainsource.WeatherProvider
 	limits    domainsource.Limits
-	clock     Clock
+	clock     domain.Clock
 }
 
-func NewCollector(satellite SatelliteProvider, weather WeatherProvider, options ...CollectorOption) (*Collector, error) {
+func NewCollector(satellite domainsource.SatelliteProvider, weather domainsource.WeatherProvider, options ...CollectorOption) (*Collector, error) {
 	if satellite == nil {
 		return nil, fmt.Errorf("сборщик без спутникового источника")
 	}
@@ -101,7 +99,7 @@ func (c *Collector) Collect(ctx context.Context, request CollectRequest) (*Snaps
 	if err := c.limits.ValidatePeriod(request.period); err != nil {
 		return nil, err
 	}
-	satelliteRequest, err := NewSatelliteRequest(request.polygon, request.period)
+	satelliteRequest, err := domainsource.NewSatelliteRequest(request.polygon, request.period)
 	if err != nil {
 		return nil, domain.NewProviderError(domain.FailureInvalidRequest, domainsource.LimitsProvider, "%v", err)
 	}
@@ -122,7 +120,7 @@ func (c *Collector) Collect(ctx context.Context, request CollectRequest) (*Snaps
 	weather, weatherCell, weatherNotes := c.collectWeather(ctx, point, request.period)
 	limitations = append(limitations, weatherNotes...)
 
-	descriptors := []Descriptor{satellite.Descriptor()}
+	descriptors := []domainsource.Descriptor{satellite.Descriptor()}
 	weatherSourceID := ""
 	if weatherCell != nil {
 		descriptors = append(descriptors, weather.Descriptor())
@@ -149,14 +147,14 @@ func (c *Collector) Collect(ctx context.Context, request CollectRequest) (*Snaps
 	})
 }
 
-func (c *Collector) collectWeather(ctx context.Context, point geom.Coordinate, period DateRange) (WeatherSeries, *geom.Coordinate, []string) {
-	request, err := NewWeatherRequest(point, period)
+func (c *Collector) collectWeather(ctx context.Context, point geom.Coordinate, period domainsource.DateRange) (domainsource.WeatherSeries, *geom.Coordinate, []string) {
+	request, err := domainsource.NewWeatherRequest(point, period)
 	if err != nil {
-		return WeatherSeries{}, nil, []string{fmt.Sprintf("Погодный запрос не построен: %v", err)}
+		return domainsource.WeatherSeries{}, nil, []string{fmt.Sprintf("Погодный запрос не построен: %v", err)}
 	}
 	series, err := c.weather.FetchDaily(ctx, request)
 	if err != nil {
-		return WeatherSeries{}, nil, []string{fmt.Sprintf("Погодные данные не получены (%s); анализ выполняется без погодного контекста", domain.KindOfOrUnknown(err))}
+		return domainsource.WeatherSeries{}, nil, []string{fmt.Sprintf("Погодные данные не получены (%s); анализ выполняется без погодного контекста", domain.KindOfOrUnknown(err))}
 	}
 	notes := series.Notes()
 	if covered := len(series.Days()); covered < period.Days() {
@@ -166,21 +164,21 @@ func (c *Collector) collectWeather(ctx context.Context, point geom.Coordinate, p
 	return series, &cell, notes
 }
 
-func (c *Collector) buildObservations(period DateRange, samples map[string]SatelliteSample, weather WeatherSeries, satelliteSourceID, weatherSourceID string) ([]Observation, error) {
+func (c *Collector) buildObservations(period domainsource.DateRange, samples map[string]domainsource.SatelliteSample, weather domainsource.WeatherSeries, satelliteSourceID, weatherSourceID string) ([]domainsource.Observation, error) {
 	weatherDays := indexWeather(weather.Days())
-	observations := make([]Observation, 0, period.Days())
+	observations := make([]domainsource.Observation, 0, period.Days())
 	for _, date := range period.Dates() {
-		builder := NewObservationBuilder(date)
+		builder := domainsource.NewObservationBuilder(date)
 		switch sample, found := samples[date.String()]; {
 		case found && sample.Usable():
 			builder.Measured(*sample.NDVI(), satelliteSourceID, sample.Interval(), sample.ValidFraction())
 		case found:
 			builder.Rejected(sample.NDVI(), satelliteSourceID, sample.Interval(), sample.Reason(), sample.ValidFraction())
 		default:
-			builder.Missing(ReasonNoObservation)
+			builder.Missing(domainsource.ReasonNoObservation)
 		}
 		if day, found := weatherDays[date.String()]; found && weatherSourceID != "" {
-			point, err := NewWeather(weatherSourceID, day.TemperatureMeanC(), day.PrecipitationSumMM())
+			point, err := domainsource.NewWeather(weatherSourceID, day.TemperatureMeanC(), day.PrecipitationSumMM())
 			if err != nil {
 				return nil, err
 			}
@@ -195,8 +193,8 @@ func (c *Collector) buildObservations(period DateRange, samples map[string]Satel
 	return observations, nil
 }
 
-func indexSamples(samples []SatelliteSample, period DateRange) (map[string]SatelliteSample, []string) {
-	index := make(map[string]SatelliteSample, len(samples))
+func indexSamples(samples []domainsource.SatelliteSample, period domainsource.DateRange) (map[string]domainsource.SatelliteSample, []string) {
+	index := make(map[string]domainsource.SatelliteSample, len(samples))
 	notes := make([]string, 0, 2)
 	outside, conflicts := 0, 0
 	for _, sample := range samples {
@@ -224,7 +222,7 @@ func indexSamples(samples []SatelliteSample, period DateRange) (map[string]Satel
 	return index, notes
 }
 
-func preferSample(candidate, current SatelliteSample) bool {
+func preferSample(candidate, current domainsource.SatelliteSample) bool {
 	if candidate.Usable() != current.Usable() {
 		return candidate.Usable()
 	}
@@ -238,18 +236,18 @@ func preferSample(candidate, current SatelliteSample) bool {
 	return *candidateFraction > *currentFraction
 }
 
-func indexWeather(days []WeatherDay) map[string]WeatherDay {
-	index := make(map[string]WeatherDay, len(days))
+func indexWeather(days []domainsource.WeatherDay) map[string]domainsource.WeatherDay {
+	index := make(map[string]domainsource.WeatherDay, len(days))
 	for _, day := range days {
 		index[day.Date().String()] = day
 	}
 	return index
 }
 
-func countUsable(observations []Observation) int {
+func countUsable(observations []domainsource.Observation) int {
 	count := 0
 	for _, observation := range observations {
-		if observation.Quality() == QualityUsable {
+		if observation.Quality() == domainsource.QualityUsable {
 			count++
 		}
 	}

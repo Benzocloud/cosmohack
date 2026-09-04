@@ -121,6 +121,13 @@ func requireIdentifier(label, value string) error {
 	return nil
 }
 
+// RequireIdentifier validates a public source identifier.
+func RequireIdentifier(label, value string) error { return requireIdentifier(label, value) }
+
+func requireSourceIdentifier(value string) error {
+	return requireIdentifier("source identifier", value)
+}
+
 func License(value string) *string {
 	return &value
 }

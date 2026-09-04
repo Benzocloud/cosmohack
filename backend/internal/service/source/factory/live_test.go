@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/overpass"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source/factory"
-	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 )
 
 const (

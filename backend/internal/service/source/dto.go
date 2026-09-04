@@ -1,6 +1,10 @@
 package source
 
-import "time"
+import (
+	"time"
+
+	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
+)
 
 type weatherDTO struct {
 	SourceID           string   `json:"source_id"`
@@ -17,30 +21,30 @@ type referenceDTO struct {
 }
 
 type observationDTO struct {
-	Date          Date          `json:"date"`
-	PrimaryNDVI   *float64      `json:"primary_ndvi"`
-	Quality       Quality       `json:"quality"`
-	NDVISourceID  *string       `json:"ndvi_source_id"`
-	Interval      *rangeDTO     `json:"interval"`
-	ValidFraction *float64      `json:"valid_fraction"`
-	MissingReason *string       `json:"missing_reason"`
-	Weather       *weatherDTO   `json:"weather"`
-	Reference     *referenceDTO `json:"reference"`
+	Date          domainsource.Date    `json:"date"`
+	PrimaryNDVI   *float64             `json:"primary_ndvi"`
+	Quality       domainsource.Quality `json:"quality"`
+	NDVISourceID  *string              `json:"ndvi_source_id"`
+	Interval      *rangeDTO            `json:"interval"`
+	ValidFraction *float64             `json:"valid_fraction"`
+	MissingReason *string              `json:"missing_reason"`
+	Weather       *weatherDTO          `json:"weather"`
+	Reference     *referenceDTO        `json:"reference"`
 }
 
 type sourceDTO struct {
-	ID          string  `json:"id"`
-	Kind        Kind    `json:"kind"`
-	Provider    string  `json:"provider"`
-	Dataset     string  `json:"dataset"`
-	Mapping     string  `json:"mapping"`
-	License     *string `json:"license"`
-	RetrievedAt string  `json:"retrieved_at"`
+	ID          string            `json:"id"`
+	Kind        domainsource.Kind `json:"kind"`
+	Provider    string            `json:"provider"`
+	Dataset     string            `json:"dataset"`
+	Mapping     string            `json:"mapping"`
+	License     *string           `json:"license"`
+	RetrievedAt string            `json:"retrieved_at"`
 }
 
 type rangeDTO struct {
-	From Date `json:"from"`
-	To   Date `json:"to"`
+	From domainsource.Date `json:"from"`
+	To   domainsource.Date `json:"to"`
 }
 
 type pointDTO struct {
@@ -48,7 +52,7 @@ type pointDTO struct {
 	Latitude  float64 `json:"latitude"`
 }
 
-func newObservationDTO(observation Observation) observationDTO {
+func newObservationDTO(observation domainsource.Observation) observationDTO {
 	dto := observationDTO{
 		Date:          observation.Date(),
 		PrimaryNDVI:   observation.PrimaryNDVI(),
@@ -84,7 +88,7 @@ func newObservationDTO(observation Observation) observationDTO {
 	return dto
 }
 
-func newSourceDTO(descriptor Descriptor) sourceDTO {
+func newSourceDTO(descriptor domainsource.Descriptor) sourceDTO {
 	return sourceDTO{
 		ID:          descriptor.ID(),
 		Kind:        descriptor.Kind(),

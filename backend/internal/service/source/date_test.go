@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 )
 
 func mustDate(t *testing.T, text string) source.Date {

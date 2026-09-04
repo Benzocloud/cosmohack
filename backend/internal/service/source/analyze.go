@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
+	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 )
 
 const (
@@ -96,7 +97,7 @@ func (b *AnalyzeRequestBuilder) Build(snapshot *Snapshot, requestID string) (*An
 	if snapshot == nil {
 		return nil, fmt.Errorf("запрос анализа без снимка данных")
 	}
-	if err := requireIdentifier("request_id", requestID); err != nil {
+	if err := domainsource.RequireIdentifier("request_id", requestID); err != nil {
 		return nil, err
 	}
 	observations := snapshot.observationDTOs()
@@ -144,7 +145,7 @@ func ensureStrictlyAscending(observations []observationDTO) error {
 }
 
 func validateSourceReferences(payload analyzeRequestPayload) error {
-	kinds := make(map[string]Kind, len(payload.Sources))
+	kinds := make(map[string]domainsource.Kind, len(payload.Sources))
 	for _, item := range payload.Sources {
 		if _, exists := kinds[item.ID]; exists {
 			return fmt.Errorf("идентификатор источника %s повторяется", item.ID)
@@ -155,30 +156,30 @@ func validateSourceReferences(payload analyzeRequestPayload) error {
 		kinds[item.ID] = item.Kind
 	}
 	for _, observation := range payload.Observations {
-		if err := requireReference(kinds, observation.NDVISourceID, KindSatellite, observation.Date); err != nil {
+		if err := requireReference(kinds, observation.NDVISourceID, domainsource.KindSatellite, observation.Date); err != nil {
 			return err
 		}
 		if observation.Weather != nil {
-			if err := requireReference(kinds, &observation.Weather.SourceID, KindWeather, observation.Date); err != nil {
+			if err := requireReference(kinds, &observation.Weather.SourceID, domainsource.KindWeather, observation.Date); err != nil {
 				return err
 			}
 		}
 		if observation.Reference != nil {
-			if err := requireReference(kinds, &observation.Reference.SourceID, KindReference, observation.Date); err != nil {
+			if err := requireReference(kinds, &observation.Reference.SourceID, domainsource.KindReference, observation.Date); err != nil {
 				return err
 			}
 		}
-		if observation.Quality == QualityUsable && observation.PrimaryNDVI == nil {
+		if observation.Quality == domainsource.QualityUsable && observation.PrimaryNDVI == nil {
 			return fmt.Errorf("наблюдение %s помечено usable без значения", observation.Date)
 		}
-		if observation.Quality != QualityMissing && observation.Interval == nil {
+		if observation.Quality != domainsource.QualityMissing && observation.Interval == nil {
 			return fmt.Errorf("наблюдение %s без интервала агрегации", observation.Date)
 		}
 	}
 	return nil
 }
 
-func requireReference(kinds map[string]Kind, sourceID *string, expected Kind, date Date) error {
+func requireReference(kinds map[string]domainsource.Kind, sourceID *string, expected domainsource.Kind, date domainsource.Date) error {
 	if sourceID == nil {
 		return nil
 	}

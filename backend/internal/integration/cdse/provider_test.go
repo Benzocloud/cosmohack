@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/cdse"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
 type stubService struct {
@@ -72,7 +72,7 @@ func newService(t *testing.T) *stubService {
 	return service
 }
 
-func newProvider(t *testing.T, service *stubService, clock source.Clock) *cdse.Provider {
+func newProvider(t *testing.T, service *stubService, clock domain.Clock) *cdse.Provider {
 	t.Helper()
 	credentials, err := cdse.NewCredentials("client", "secret")
 	if err != nil {
@@ -89,7 +89,7 @@ func newProvider(t *testing.T, service *stubService, clock source.Clock) *cdse.P
 	return provider
 }
 
-func fixedClock() source.Clock {
+func fixedClock() domain.Clock {
 	moment := time.Date(2026, time.September, 4, 12, 0, 0, 0, time.UTC)
 	return func() time.Time { return moment }
 }

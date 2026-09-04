@@ -4,8 +4,26 @@ import (
 	"math"
 	"testing"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 )
+
+func mustDate(t *testing.T, text string) source.Date {
+	t.Helper()
+	date, err := source.ParseDate(text)
+	if err != nil {
+		t.Fatalf("date %s was not parsed: %v", text, err)
+	}
+	return date
+}
+
+func mustRange(t *testing.T, from, to string) source.DateRange {
+	t.Helper()
+	period, err := source.ParseDateRange(from, to)
+	if err != nil {
+		t.Fatalf("period %s..%s was not built: %v", from, to, err)
+	}
+	return period
+}
 
 func TestObservationBuilderAcceptsMeasurement(t *testing.T) {
 	interval := mustRange(t, "2025-06-01", "2025-06-05")

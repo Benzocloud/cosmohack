@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/config"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/cdse"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
@@ -48,12 +49,12 @@ type Settings struct {
 	AggregationDays     int
 	MinValidFraction    float64
 	Limits              domainsource.Limits
-	Clock               source.Clock
+	Clock               domain.Clock
 }
 
 // SettingsFromConfig adapts validated application configuration to B1 source
 // settings. Environment lookup belongs exclusively to internal/config.
-func SettingsFromConfig(cfg config.SourceConfig, limits domainsource.Limits, clock source.Clock) Settings {
+func SettingsFromConfig(cfg config.SourceConfig, limits domainsource.Limits, clock domain.Clock) Settings {
 	if limits == (domainsource.Limits{}) {
 		limits = domainsource.DefaultLimits()
 	}
@@ -106,7 +107,7 @@ func SettingsFromEnv(lookup Lookup) (Settings, error) {
 
 type Assembly struct {
 	collector *source.Collector
-	finder    source.ContourFinder
+	finder    domainsource.ContourFinder
 	limits    domainsource.Limits
 }
 
@@ -163,7 +164,7 @@ func (a *Assembly) Collector() *source.Collector {
 	return a.collector
 }
 
-func (a *Assembly) ContourFinder() source.ContourFinder {
+func (a *Assembly) ContourFinder() domainsource.ContourFinder {
 	return a.finder
 }
 

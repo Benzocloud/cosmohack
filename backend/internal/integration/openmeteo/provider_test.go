@@ -15,7 +15,7 @@ import (
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 )
 
 func fixture(t *testing.T, name string) []byte {

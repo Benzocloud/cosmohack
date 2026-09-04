@@ -8,16 +8,17 @@ import (
 	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
+	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 )
 
 const revisionPrefix = "snap-"
 
 type SnapshotSpec struct {
 	AreaID       string
-	Period       DateRange
+	Period       domainsource.DateRange
 	Polygon      *geom.Polygon
-	Descriptors  []Descriptor
-	Observations []Observation
+	Descriptors  []domainsource.Descriptor
+	Observations []domainsource.Observation
 	WeatherCell  *geom.Coordinate
 	Limitations  []string
 	CollectedAt  time.Time
@@ -25,10 +26,10 @@ type SnapshotSpec struct {
 
 type Snapshot struct {
 	areaID       string
-	period       DateRange
+	period       domainsource.DateRange
 	polygon      *geom.Polygon
-	descriptors  []Descriptor
-	observations []Observation
+	descriptors  []domainsource.Descriptor
+	observations []domainsource.Observation
 	weatherCell  *geom.Coordinate
 	limitations  []string
 	collectedAt  time.Time
@@ -36,7 +37,7 @@ type Snapshot struct {
 }
 
 func NewSnapshot(spec SnapshotSpec) (*Snapshot, error) {
-	if err := requireIdentifier("area_id", spec.AreaID); err != nil {
+	if err := domainsource.RequireIdentifier("area_id", spec.AreaID); err != nil {
 		return nil, err
 	}
 	if spec.Period.IsZero() {
@@ -59,8 +60,8 @@ func NewSnapshot(spec SnapshotSpec) (*Snapshot, error) {
 		areaID:       spec.AreaID,
 		period:       spec.Period,
 		polygon:      spec.Polygon,
-		descriptors:  append([]Descriptor(nil), spec.Descriptors...),
-		observations: append([]Observation(nil), spec.Observations...),
+		descriptors:  append([]domainsource.Descriptor(nil), spec.Descriptors...),
+		observations: append([]domainsource.Observation(nil), spec.Observations...),
 		weatherCell:  spec.WeatherCell,
 		limitations:  append([]string(nil), spec.Limitations...),
 		collectedAt:  spec.CollectedAt.UTC(),
@@ -81,7 +82,7 @@ func (s *Snapshot) Revision() string {
 	return s.revision
 }
 
-func (s *Snapshot) Period() DateRange {
+func (s *Snapshot) Period() domainsource.DateRange {
 	return s.period
 }
 
@@ -89,14 +90,14 @@ func (s *Snapshot) Polygon() *geom.Polygon {
 	return s.polygon
 }
 
-func (s *Snapshot) Descriptors() []Descriptor {
-	descriptors := make([]Descriptor, len(s.descriptors))
+func (s *Snapshot) Descriptors() []domainsource.Descriptor {
+	descriptors := make([]domainsource.Descriptor, len(s.descriptors))
 	copy(descriptors, s.descriptors)
 	return descriptors
 }
 
-func (s *Snapshot) Observations() []Observation {
-	observations := make([]Observation, len(s.observations))
+func (s *Snapshot) Observations() []domainsource.Observation {
+	observations := make([]domainsource.Observation, len(s.observations))
 	copy(observations, s.observations)
 	return observations
 }
@@ -207,8 +208,8 @@ func (s *Snapshot) computeRevision() (string, error) {
 	return revisionPrefix + hex.EncodeToString(digest[:])[:24], nil
 }
 
-func indexDescriptors(descriptors []Descriptor) (map[string]Descriptor, error) {
-	index := make(map[string]Descriptor, len(descriptors))
+func indexDescriptors(descriptors []domainsource.Descriptor) (map[string]domainsource.Descriptor, error) {
+	index := make(map[string]domainsource.Descriptor, len(descriptors))
 	for _, descriptor := range descriptors {
 		if descriptor.IsZero() {
 			return nil, fmt.Errorf("источник без идентификатора")
@@ -221,7 +222,7 @@ func indexDescriptors(descriptors []Descriptor) (map[string]Descriptor, error) {
 	return index, nil
 }
 
-func validateObservations(period DateRange, observations []Observation, index map[string]Descriptor) error {
+func validateObservations(period domainsource.DateRange, observations []domainsource.Observation, index map[string]domainsource.Descriptor) error {
 	expected := period.Dates()
 	if len(observations) != len(expected) {
 		return fmt.Errorf("наблюдений %d, период содержит %d дней", len(observations), len(expected))
@@ -235,7 +236,7 @@ func validateObservations(period DateRange, observations []Observation, index ma
 			if !exists {
 				return fmt.Errorf("наблюдение %s ссылается на неизвестный источник %s", observation.Date(), sourceID)
 			}
-			if descriptor.Kind() != KindSatellite {
+			if descriptor.Kind() != domainsource.KindSatellite {
 				return fmt.Errorf("наблюдение %s ссылается на источник вида %q", observation.Date(), descriptor.Kind())
 			}
 		}
@@ -244,7 +245,7 @@ func validateObservations(period DateRange, observations []Observation, index ma
 			if !exists {
 				return fmt.Errorf("погода %s ссылается на неизвестный источник %s", observation.Date(), weather.SourceID())
 			}
-			if descriptor.Kind() != KindWeather {
+			if descriptor.Kind() != domainsource.KindWeather {
 				return fmt.Errorf("погода %s ссылается на источник вида %q", observation.Date(), descriptor.Kind())
 			}
 		}
@@ -253,7 +254,7 @@ func validateObservations(period DateRange, observations []Observation, index ma
 			if !exists {
 				return fmt.Errorf("сезонный фон %s ссылается на неизвестный источник %s", observation.Date(), reference.SourceID())
 			}
-			if descriptor.Kind() != KindReference {
+			if descriptor.Kind() != domainsource.KindReference {
 				return fmt.Errorf("сезонный фон %s ссылается на источник вида %q", observation.Date(), descriptor.Kind())
 			}
 		}

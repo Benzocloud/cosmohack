@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
@@ -17,8 +18,8 @@ func exampleSnapshot(t *testing.T) *source.Snapshot {
 	t.Helper()
 	period := mustRange(t, "2025-06-01", "2025-06-10")
 	satellite := &stubSatellite{series: satelliteSeries(t,
-		sampleFor(t, "2025-06-01", "2025-06-05", source.Float(0.71), source.Float(0.95), true, ""),
-		sampleFor(t, "2025-06-06", "2025-06-10", source.Float(0.44), source.Float(0.2), false, source.ReasonLowValidFraction),
+		sampleFor(t, "2025-06-01", "2025-06-05", domainsource.Float(0.71), domainsource.Float(0.95), true, ""),
+		sampleFor(t, "2025-06-06", "2025-06-10", domainsource.Float(0.44), domainsource.Float(0.2), false, domainsource.ReasonLowValidFraction),
 	)}
 	weather := &stubWeather{series: weatherSeries(t, mustRange(t, "2025-06-01", "2025-06-08"))}
 	snapshot, err := newCollector(t, satellite, weather).Collect(context.Background(), collectRequest(t, period))
@@ -119,7 +120,7 @@ func TestAnalyzeRequestKeepsObservationOrder(t *testing.T) {
 	}
 	document := struct {
 		Observations []struct {
-			Date source.Date `json:"date"`
+			Date domainsource.Date `json:"date"`
 		} `json:"observations"`
 	}{}
 	if err := json.Unmarshal(request.Body(), &document); err != nil {

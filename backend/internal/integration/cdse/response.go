@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 )
 
 type bandStats struct {

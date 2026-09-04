@@ -14,34 +14,34 @@ import (
 )
 
 type stubSatellite struct {
-	series  source.SatelliteSeries
+	series  domainsource.SatelliteSeries
 	failure error
 	calls   int
 }
 
-func (s *stubSatellite) FetchNDVI(context.Context, source.SatelliteRequest) (source.SatelliteSeries, error) {
+func (s *stubSatellite) FetchNDVI(context.Context, domainsource.SatelliteRequest) (domainsource.SatelliteSeries, error) {
 	s.calls++
 	if s.failure != nil {
-		return source.SatelliteSeries{}, s.failure
+		return domainsource.SatelliteSeries{}, s.failure
 	}
 	return s.series, nil
 }
 
 type stubWeather struct {
-	series  source.WeatherSeries
+	series  domainsource.WeatherSeries
 	failure error
-	request source.WeatherRequest
+	request domainsource.WeatherRequest
 }
 
-func (s *stubWeather) FetchDaily(_ context.Context, request source.WeatherRequest) (source.WeatherSeries, error) {
+func (s *stubWeather) FetchDaily(_ context.Context, request domainsource.WeatherRequest) (domainsource.WeatherSeries, error) {
 	s.request = request
 	if s.failure != nil {
-		return source.WeatherSeries{}, s.failure
+		return domainsource.WeatherSeries{}, s.failure
 	}
 	return s.series, nil
 }
 
-func fixedClock() source.Clock {
+func fixedClock() domain.Clock {
 	moment := time.Date(2026, time.September, 4, 12, 0, 0, 0, time.UTC)
 	return func() time.Time { return moment }
 }
@@ -62,15 +62,15 @@ func testPolygon(t *testing.T) *geom.Polygon {
 	return polygon
 }
 
-func satelliteDescriptor(t *testing.T) source.Descriptor {
+func satelliteDescriptor(t *testing.T) domainsource.Descriptor {
 	t.Helper()
-	descriptor, err := source.NewDescriptor(source.DescriptorSpec{
+	descriptor, err := domainsource.NewDescriptor(domainsource.DescriptorSpec{
 		ID:          "satellite-test",
-		Kind:        source.KindSatellite,
+		Kind:        domainsource.KindSatellite,
 		Provider:    "test-provider",
 		Dataset:     "test-dataset",
 		Mapping:     "NDVI среднее по полигону",
-		License:     source.License("test-license"),
+		License:     domainsource.License("test-license"),
 		RetrievedAt: fixedClock()(),
 	})
 	if err != nil {
@@ -79,15 +79,15 @@ func satelliteDescriptor(t *testing.T) source.Descriptor {
 	return descriptor
 }
 
-func weatherDescriptor(t *testing.T) source.Descriptor {
+func weatherDescriptor(t *testing.T) domainsource.Descriptor {
 	t.Helper()
-	descriptor, err := source.NewDescriptor(source.DescriptorSpec{
+	descriptor, err := domainsource.NewDescriptor(domainsource.DescriptorSpec{
 		ID:          "weather-test",
-		Kind:        source.KindWeather,
+		Kind:        domainsource.KindWeather,
 		Provider:    "test-provider",
 		Dataset:     "test-reanalysis",
 		Mapping:     "суточная агрегация UTC",
-		License:     source.License("test-license"),
+		License:     domainsource.License("test-license"),
 		RetrievedAt: fixedClock()(),
 	})
 	if err != nil {
@@ -96,42 +96,42 @@ func weatherDescriptor(t *testing.T) source.Descriptor {
 	return descriptor
 }
 
-func sampleFor(t *testing.T, from, to string, ndvi, fraction *float64, usable bool, reason string) source.SatelliteSample {
+func sampleFor(t *testing.T, from, to string, ndvi, fraction *float64, usable bool, reason string) domainsource.SatelliteSample {
 	t.Helper()
-	sample, err := source.NewSatelliteSample(mustRange(t, from, to), ndvi, fraction, usable, reason)
+	sample, err := domainsource.NewSatelliteSample(mustRange(t, from, to), ndvi, fraction, usable, reason)
 	if err != nil {
 		t.Fatalf("наблюдение %s..%s не построено: %v", from, to, err)
 	}
 	return sample
 }
 
-func satelliteSeries(t *testing.T, samples ...source.SatelliteSample) source.SatelliteSeries {
+func satelliteSeries(t *testing.T, samples ...domainsource.SatelliteSample) domainsource.SatelliteSeries {
 	t.Helper()
-	series, err := source.NewSatelliteSeries(satelliteDescriptor(t), samples, nil)
+	series, err := domainsource.NewSatelliteSeries(satelliteDescriptor(t), samples, nil)
 	if err != nil {
 		t.Fatalf("спутниковый ряд не построен: %v", err)
 	}
 	return series
 }
 
-func weatherSeries(t *testing.T, period source.DateRange) source.WeatherSeries {
+func weatherSeries(t *testing.T, period domainsource.DateRange) domainsource.WeatherSeries {
 	t.Helper()
-	days := make([]source.WeatherDay, 0, period.Days())
+	days := make([]domainsource.WeatherDay, 0, period.Days())
 	for index, date := range period.Dates() {
-		day, err := source.NewWeatherDay(date, source.Float(20+float64(index)/10), source.Float(float64(index%3)))
+		day, err := domainsource.NewWeatherDay(date, domainsource.Float(20+float64(index)/10), domainsource.Float(float64(index%3)))
 		if err != nil {
 			t.Fatalf("погодный день не построен: %v", err)
 		}
 		days = append(days, day)
 	}
-	series, err := source.NewWeatherSeries(weatherDescriptor(t), geom.MustCoordinate(39.0, 45.0), days, nil)
+	series, err := domainsource.NewWeatherSeries(weatherDescriptor(t), geom.MustCoordinate(39.0, 45.0), days, nil)
 	if err != nil {
 		t.Fatalf("погодный ряд не построен: %v", err)
 	}
 	return series
 }
 
-func newCollector(t *testing.T, satellite source.SatelliteProvider, weather source.WeatherProvider) *source.Collector {
+func newCollector(t *testing.T, satellite domainsource.SatelliteProvider, weather domainsource.WeatherProvider) *source.Collector {
 	t.Helper()
 	collector, err := source.NewCollector(satellite, weather, source.WithClock(fixedClock()))
 	if err != nil {
@@ -140,7 +140,7 @@ func newCollector(t *testing.T, satellite source.SatelliteProvider, weather sour
 	return collector
 }
 
-func collectRequest(t *testing.T, period source.DateRange) source.CollectRequest {
+func collectRequest(t *testing.T, period domainsource.DateRange) source.CollectRequest {
 	t.Helper()
 	request, err := source.NewCollectRequest("area-test", testPolygon(t), period)
 	if err != nil {
@@ -152,8 +152,8 @@ func collectRequest(t *testing.T, period source.DateRange) source.CollectRequest
 func TestCollectorBuildsDenseSeries(t *testing.T) {
 	period := mustRange(t, "2025-06-01", "2025-06-10")
 	satellite := &stubSatellite{series: satelliteSeries(t,
-		sampleFor(t, "2025-06-01", "2025-06-05", source.Float(0.71), source.Float(0.95), true, ""),
-		sampleFor(t, "2025-06-06", "2025-06-10", source.Float(0.44), source.Float(0.2), false, source.ReasonLowValidFraction),
+		sampleFor(t, "2025-06-01", "2025-06-05", domainsource.Float(0.71), domainsource.Float(0.95), true, ""),
+		sampleFor(t, "2025-06-06", "2025-06-10", domainsource.Float(0.44), domainsource.Float(0.2), false, domainsource.ReasonLowValidFraction),
 	)}
 	weather := &stubWeather{series: weatherSeries(t, period)}
 
@@ -168,13 +168,13 @@ func TestCollectorBuildsDenseSeries(t *testing.T) {
 	if snapshot.UsableCount() != 1 {
 		t.Fatalf("пригодных наблюдений %d, ожидалось 1", snapshot.UsableCount())
 	}
-	if observations[2].Quality() != source.QualityUsable {
+	if observations[2].Quality() != domainsource.QualityUsable {
 		t.Fatalf("наблюдение 2025-06-03 имеет качество %s", observations[2].Quality())
 	}
-	if observations[7].Quality() != source.QualityUnusable {
+	if observations[7].Quality() != domainsource.QualityUnusable {
 		t.Fatalf("наблюдение 2025-06-08 имеет качество %s", observations[7].Quality())
 	}
-	if observations[0].Quality() != source.QualityMissing || observations[0].MissingReason() != source.ReasonNoObservation {
+	if observations[0].Quality() != domainsource.QualityMissing || observations[0].MissingReason() != domainsource.ReasonNoObservation {
 		t.Fatalf("день без наблюдения помечен как %s (%s)", observations[0].Quality(), observations[0].MissingReason())
 	}
 	for _, observation := range observations {
@@ -207,7 +207,7 @@ func TestCollectorUsesRepresentativePointForWeather(t *testing.T) {
 func TestCollectorSurvivesWeatherFailure(t *testing.T) {
 	period := mustRange(t, "2025-06-01", "2025-06-03")
 	satellite := &stubSatellite{series: satelliteSeries(t,
-		sampleFor(t, "2025-06-01", "2025-06-03", source.Float(0.6), source.Float(0.9), true, ""),
+		sampleFor(t, "2025-06-01", "2025-06-03", domainsource.Float(0.6), domainsource.Float(0.9), true, ""),
 	)}
 	weather := &stubWeather{failure: domain.NewProviderError(domain.FailureUnavailable, "weather", "сервис недоступен")}
 
@@ -286,8 +286,8 @@ func TestCollectorMarksEmptySatelliteResponse(t *testing.T) {
 func TestCollectorPrefersBetterSampleOnSameDate(t *testing.T) {
 	period := mustRange(t, "2025-06-01", "2025-06-05")
 	satellite := &stubSatellite{series: satelliteSeries(t,
-		sampleFor(t, "2025-06-01", "2025-06-05", source.Float(0.30), source.Float(0.6), true, ""),
-		sampleFor(t, "2025-06-01", "2025-06-05", source.Float(0.80), source.Float(0.9), true, ""),
+		sampleFor(t, "2025-06-01", "2025-06-05", domainsource.Float(0.30), domainsource.Float(0.6), true, ""),
+		sampleFor(t, "2025-06-01", "2025-06-05", domainsource.Float(0.80), domainsource.Float(0.9), true, ""),
 	)}
 	weather := &stubWeather{series: weatherSeries(t, period)}
 
@@ -307,7 +307,7 @@ func TestCollectorPrefersBetterSampleOnSameDate(t *testing.T) {
 func TestCollectorIgnoresSamplesOutsidePeriod(t *testing.T) {
 	period := mustRange(t, "2025-06-01", "2025-06-05")
 	satellite := &stubSatellite{series: satelliteSeries(t,
-		sampleFor(t, "2025-05-20", "2025-05-24", source.Float(0.5), source.Float(0.9), true, ""),
+		sampleFor(t, "2025-05-20", "2025-05-24", domainsource.Float(0.5), domainsource.Float(0.9), true, ""),
 	)}
 	weather := &stubWeather{series: weatherSeries(t, period)}
 
@@ -354,7 +354,7 @@ func TestSnapshotRevisionIsDeterministic(t *testing.T) {
 	period := mustRange(t, "2025-06-01", "2025-06-05")
 	build := func(ndvi float64) *source.Snapshot {
 		satellite := &stubSatellite{series: satelliteSeries(t,
-			sampleFor(t, "2025-06-01", "2025-06-05", source.Float(ndvi), source.Float(0.9), true, ""),
+			sampleFor(t, "2025-06-01", "2025-06-05", domainsource.Float(ndvi), domainsource.Float(0.9), true, ""),
 		)}
 		weather := &stubWeather{series: weatherSeries(t, period)}
 		snapshot, err := newCollector(t, satellite, weather).Collect(context.Background(), collectRequest(t, period))
@@ -378,7 +378,7 @@ func TestSnapshotRevisionIsDeterministic(t *testing.T) {
 func TestSnapshotJSONKeepsProvenance(t *testing.T) {
 	period := mustRange(t, "2025-06-01", "2025-06-03")
 	satellite := &stubSatellite{series: satelliteSeries(t,
-		sampleFor(t, "2025-06-01", "2025-06-03", source.Float(0.7), source.Float(0.9), true, ""),
+		sampleFor(t, "2025-06-01", "2025-06-03", domainsource.Float(0.7), domainsource.Float(0.9), true, ""),
 	)}
 	weather := &stubWeather{series: weatherSeries(t, period)}
 	snapshot, err := newCollector(t, satellite, weather).Collect(context.Background(), collectRequest(t, period))

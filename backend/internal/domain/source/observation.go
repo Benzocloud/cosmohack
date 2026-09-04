@@ -38,7 +38,7 @@ type Weather struct {
 }
 
 func NewWeather(sourceID string, temperatureMeanC, precipitationSumMM *float64) (*Weather, error) {
-	if err := requireIdentifier("source_id погоды", sourceID); err != nil {
+	if err := requireSourceIdentifier(sourceID); err != nil {
 		return nil, err
 	}
 	if err := requireFiniteOrNil("temperature_mean_c", temperatureMeanC); err != nil {
@@ -78,7 +78,7 @@ type Reference struct {
 }
 
 func NewReference(sourceID string, mean, std float64, referenceYears int, targetYearExcluded bool) (*Reference, error) {
-	if err := requireIdentifier("source_id сезонного фона", sourceID); err != nil {
+	if err := requireSourceIdentifier(sourceID); err != nil {
 		return nil, err
 	}
 	if !isFinite(mean) || !isFinite(std) {
@@ -265,7 +265,7 @@ func (b *ObservationBuilder) Build() (Observation, error) {
 		}
 	}
 	if observation.quality != QualityMissing {
-		if err := requireIdentifier("ndvi_source_id", observation.ndviSourceID); err != nil {
+		if err := requireSourceIdentifier(observation.ndviSourceID); err != nil {
 			return Observation{}, err
 		}
 		if observation.interval == nil {
