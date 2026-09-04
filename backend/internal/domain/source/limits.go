@@ -6,7 +6,7 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 )
 
-const limitsProvider = "collector"
+const LimitsProvider = "collector"
 
 type LimitsSpec struct {
 	MinAreaHectares     float64
@@ -90,19 +90,19 @@ func (l Limits) MaxSearchAreaHectares() float64 {
 
 func (l Limits) ValidatePolygon(polygon *geom.Polygon) error {
 	if polygon == nil {
-		return NewProviderError(FailureInvalidRequest, limitsProvider, "геометрия участка не задана")
+		return NewProviderError(FailureInvalidRequest, LimitsProvider, "геометрия участка не задана")
 	}
 	if polygon.VertexCount() > l.maxPolygonVertices {
-		return NewProviderError(FailureLimitExceeded, limitsProvider,
+		return NewProviderError(FailureLimitExceeded, LimitsProvider,
 			"вершин %d, предел %d", polygon.VertexCount(), l.maxPolygonVertices)
 	}
 	area := polygon.AreaHectares()
 	if area < l.minAreaHectares {
-		return NewProviderError(FailureLimitExceeded, limitsProvider,
+		return NewProviderError(FailureLimitExceeded, LimitsProvider,
 			"площадь %.2f га меньше минимальной %.2f га", area, l.minAreaHectares)
 	}
 	if area > l.maxAreaHectares {
-		return NewProviderError(FailureLimitExceeded, limitsProvider,
+		return NewProviderError(FailureLimitExceeded, LimitsProvider,
 			"площадь %.2f га больше предельной %.2f га", area, l.maxAreaHectares)
 	}
 	return nil
@@ -110,14 +110,14 @@ func (l Limits) ValidatePolygon(polygon *geom.Polygon) error {
 
 func (l Limits) ValidatePeriod(period DateRange) error {
 	if period.IsZero() {
-		return NewProviderError(FailureInvalidRequest, limitsProvider, "период анализа не задан")
+		return NewProviderError(FailureInvalidRequest, LimitsProvider, "период анализа не задан")
 	}
 	if period.Days() > l.maxPeriodDays {
-		return NewProviderError(FailureLimitExceeded, limitsProvider,
+		return NewProviderError(FailureLimitExceeded, LimitsProvider,
 			"период %d дней, предел %d", period.Days(), l.maxPeriodDays)
 	}
 	if period.Days() > l.maxObservations {
-		return NewProviderError(FailureLimitExceeded, limitsProvider,
+		return NewProviderError(FailureLimitExceeded, LimitsProvider,
 			"период даёт %d наблюдений, предел %d", period.Days(), l.maxObservations)
 	}
 	return nil
@@ -125,7 +125,7 @@ func (l Limits) ValidatePeriod(period DateRange) error {
 
 func (l Limits) ValidateSearchArea(bbox geom.BBox) error {
 	if area := bbox.AreaHectares(); area > l.maxSearchAreaSquare {
-		return NewProviderError(FailureLimitExceeded, limitsProvider,
+		return NewProviderError(FailureLimitExceeded, LimitsProvider,
 			"область поиска %.0f га больше предельной %.0f га", area, l.maxSearchAreaSquare)
 	}
 	return nil

@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
+	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
+	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
 type stubSatellite struct {
@@ -322,7 +323,7 @@ func TestCollectorIgnoresSamplesOutsidePeriod(t *testing.T) {
 }
 
 func TestCollectorEnforcesLimits(t *testing.T) {
-	limits, err := source.NewLimits(source.LimitsSpec{
+	limits, err := domainsource.NewLimits(domainsource.LimitsSpec{
 		MinAreaHectares:     1,
 		MaxAreaHectares:     10,
 		MaxPolygonVertices:  512,

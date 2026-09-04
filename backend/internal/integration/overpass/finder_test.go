@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/integration/overpass"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/source"
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/overpass"
 )
 
 func fixture(t *testing.T, name string) []byte {

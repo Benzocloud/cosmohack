@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/config"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
+	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/cdse"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/overpass"
+	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
 const (
@@ -40,15 +41,15 @@ type Settings struct {
 	WeatherFallbackURL  string
 	AggregationDays     int
 	MinValidFraction    float64
-	Limits              source.Limits
+	Limits              domainsource.Limits
 	Clock               source.Clock
 }
 
 // SettingsFromConfig adapts validated application configuration to B1 source
 // settings. Environment lookup belongs exclusively to internal/config.
-func SettingsFromConfig(cfg config.SourceConfig, limits source.Limits, clock source.Clock) Settings {
-	if limits == (source.Limits{}) {
-		limits = source.DefaultLimits()
+func SettingsFromConfig(cfg config.SourceConfig, limits domainsource.Limits, clock source.Clock) Settings {
+	if limits == (domainsource.Limits{}) {
+		limits = domainsource.DefaultLimits()
 	}
 	if clock == nil {
 		clock = time.Now
@@ -81,7 +82,7 @@ func SettingsFromEnv(lookup Lookup) (Settings, error) {
 		OverpassFallbackURL: value(lookup, EnvOverpassFallbackURL, overpass.FallbackEndpoint),
 		WeatherURL:          value(lookup, EnvWeatherURL, openmeteo.PrimaryEndpoint),
 		WeatherFallbackURL:  value(lookup, EnvWeatherFallbackURL, openmeteo.FallbackEndpoint),
-		Limits:              source.DefaultLimits(),
+		Limits:              domainsource.DefaultLimits(),
 		Clock:               time.Now,
 	}
 	days, err := integer(lookup, EnvAggregationDays, 0)
@@ -100,12 +101,12 @@ func SettingsFromEnv(lookup Lookup) (Settings, error) {
 type Assembly struct {
 	collector *source.Collector
 	finder    source.ContourFinder
-	limits    source.Limits
+	limits    domainsource.Limits
 }
 
 func New(settings Settings) (*Assembly, error) {
-	if settings.Limits == (source.Limits{}) {
-		settings.Limits = source.DefaultLimits()
+	if settings.Limits == (domainsource.Limits{}) {
+		settings.Limits = domainsource.DefaultLimits()
 	}
 	if settings.Clock == nil {
 		settings.Clock = time.Now
@@ -160,7 +161,7 @@ func (a *Assembly) ContourFinder() source.ContourFinder {
 	return a.finder
 }
 
-func (a *Assembly) Limits() source.Limits {
+func (a *Assembly) Limits() domainsource.Limits {
 	return a.limits
 }
 

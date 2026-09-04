@@ -7,6 +7,7 @@ import (
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
+	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 )
 
 type Clock = domain.Clock
@@ -19,13 +20,13 @@ type CollectRequest struct {
 
 func NewCollectRequest(areaID string, polygon *geom.Polygon, period DateRange) (CollectRequest, error) {
 	if err := requireIdentifier("area_id", areaID); err != nil {
-		return CollectRequest{}, NewProviderError(FailureInvalidRequest, limitsProvider, "%v", err)
+		return CollectRequest{}, NewProviderError(FailureInvalidRequest, domainsource.LimitsProvider, "%v", err)
 	}
 	if polygon == nil {
-		return CollectRequest{}, NewProviderError(FailureInvalidRequest, limitsProvider, "геометрия участка не задана")
+		return CollectRequest{}, NewProviderError(FailureInvalidRequest, domainsource.LimitsProvider, "геометрия участка не задана")
 	}
 	if period.IsZero() {
-		return CollectRequest{}, NewProviderError(FailureInvalidRequest, limitsProvider, "период анализа не задан")
+		return CollectRequest{}, NewProviderError(FailureInvalidRequest, domainsource.LimitsProvider, "период анализа не задан")
 	}
 	return CollectRequest{areaID: areaID, polygon: polygon, period: period}, nil
 }
@@ -44,7 +45,7 @@ func (r CollectRequest) Period() DateRange {
 
 type CollectorOption func(*Collector) error
 
-func WithLimits(limits Limits) CollectorOption {
+func WithLimits(limits domainsource.Limits) CollectorOption {
 	return func(collector *Collector) error {
 		collector.limits = limits
 		return nil
@@ -64,7 +65,7 @@ func WithClock(clock Clock) CollectorOption {
 type Collector struct {
 	satellite SatelliteProvider
 	weather   WeatherProvider
-	limits    Limits
+	limits    domainsource.Limits
 	clock     Clock
 }
 
@@ -78,7 +79,7 @@ func NewCollector(satellite SatelliteProvider, weather WeatherProvider, options 
 	collector := &Collector{
 		satellite: satellite,
 		weather:   weather,
-		limits:    DefaultLimits(),
+		limits:    domainsource.DefaultLimits(),
 		clock:     time.Now,
 	}
 	for _, option := range options {
@@ -89,7 +90,7 @@ func NewCollector(satellite SatelliteProvider, weather WeatherProvider, options 
 	return collector, nil
 }
 
-func (c *Collector) Limits() Limits {
+func (c *Collector) Limits() domainsource.Limits {
 	return c.limits
 }
 
@@ -102,7 +103,7 @@ func (c *Collector) Collect(ctx context.Context, request CollectRequest) (*Snaps
 	}
 	satelliteRequest, err := NewSatelliteRequest(request.polygon, request.period)
 	if err != nil {
-		return nil, NewProviderError(FailureInvalidRequest, limitsProvider, "%v", err)
+		return nil, NewProviderError(FailureInvalidRequest, domainsource.LimitsProvider, "%v", err)
 	}
 	satellite, err := c.satellite.FetchNDVI(ctx, satelliteRequest)
 	if err != nil {
