@@ -10,7 +10,7 @@ import (
 
 func fixture(t *testing.T, name string) []byte {
 	t.Helper()
-	payload, err := os.ReadFile(filepath.Join("..", "testdata", "geojson", name))
+	payload, err := os.ReadFile(filepath.Join("testdata", name))
 	if err != nil {
 		t.Fatalf("фикстура %s не прочитана: %v", name, err)
 	}

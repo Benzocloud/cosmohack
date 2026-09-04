@@ -11,7 +11,7 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
-const goldenRequestPath = "testdata/ml-http/analyze_request_example.json"
+const goldenRequestPath = "../../../testdata/ml-http/analyze_request_example.json"
 
 func exampleSnapshot(t *testing.T) *source.Snapshot {
 	t.Helper()

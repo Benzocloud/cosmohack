@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source/geom"
-	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
 )
 
 func fixture(t *testing.T, name string) []byte {
 	t.Helper()
-	payload, err := os.ReadFile(filepath.Join("..", "testdata", "openmeteo", name))
+	payload, err := os.ReadFile(filepath.Join("testdata", name))
 	if err != nil {
 		t.Fatalf("фикстура %s не прочитана: %v", name, err)
 	}

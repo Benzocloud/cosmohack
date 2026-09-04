@@ -1,20 +1,17 @@
 # Примеры и проверки источников B1
 
-Зона Backend №1 (`semennejo`). Файлы используются только тестами `backend/internal/service/source/**`.
-Общие фикстуры Go ↔ ML находятся в `backend/testdata/ml-http/` и вносятся B4; отсюда ему
-передаётся проверенный пример запроса.
+Fixtures are stored next to the package that owns their contract. Shared Go ↔ ML fixtures live in
+`backend/testdata/ml-http/`.
 
 ## Происхождение файлов
 
 | Файл | Тип | Как получен |
 |---|---|---|
-| `overpass/farmland_krasnodar.json` | реальный ответ | `POST https://overpass-api.de/api/interpreter`, `data=[out:json][timeout:60];way["landuse"="farmland"](45.20,38.90,45.35,39.10);out geom 3;`, 04.09.2026, HTTP 200, 3763 байта |
-| `overpass/empty_area.json` | реальный ответ | тот же адрес, bbox `(45.02,38.97,45.06,39.02)`, 04.09.2026, HTTP 200, пустой `elements` |
-| `openmeteo/era5_krasnodar.json` | реальный ответ | `GET https://archive-api.open-meteo.com/v1/archive?latitude=45.2056541&longitude=38.9746397&start_date=2025-06-01&end_date=2025-06-10&daily=temperature_2m_mean,precipitation_sum&timezone=UTC&models=era5`, 04.09.2026, HTTP 200 |
-| `cdse/token_synthetic.json` | синтетический | доступ к CDSE не выдан; форма ответа взята из документации OAuth2 client credentials |
-| `cdse/statistics_synthetic.json` | синтетический | форма ответа Statistical API; покрывает пригодный интервал, низкую долю пригодной площади, интервал без пригодных пикселей и интервал с ошибкой расчёта |
-| `geojson/*.json` | синтетические | входы пользовательского полигона: Feature, FeatureCollection, MultiPolygon, полигон с отверстием, недопустимая широта |
-| `ml-http/analyze_request_example.json` | сгенерирован тестом | `POST /v1/analyze` по контракту v1 из собранного снимка; обновляется `UPDATE_GOLDEN=1 go test ./internal/service/source/` |
+| `internal/integration/overpass/testdata/*.json` | provider responses | Overpass API responses |
+| `internal/integration/openmeteo/testdata/*.json` | provider responses | Open-Meteo API responses |
+| `internal/integration/cdse/testdata/*.json` | synthetic provider responses | CDSE OAuth and Statistics API schemas |
+| `internal/service/source/geom/testdata/*.json` | synthetic geometry inputs | GeoJSON parsing cases |
+| `testdata/ml-http/analyze_request_example.json` | generated contract fixture | canonical `POST /v1/analyze` request |
 
 Синтетические файлы помечены в имени и не являются доказательством работы провайдера.
 
@@ -49,7 +46,7 @@
 Локальные проверки без сети:
 
 ```bash
-go test ./internal/service/source/...
+go test ./internal/service/source/... ./internal/integration/...
 ```
 
 Проверки с реальными провайдерами (сеть обязательна, CDSE пропускается без ключей):
