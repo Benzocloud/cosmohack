@@ -44,7 +44,7 @@ func (h *handler) createArea(w http.ResponseWriter, r *http.Request) {
 		writeValidation(w, err)
 		return
 	}
-	src := *req.Source
+	src := store.Source{Kind: req.Source.Kind, ContourID: req.Source.ContourID, Provider: req.Source.Provider}
 	id, err := newUUID()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal_error", "Не удалось прочитать или записать снимок", true)
@@ -53,9 +53,9 @@ func (h *handler) createArea(w http.ResponseWriter, r *http.Request) {
 	a := store.Area{
 		ID:         id,
 		Name:       req.Name,
-		Geometry:   req.Geometry,
+		Geometry:   store.Polygon(req.Geometry),
 		Source:     src,
-		Period:     req.Period,
+		Period:     store.Period(req.Period),
 		CreatedAt:  time.Now().UTC(),
 		Generation: 1,
 	}

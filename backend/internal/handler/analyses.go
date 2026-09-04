@@ -70,7 +70,7 @@ func (h *handler) postAnalyses(w http.ResponseWriter, r *http.Request) {
 		}
 		period := a.Period
 		if req.Period != nil {
-			period = *req.Period
+			period = store.Period(*req.Period)
 		}
 		now := time.Now().UTC()
 		jobID, err := newUUID()
@@ -113,7 +113,7 @@ func (h *handler) postAnalyses(w http.ResponseWriter, r *http.Request) {
 		if req.Period != nil {
 			fresh, ferr := tx.Area(a.ID)
 			if ferr == nil {
-				fresh.Period = *req.Period
+				fresh.Period = store.Period(*req.Period)
 				_ = tx.PutArea(*fresh)
 			}
 		}

@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
@@ -62,7 +63,7 @@ func parseBBox(s string) (bbox, error) {
 	return b, nil
 }
 
-func validatePeriod(p store.Period) error {
+func validatePeriod(p domain.Period) error {
 	if !validDate(p.From) || !validDate(p.To) {
 		return errInvalidPeriod
 	}
@@ -98,7 +99,7 @@ func validateID(id string) error {
 	return nil
 }
 
-func validateSource(src store.Source) error {
+func validateSource(src domain.AreaSource) error {
 	switch src.Kind {
 	case "drawn":
 		if src.ContourID != nil && *src.ContourID != "" {
@@ -115,7 +116,7 @@ func validateSource(src store.Source) error {
 	}
 }
 
-func validateGeometry(g store.Polygon, lim Limits) error {
+func validateGeometry(g domain.Polygon, lim Limits) error {
 	if g.Type != "Polygon" {
 		return errInvalidGeometry
 	}
@@ -236,20 +237,8 @@ func ringAreaKm2(ring [][]float64) float64 {
 	return math.Abs(sum) * r * r / 2
 }
 
-type createAreaRequest struct {
-	Name     string        `json:"name"`
-	Period   store.Period  `json:"period"`
-	Geometry store.Polygon `json:"geometry"`
-	Source   *store.Source `json:"source"`
-}
-
 func decodeCreateArea(body []byte) (createAreaRequest, error) {
-	var raw struct {
-		Name     string          `json:"name"`
-		Period   store.Period    `json:"period"`
-		Geometry json.RawMessage `json:"geometry"`
-		Source   *store.Source   `json:"source"`
-	}
+	var raw createAreaRawRequest
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return createAreaRequest{}, errInvalidJSON
 	}
@@ -287,10 +276,6 @@ func validateCreate(req createAreaRequest, lim Limits) error {
 		return err
 	}
 	return validateSource(*req.Source)
-}
-
-type analysesRequest struct {
-	Period *store.Period `json:"period"`
 }
 
 func decodeAnalyses(body []byte) (analysesRequest, error) {
