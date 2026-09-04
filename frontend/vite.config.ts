@@ -21,6 +21,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['tests/**/*.test.{ts,tsx}'],
+    setupFiles: ['./tests/setup.tsx'],
     // В jsdom fetch требует абсолютный URL; MSW перехватывает любые хосты,
     // поэтому в тестах baseUrl задаётся через env (в билд не попадает).
     env: { VITE_API_URL: 'http://mock.local' },
