@@ -80,9 +80,7 @@ func (h *handler) postAnalyses(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		job := store.Job{ID: domainJob.ID, AreaID: domainJob.AreaID, Status: store.JobQueued,
-			Period: store.Period(domainJob.Period), CreatedAt: domainJob.CreatedAt,
-			UpdatedAt: domainJob.UpdatedAt, AreaGeneration: domainJob.AreaGeneration}
+		job := storeJobFromDomain(domainJob)
 		if err := tx.PutJobQueued(job); err != nil {
 			return err
 		}
