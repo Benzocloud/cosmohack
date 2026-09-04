@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
@@ -208,7 +209,7 @@ func TestCollectorSurvivesWeatherFailure(t *testing.T) {
 	satellite := &stubSatellite{series: satelliteSeries(t,
 		sampleFor(t, "2025-06-01", "2025-06-03", source.Float(0.6), source.Float(0.9), true, ""),
 	)}
-	weather := &stubWeather{failure: source.NewProviderError(source.FailureUnavailable, "weather", "сервис недоступен")}
+	weather := &stubWeather{failure: domain.NewProviderError(domain.FailureUnavailable, "weather", "сервис недоступен")}
 
 	snapshot, err := newCollector(t, satellite, weather).Collect(context.Background(), collectRequest(t, period))
 	if err != nil {
@@ -250,14 +251,14 @@ func TestCollectorReportsPartialWeatherCoverage(t *testing.T) {
 
 func TestCollectorFailsWhenSatelliteUnavailable(t *testing.T) {
 	period := mustRange(t, "2025-06-01", "2025-06-03")
-	satellite := &stubSatellite{failure: source.NewProviderError(source.FailureUnavailable, "satellite", "сервис недоступен")}
+	satellite := &stubSatellite{failure: domain.NewProviderError(domain.FailureUnavailable, "satellite", "сервис недоступен")}
 	weather := &stubWeather{series: weatherSeries(t, period)}
 
 	_, err := newCollector(t, satellite, weather).Collect(context.Background(), collectRequest(t, period))
-	if source.KindOf(err) != source.FailureUnavailable {
-		t.Fatalf("вид ошибки %q, ожидался %q", source.KindOf(err), source.FailureUnavailable)
+	if domain.KindOf(err) != domain.FailureUnavailable {
+		t.Fatalf("вид ошибки %q, ожидался %q", domain.KindOf(err), domain.FailureUnavailable)
 	}
-	if !source.IsRetryable(err) {
+	if !domain.IsRetryable(err) {
 		t.Fatal("отказ доступа должен допускать явный повтор")
 	}
 }
@@ -341,7 +342,7 @@ func TestCollectorEnforcesLimits(t *testing.T) {
 		t.Fatalf("сборщик не построен: %v", err)
 	}
 	_, err = collector.Collect(context.Background(), collectRequest(t, mustRange(t, "2025-06-01", "2025-06-02")))
-	if source.KindOf(err) != source.FailureLimitExceeded {
+	if domain.KindOf(err) != domain.FailureLimitExceeded {
 		t.Fatalf("превышение площади не отклонено: %v", err)
 	}
 	if satellite.calls != 0 {

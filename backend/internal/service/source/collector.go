@@ -20,13 +20,13 @@ type CollectRequest struct {
 
 func NewCollectRequest(areaID string, polygon *geom.Polygon, period DateRange) (CollectRequest, error) {
 	if err := requireIdentifier("area_id", areaID); err != nil {
-		return CollectRequest{}, NewProviderError(FailureInvalidRequest, domainsource.LimitsProvider, "%v", err)
+		return CollectRequest{}, domain.NewProviderError(domain.FailureInvalidRequest, domainsource.LimitsProvider, "%v", err)
 	}
 	if polygon == nil {
-		return CollectRequest{}, NewProviderError(FailureInvalidRequest, domainsource.LimitsProvider, "геометрия участка не задана")
+		return CollectRequest{}, domain.NewProviderError(domain.FailureInvalidRequest, domainsource.LimitsProvider, "геометрия участка не задана")
 	}
 	if period.IsZero() {
-		return CollectRequest{}, NewProviderError(FailureInvalidRequest, domainsource.LimitsProvider, "период анализа не задан")
+		return CollectRequest{}, domain.NewProviderError(domain.FailureInvalidRequest, domainsource.LimitsProvider, "период анализа не задан")
 	}
 	return CollectRequest{areaID: areaID, polygon: polygon, period: period}, nil
 }
@@ -103,7 +103,7 @@ func (c *Collector) Collect(ctx context.Context, request CollectRequest) (*Snaps
 	}
 	satelliteRequest, err := NewSatelliteRequest(request.polygon, request.period)
 	if err != nil {
-		return nil, NewProviderError(FailureInvalidRequest, domainsource.LimitsProvider, "%v", err)
+		return nil, domain.NewProviderError(domain.FailureInvalidRequest, domainsource.LimitsProvider, "%v", err)
 	}
 	satellite, err := c.satellite.FetchNDVI(ctx, satelliteRequest)
 	if err != nil {
@@ -156,7 +156,7 @@ func (c *Collector) collectWeather(ctx context.Context, point geom.Coordinate, p
 	}
 	series, err := c.weather.FetchDaily(ctx, request)
 	if err != nil {
-		return WeatherSeries{}, nil, []string{fmt.Sprintf("Погодные данные не получены (%s); анализ выполняется без погодного контекста", KindOfOrUnknown(err))}
+		return WeatherSeries{}, nil, []string{fmt.Sprintf("Погодные данные не получены (%s); анализ выполняется без погодного контекста", domain.KindOfOrUnknown(err))}
 	}
 	notes := series.Notes()
 	if covered := len(series.Days()); covered < period.Days() {
