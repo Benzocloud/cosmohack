@@ -10,7 +10,7 @@ Fixtures are stored next to the package that owns their contract. Shared Go ↔ 
 | `internal/integration/overpass/testdata/*.json` | provider responses | Overpass API responses |
 | `internal/integration/openmeteo/testdata/*.json` | provider responses | Open-Meteo API responses |
 | `internal/integration/cdse/testdata/*.json` | synthetic provider responses | CDSE OAuth and Statistics API schemas |
-| `internal/service/source/geom/testdata/*.json` | synthetic geometry inputs | GeoJSON parsing cases |
+| `internal/domain/geo/testdata/*.json` | synthetic geometry inputs | GeoJSON parsing cases |
 | `testdata/ml-http/analyze_request_example.json` | generated contract fixture | canonical `POST /v1/analyze` request |
 
 Синтетические файлы помечены в имени и не являются доказательством работы провайдера.
