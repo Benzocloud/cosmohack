@@ -111,11 +111,11 @@
 
 До начала Git-работы определить настоящий nickname ответственного разработчика, целевой remote и базовую ветку. Не выдумывать nickname и адрес репозитория. Рабочую ветку можно создать в начале этапа; коммит и push выполняются только после апрува. Не включать чужие незавершённые изменения.
 
-Имя ветки: <nickname>-backender/<type>/<short_description>. Type — feat, fix или chore; chore используется для инфраструктуры и служебных изменений. Short_description — короткое описание латиницей в lowercase с подчёркиваниями. Примеры с назначенными nicknames:
+Имя ветки: <nickname>/<type>/<short_description>. Type — feat, fix или chore; chore используется для инфраструктуры и служебных изменений. Short_description — короткое описание латиницей в lowercase с подчёркиваниями. Примеры с назначенными nicknames:
 
-- xsqclown-backender/feat/seasonal_baseline
-- semennejo-backender/fix/cloud_mask
-- globalarray-backender/chore/ghcr_deploy
+- xsqclown/feat/seasonal_baseline
+- semennejo/fix/cloud_mask
+- globalarray/chore/ghcr_deploy
 
 Перед использованием проверить имя через git check-ref-format --branch. Последовательные этапы одной задачи можно продолжать в согласованной рабочей ветке, сохраняя отдельный апрув и коммит каждого этапа. Для независимой задачи создавать отдельную ветку от согласованной актуальной базы. Если требуется зависимая ветка от ещё не интегрированной работы, явно согласовать её базу. Апрув этапа сам по себе не разрешает merge в main.
 
