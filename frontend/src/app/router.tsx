@@ -10,9 +10,17 @@ import {
   useRouter,
   useSearch,
 } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { type ComponentType, type LazyExoticComponent, Suspense, lazy, useEffect } from 'react';
 import { AppShell } from './AppShell';
 import { Providers } from './providers';
+
+// Страница состояний — только для dev (?dev=states, corrections §2).
+// Ветка с dynamic import вырезается при production-сборке:
+// import.meta.env.DEV заменяется на false и chunk не попадает в dist.
+let StatesPageLazy: LazyExoticComponent<ComponentType> | null = null;
+if (import.meta.env.DEV) {
+  StatesPageLazy = lazy(() => import('@/features/dev/StatesPage'));
+}
 
 /**
  * Единственный маршрут '/' (corrections §2): SPA-fallback у Go не обещан,
@@ -87,14 +95,28 @@ const rootRoute = createRootRoute({
   ),
 });
 
-const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/',
-  component: () => (
+function IndexPage() {
+  const search = useSearch({ strict: false }) as AppSearch;
+  if (import.meta.env.DEV && search.dev === 'states' && StatesPageLazy) {
+    return (
+      <Providers>
+        <Suspense fallback={null}>
+          <StatesPageLazy />
+        </Suspense>
+      </Providers>
+    );
+  }
+  return (
     <Providers>
       <AppShell />
     </Providers>
-  ),
+  );
+}
+
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: IndexPage,
 });
 
 const routeTree = rootRoute.addChildren([indexRoute]);

@@ -8,8 +8,22 @@ if (!rootElement) {
   throw new Error('Не найден элемент #root в index.html');
 }
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <AppRouterProvider />
-  </StrictMode>,
-);
+async function bootstrap() {
+  // MSW включается при ?mock=1 или VITE_MOCK=1 (corrections §3).
+  // Значение параметра нормализуем от лишних кавычек (частая ошибка ручного ввода).
+  const mockParam = new URLSearchParams(window.location.search)
+    .get('mock')
+    ?.replace(/^["']+|["']+$/g, '');
+  if (import.meta.env.VITE_MOCK === '1' || mockParam === '1') {
+    const { enableMockWorker } = await import('@/api/mocks/start');
+    await enableMockWorker();
+  }
+
+  createRoot(rootElement as HTMLElement).render(
+    <StrictMode>
+      <AppRouterProvider />
+    </StrictMode>,
+  );
+}
+
+void bootstrap();

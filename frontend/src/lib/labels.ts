@@ -49,6 +49,47 @@ export const EMPTY = {
 } as const;
 
 /**
+ * Блоки карточки события (design-brief §4) — дословно из брифа.
+ * На FE-1 используются на dev-странице состояний, на FE-5 — в EventCard.
+ */
+export const EVENT_BLOCK_LABEL = {
+  detected: 'Что обнаружено',
+  basis: 'На чём основано',
+  weather: 'Погодный контекст и гипотеза',
+  limitations: 'Ограничения',
+} as const;
+
+/** Стадия задачи, которую backend не передал или передал неизвестную (frontend-plan §3). */
+export const JOB_STAGE_FALLBACK = 'Анализ выполняется';
+
+/**
+ * Строки dev-страницы состояний (?dev=states, только import.meta.env.DEV).
+ * Технические подписи таблиц; в пользовательский интерфейс не попадают.
+ */
+export const DEV_LABELS = {
+  title: 'Состояния и фикстуры (dev)',
+  areasTable: 'Участки',
+  seriesTable: 'Точки ряда',
+  eventsList: 'События',
+  jobBlock: 'Задача (живой сценарий)',
+  selectArea: 'Участок',
+  runAnalysis: 'Запустить анализ',
+  runQueueFull: 'Проверить 429',
+  columnSource: 'Источник',
+  columnVerdict: 'Вывод',
+  columnSeverity: 'Тяжесть',
+  columnPeriod: 'Период результата',
+  columnJob: 'Задача',
+  columnDate: 'Дата',
+  columnNdvi: 'NDVI',
+  columnProvenance: 'Происхождение',
+  columnBackground: 'Фон (среднее)',
+  columnDeviation: 'Отклонение',
+  dash: '—',
+  error: 'Ошибка',
+} as const;
+
+/**
  * SCAFFOLD (FE-0): строки каркаса — заголовки панелей, вкладки, тексты зон-заглушек
  * и aria-подписи. Не являются утверждённым словарём брифа; заменяются на этапах FE-1–FE-5.
  */
