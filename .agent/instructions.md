@@ -17,7 +17,7 @@
 - .agent/plans/backend-1-data.md — этапы получения и нормализации данных.
 - .agent/plans/ml-2-restoration.md — этапы восстановления primary_ndvi, оценки, batch-инференса, аномалий и исследования.
 - .agent/plans/backend-3-api-storage.md — этапы API, хранения и кеша.
-- .agent/plans/backend-4-cicd-integration.md — этапы общей сборки, CI/CD и интеграции.
+- .agent/plans/backend-4-cicd-integration.md — этапы выполнения анализа, интеграции и CI/CD.
 - .agent/design-brief.md — функциональные требования к макетам, отображению данных backend и промпт для Claude Design.
 - .agent/ui-spec.md — будущая спецификация выбранного дизайна, когда он появится.
 - deploy/ — Compose и серверный скрипт развёртывания.
@@ -42,7 +42,7 @@
 - Backend №1: backend/internal/source/ — контуры, спутниковые и погодные данные, нормализация и происхождение.
 - ML (бывший Backend №2): backend/ml/ — восстановление, признаки, валидация, аномалии, HTTP-адаптер, batch CLI, модель и материалы исследования. Математику в Go повторно не реализовывать; HTTP и batch используют общие функции.
 - Backend №3: backend/internal/api/ и backend/internal/store/ — управление полигонами, API, хранение состояний заданий/результатов и кеш.
-- Backend №4: backend/cmd/server/, backend/internal/jobs/, backend/internal/mlbridge/, общие типы и сборка, Go-зависимости, deploy/, .github/, Dockerfile и backend/ml/Dockerfile — воркер, HTTP-клиент ML, CI/CD и интеграция. Python-зависимости и ML-образ согласуются с ML; B4 собирает README и итоговый пакет. B4 и ML совместно поддерживают .agent/contracts/go-ml-http.md.
+- Backend №4 — выполнение анализа, интеграция и CI/CD: backend/cmd/server/, backend/internal/jobs/, backend/internal/mlbridge/, общие типы и сборка, Go-зависимости, deploy/, .github/, Dockerfile и backend/ml/Dockerfile. Основной блок — исполнитель задач, последовательность вызовов B1 и ML, прогресс, тайм-ауты и ошибки; B3 принимает запросы и сохраняет сообщённые исполнителем состояния/результаты. B4 начинает на согласованных заглушках, затем подключает реальные модули. Python-зависимости и ML-образ согласуются с ML; B4 собирает README и итоговый пакет. B4 и ML совместно поддерживают .agent/contracts/go-ml-http.md.
 - Frontend-разработчик: frontend/ — макеты, компоненты, карта, график и клиент API.
 
 Изменения общих типов и контрактов согласовать с затронутыми владельцами. Не менять чужую область параллельно без координации. Каждая задача агента содержит область файлов, входные данные, ожидаемый результат и условие готовности. Изменения интегрировать небольшими законченными порциями.
