@@ -1,0 +1,180 @@
+// Package config loads and validates process configuration at the composition root.
+package config
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+)
+
+const (
+	EnvHTTPAddr                  = "HTTP_ADDR"
+	EnvPublicDir                 = "PUBLIC_DIR"
+	EnvMLBaseURL                 = "ML_BASE_URL"
+	EnvMLModelVersion            = "ML_MODEL_VERSION"
+	EnvCDSEClientID              = "CDSE_CLIENT_ID"
+	EnvCDSEClientSecret          = "CDSE_CLIENT_SECRET"
+	EnvCDSEStatisticsURL         = "CDSE_STATISTICS_URL"
+	EnvCDSETokenURL              = "CDSE_TOKEN_URL"
+	EnvOverpassURL               = "OVERPASS_URL"
+	EnvOverpassFallbackURL       = "OVERPASS_FALLBACK_URL"
+	EnvWeatherURL                = "WEATHER_URL"
+	EnvWeatherFallbackURL        = "WEATHER_FALLBACK_URL"
+	EnvSatelliteAggregationDays  = "SATELLITE_AGGREGATION_DAYS"
+	EnvSatelliteMinValidFraction = "SATELLITE_MIN_VALID_FRACTION"
+	EnvDBURL                     = "DATABASE_URL"
+	EnvDBTimeout                 = "DB_TIMEOUT"
+	EnvAnalysisWorkers           = "ANALYSIS_WORKERS"
+	EnvAnalysisQueueSize         = "ANALYSIS_QUEUE_SIZE"
+)
+
+const (
+	defaultHTTPAddr          = ":8080"
+	defaultPublicDir         = "/app/public"
+	defaultMLBaseURL         = "http://127.0.0.1:8000"
+	defaultDBTimeout         = 5 * time.Second
+	defaultAnalysisWorkers   = 2
+	defaultAnalysisQueueSize = 8
+	defaultAggregationDays   = 5
+	defaultMinValidFraction  = 0.5
+)
+
+type Config struct {
+	HTTP     HTTPConfig
+	ML       MLConfig
+	Source   SourceConfig
+	Postgres PostgresConfig
+	Analysis AnalysisConfig
+}
+
+type HTTPConfig struct {
+	Addr      string
+	PublicDir string
+}
+
+type MLConfig struct {
+	BaseURL              string
+	ExpectedModelVersion string
+}
+
+// SourceConfig contains provider settings after environment parsing.
+// Secrets are retained only in memory and must never be logged.
+type SourceConfig struct {
+	CDSEClientID        string
+	CDSEClientSecret    string
+	CDSEStatisticsURL   string
+	CDSETokenURL        string
+	OverpassURL         string
+	OverpassFallbackURL string
+	WeatherURL          string
+	WeatherFallbackURL  string
+	AggregationDays     int
+	MinValidFraction    float64
+}
+
+type PostgresConfig struct {
+	URL     string
+	Timeout time.Duration
+}
+
+type AnalysisConfig struct {
+	Workers   int
+	QueueSize int
+}
+
+type Lookup func(string) (string, bool)
+
+func Load() (Config, error) {
+	return LoadFrom(os.LookupEnv)
+}
+
+func LoadFrom(lookup Lookup) (Config, error) {
+	if lookup == nil {
+		return Config{}, fmt.Errorf("config lookup is nil")
+	}
+	c := Config{
+		HTTP: HTTPConfig{
+			Addr:      value(lookup, EnvHTTPAddr, defaultHTTPAddr),
+			PublicDir: value(lookup, EnvPublicDir, defaultPublicDir),
+		},
+		ML: MLConfig{
+			BaseURL:              value(lookup, EnvMLBaseURL, defaultMLBaseURL),
+			ExpectedModelVersion: value(lookup, EnvMLModelVersion, ""),
+		},
+		Source: SourceConfig{
+			CDSEClientID:        value(lookup, EnvCDSEClientID, ""),
+			CDSEClientSecret:    value(lookup, EnvCDSEClientSecret, ""),
+			CDSEStatisticsURL:   value(lookup, EnvCDSEStatisticsURL, "https://sh.dataspace.copernicus.eu/api/v1/statistics"),
+			CDSETokenURL:        value(lookup, EnvCDSETokenURL, "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"),
+			OverpassURL:         value(lookup, EnvOverpassURL, "https://overpass-api.de/api/interpreter"),
+			OverpassFallbackURL: value(lookup, EnvOverpassFallbackURL, "https://overpass.kumi.systems/api/interpreter"),
+			WeatherURL:          value(lookup, EnvWeatherURL, "https://archive-api.open-meteo.com/v1/archive"),
+			WeatherFallbackURL:  value(lookup, EnvWeatherFallbackURL, "https://archive-api.open-meteo.com/v1/era5"),
+		},
+		Postgres: PostgresConfig{URL: value(lookup, EnvDBURL, ""), Timeout: defaultDBTimeout},
+		Analysis: AnalysisConfig{Workers: defaultAnalysisWorkers, QueueSize: defaultAnalysisQueueSize},
+	}
+
+	var err error
+	if c.Source.AggregationDays, err = integer(lookup, EnvSatelliteAggregationDays, defaultAggregationDays); err != nil {
+		return Config{}, err
+	}
+	if c.Source.MinValidFraction, err = fractional(lookup, EnvSatelliteMinValidFraction, defaultMinValidFraction); err != nil {
+		return Config{}, err
+	}
+	if c.Analysis.Workers, err = integer(lookup, EnvAnalysisWorkers, defaultAnalysisWorkers); err != nil {
+		return Config{}, err
+	}
+	if c.Analysis.QueueSize, err = integer(lookup, EnvAnalysisQueueSize, defaultAnalysisQueueSize); err != nil {
+		return Config{}, err
+	}
+	if c.Postgres.URL == "" {
+		return Config{}, fmt.Errorf("%s is required", EnvDBURL)
+	}
+	if raw, ok := lookup(EnvDBTimeout); ok && strings.TrimSpace(raw) != "" {
+		c.Postgres.Timeout, err = time.ParseDuration(raw)
+		if err != nil || c.Postgres.Timeout <= 0 {
+			return Config{}, fmt.Errorf("%s must be a positive duration", EnvDBTimeout)
+		}
+	}
+	if c.Source.AggregationDays <= 0 || c.Source.MinValidFraction <= 0 || c.Source.MinValidFraction > 1 {
+		return Config{}, fmt.Errorf("invalid satellite source limits")
+	}
+	if c.Analysis.Workers <= 0 || c.Analysis.QueueSize <= 0 {
+		return Config{}, fmt.Errorf("invalid analysis worker limits")
+	}
+	return c, nil
+}
+
+func value(lookup Lookup, key, fallback string) string {
+	if raw, ok := lookup(key); ok && strings.TrimSpace(raw) != "" {
+		return raw
+	}
+	return fallback
+}
+
+func integer(lookup Lookup, key string, fallback int) (int, error) {
+	raw, ok := lookup(key)
+	if !ok || strings.TrimSpace(raw) == "" {
+		return fallback, nil
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be an integer", key)
+	}
+	return n, nil
+}
+
+func fractional(lookup Lookup, key string, fallback float64) (float64, error) {
+	raw, ok := lookup(key)
+	if !ok || strings.TrimSpace(raw) == "" {
+		return fallback, nil
+	}
+	n, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be a number", key)
+	}
+	return n, nil
+}

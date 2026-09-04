@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 // Polygon — геометрия GeoJSON Polygon в WGS84 с порядком longitude/latitude.
 // Внешний контур и дыры; каждая точка — [lon, lat].
 type Polygon struct {
@@ -10,11 +12,21 @@ type Polygon struct {
 // Area — участок пользователя или найденный контур. Происхождение контура
 // (OSM Overpass, рисунок пользователя) сохраняется в ContourSource.
 type Area struct {
-	ID            string  `json:"id"`
-	Name          string  `json:"name"`
-	ContourSource string  `json:"contour_source"`
-	Geometry      Polygon `json:"geometry"`
-	Period        Period  `json:"period"`
+	ID                 string     `json:"id"`
+	Name               string     `json:"name"`
+	Geometry           Polygon    `json:"geometry"`
+	Source             AreaSource `json:"source"`
+	Period             Period     `json:"period"`
+	CreatedAt          time.Time  `json:"created_at"`
+	Generation         int        `json:"generation"`
+	ShownResultVersion string     `json:"shown_result_version"`
+	ActiveJobID        string     `json:"active_job_id"`
+}
+
+type AreaSource struct {
+	Kind      string  `json:"kind"`
+	ContourID *string `json:"contour_id,omitempty"`
+	Provider  *string `json:"provider,omitempty"`
 }
 
 // Job — задача анализа. Состояния и результаты принадлежат Go; хранит B3.
