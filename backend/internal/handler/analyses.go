@@ -53,7 +53,7 @@ func (h *handler) postAnalyses(w http.ResponseWriter, r *http.Request) {
 		}
 		if a.ActiveJobID != "" {
 			j, jerr := tx.Job(a.ActiveJobID)
-			if jerr == nil && (j.Status == store.JobQueued || j.Status == store.JobRunning) {
+			if jerr == nil && analysisusecase.IsActiveStatus(domain.JobStatus(j.Status)) {
 				reply = analysisReply{
 					status: http.StatusConflict,
 					code:   "conflict",
@@ -61,7 +61,7 @@ func (h *handler) postAnalyses(w http.ResponseWriter, r *http.Request) {
 				}
 				return nil
 			}
-			if errors.Is(jerr, store.ErrNotFound) || (jerr == nil && j.Status != store.JobQueued && j.Status != store.JobRunning) {
+			if errors.Is(jerr, store.ErrNotFound) || (jerr == nil && !analysisusecase.IsActiveStatus(domain.JobStatus(j.Status))) {
 				a.ActiveJobID = ""
 				if err := tx.PutArea(*a); err != nil {
 					return err

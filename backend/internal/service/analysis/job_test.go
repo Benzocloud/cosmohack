@@ -31,3 +31,12 @@ func TestResolvePeriod(t *testing.T) {
 		t.Fatalf("requested period = %+v", got)
 	}
 }
+
+func TestIsActiveStatus(t *testing.T) {
+	if !IsActiveStatus(domain.JobQueued) || !IsActiveStatus(domain.JobRunning) {
+		t.Fatal("queued and running jobs must be active")
+	}
+	if IsActiveStatus(domain.JobCompleted) || IsActiveStatus(domain.JobFailed) || IsActiveStatus(domain.JobCancelled) {
+		t.Fatal("terminal jobs must not be active")
+	}
+}

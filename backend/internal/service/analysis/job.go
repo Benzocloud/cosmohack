@@ -16,6 +16,11 @@ func ResolvePeriod(area domain.Area, requested *domain.Period) domain.Period {
 	return area.Period
 }
 
+// IsActiveStatus reports whether a job still occupies an area's analysis slot.
+func IsActiveStatus(status domain.JobStatus) bool {
+	return status == domain.JobQueued || status == domain.JobRunning
+}
+
 // NewJob creates a queued analysis job for the current area generation.
 func NewJob(area domain.Area, period domain.Period, now time.Time) (domain.Job, error) {
 	id, err := newJobID()
