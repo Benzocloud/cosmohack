@@ -1,0 +1,134 @@
+version: "2"
+run:
+  concurrency: 4
+  timeout: 5m
+  tests: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 50
+
+linters:
+  enable:
+    # корректность
+    - govet
+    - staticcheck
+    - unused
+    - errcheck
+    - errorlint
+    - nilerr
+    - forcetypeassert
+    - copyloopvar
+    - durationcheck
+    - reassign
+    # стиль
+    - gocritic
+    - revive
+    - wsl_v5
+    - whitespace
+    - godot
+    - misspell
+    - dupword
+    - predeclared
+    - errname
+    - asciicheck
+    # сложность
+    - gocyclo
+    - nestif
+    - funlen
+    - dupl
+    # производительность
+    - perfsprint
+    - unconvert
+    - ineffassign
+    - goconst
+    # безопасность и ресурсы
+    - gosec
+    - bidichk
+    - bodyclose
+    - noctx
+    - containedctx
+    - fatcontext
+    # логирование
+    - sloglint
+    - loggercheck
+    # тесты
+    - testifylint
+    - thelper
+    - usetesting
+    - paralleltest
+    # модернизация
+    - modernize
+    - exptostd
+    - intrange
+    - usestdlibvars
+    - exhaustive
+    - nolintlint
+
+  disable:
+    - lll              # длину строк держат gofmt/gofumpt
+    - prealloc         # много ложных срабатываний
+    - wrapcheck        # требует оборачивать все внешние ошибки — слишком шумно
+    - err113           # ломает идиоматичные паттерны ошибок
+    - mnd              # шумит на констант вроде HTTP 200
+    - gocognit         # дублирует gocyclo + nestif
+    - cyclop           # дублирует gocyclo
+    - unparam           # ложные срабатывания на интерфейсах
+    - exhaustruct      # ломает идиому нулевого значения
+    - gochecknoglobals # валидные глобальные переменные запрещены слишком широко
+    - gochecknoinits   # то же для init()
+
+  exclusions:
+    rules:
+      # В тестах не проверяют ошибки записи в httptest.ResponseWriter,
+      # а httptest.NewRequest без контекста — стандартная практика.
+      - path: _test\.go$
+        linters:
+          - errcheck
+          - noctx
+          - bodyclose
+    paths:
+      - vendor$
+      - third_party$
+      - testutils$
+      - examples$
+
+  settings:
+    dupl:
+      threshold: 100
+    errcheck:
+      check-type-assertions: true
+    funlen:
+      lines: 120
+      statements: 80
+    goconst:
+      min-len: 3
+      min-occurrences: 4
+    gocyclo:
+      min-complexity: 13
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
+
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+  disable:
+    - gci        # группировку импортов уже держит gofumpt
+    - goimports  # дублирует gofumpt
+    - golines    # жёсткий перенос строк вредит читаемости
+  settings:
+    gofumpt:
+      extra:
+        group-params: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

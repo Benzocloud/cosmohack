@@ -1,0 +1,6 @@
+{
+  "status": "ready",
+  "schema_version": "1.0",
+  "feature_profiles": ["ndvi-weather-v1"],
+  "model_version": "baseline-fixture-1"
+}

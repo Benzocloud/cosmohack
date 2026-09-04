@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0",
+  "request_id": "job-fixture-1",
+  "error": {"code": "busy", "message": "ML занят другим расчётом, повторите позже", "retryable": true}
+}

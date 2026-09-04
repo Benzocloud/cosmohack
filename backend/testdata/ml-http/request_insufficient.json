@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "request_id": "job-example-1",
+  "area_id": "area-example-1",
+  "input_revision": "input-example-1",
+  "mode": "retrospective",
+  "feature_profile": "ndvi-weather-v1",
+  "analysis_period": {"from": "2026-06-01", "to": "2026-06-01"},
+  "sources": [],
+  "observations": [
+    {
+      "date": "2026-06-01", "primary_ndvi": null, "quality": "missing",
+      "ndvi_source_id": null, "interval": null, "valid_fraction": null,
+      "missing_reason": "no_usable_observation", "weather": null, "reference": null
+    }
+  ]
+}

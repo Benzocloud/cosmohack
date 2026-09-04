@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0",
+  "request_id": "job-fixture-1",
+  "error": {"code": "invalid_input", "message": "Даты наблюдений должны быть уникальны", "retryable": false}
+}

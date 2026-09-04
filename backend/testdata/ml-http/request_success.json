@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "request_id": "job-fixture-1",
+  "area_id": "area-fixture-1",
+  "input_revision": "input-fixture-1",
+  "mode": "retrospective",
+  "feature_profile": "ndvi-weather-v1",
+  "analysis_period": {"from": "2026-05-01", "to": "2026-07-31"},
+  "sources": [
+    {
+      "id": "src-sentinel-1",
+      "kind": "satellite",
+      "provider": "cdse",
+      "dataset": "SENTINEL-2 L2A",
+      "mapping": {"index": "NDVI", "aggregation": "mean_over_polygon", "cloud_mask": "SCL"},
+      "retrieved_at": "2026-08-01T10:00:00Z",
+      "license": null
+    },
+    {
+      "id": "src-weather-1",
+      "kind": "weather",
+      "provider": "open-meteo",
+      "dataset": "ERA5",
+      "mapping": {"variables": ["temperature_2m", "precipitation_sum"], "units": {"temperature": "celsius", "precipitation": "mm"}},
+      "retrieved_at": "2026-08-01T10:00:00Z",
+      "license": null
+    },
+    {
+      "id": "src-reference-1",
+      "kind": "reference",
+      "provider": "team",
+      "dataset": "seasonal-baseline-2019-2025",
+      "mapping": {"aggregation": "monthly_mean_std", "target_year_excluded": true},
+      "retrieved_at": "2026-08-01T10:00:00Z",
+      "license": null
+    }
+  ],
+  "observations": [
+    {
+      "date": "2026-04-15",
+      "primary_ndvi": 0.62,
+      "quality": "usable",
+      "ndvi_source_id": "src-sentinel-1",
+      "interval": {"from": "2026-04-13", "to": "2026-04-17"},
+      "valid_fraction": 0.97,
+      "missing_reason": null,
+      "weather": null,
+      "reference": null
+    },
+    {
+      "date": "2026-05-05",
+      "primary_ndvi": 0.58,
+      "quality": "usable",
+      "ndvi_source_id": "src-sentinel-1",
+      "interval": {"from": "2026-05-03", "to": "2026-05-07"},
+      "valid_fraction": 0.95,
+      "missing_reason": null,
+      "weather": {"source_id": "src-weather-1", "temperature_mean_c": 18.4, "precipitation_sum_mm": 2.1},
+      "reference": {"source_id": "src-reference-1", "mean": 0.55, "std": 0.1, "n_reference_years": 7, "target_year_excluded": true}
+    },
+    {
+      "date": "2026-06-05",
+      "primary_ndvi": null,
+      "quality": "missing",
+      "ndvi_source_id": null,
+      "interval": null,
+      "valid_fraction": null,
+      "missing_reason": "no_usable_observation",
+      "weather": {"source_id": "src-weather-1", "temperature_mean_c": 24.9, "precipitation_sum_mm": 0.0},
+      "reference": {"source_id": "src-reference-1", "mean": 0.6, "std": 0.09, "n_reference_years": 7, "target_year_excluded": true}
+    },
+    {
+      "date": "2026-07-10",
+      "primary_ndvi": 0.31,
+      "quality": "usable",
+      "ndvi_source_id": "src-sentinel-1",
+      "interval": {"from": "2026-07-08", "to": "2026-07-12"},
+      "valid_fraction": 0.9,
+      "missing_reason": null,
+      "weather": {"source_id": "src-weather-1", "temperature_mean_c": 31.2, "precipitation_sum_mm": 0.4},
+      "reference": {"source_id": "src-reference-1", "mean": 0.62, "std": 0.1, "n_reference_years": 7, "target_year_excluded": true}
+    }
+  ]
+}

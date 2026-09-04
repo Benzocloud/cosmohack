@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0",
+  "request_id": "job-fixture-1",
+  "error": {"code": "unsupported_contract", "message": "Неизвестный feature_profile", "retryable": false}
+}

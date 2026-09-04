@@ -1,0 +1,7 @@
+{
+  "go_image_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "ml_image_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "schema_version": "1.0",
+  "feature_profile": "ndvi-weather-v1",
+  "model_version": "baseline-fixture-1"
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "request_id": "job-fixture-1",
+  "area_id": "area-fixture-1",
+  "input_revision": "input-fixture-1",
+  "mode": "retrospective",
+  "feature_profile": "ndvi-weather-v1",
+  "model_version": "baseline-fixture-1",
+  "method": "hist_gradient_boosting_v1",
+  "status": "candidate",
+  "severity": "moderate",
+  "series": [
+    {"date": "2026-05-05", "primary_ndvi": 0.58, "value": 0.58, "state": "observed", "method": null, "baseline": 0.55, "z_score": 0.3},
+    {"date": "2026-06-05", "primary_ndvi": null, "value": 0.44, "state": "imputed", "method": "hist_gradient_boosting_v1", "baseline": 0.6, "z_score": -1.6},
+    {"date": "2026-07-10", "primary_ndvi": 0.31, "value": 0.31, "state": "observed", "method": null, "baseline": 0.62, "z_score": -3.1}
+  ],
+  "events": [
+    {
+      "start_date": "2026-07-01",
+      "end_date": "2026-07-10",
+      "status": "candidate",
+      "severity": "moderate",
+      "min_z_score": -3.1,
+      "evidence_dates": ["2026-07-10"],
+      "facts": ["z_score = -3.1 по наблюдению 2026-07-10", "осадки за 2026-07-01..2026-07-10: 0.4 мм при норме сезона"],
+      "hypothesis": "засушливый период при высокой температуре; требует подтверждения",
+      "limitations": ["одно наблюдаемое основание", "погода реанализа, не измерение на поле"]
+    }
+  ],
+  "limitations": ["контекстная точка 2026-04-15 использована только для восстановления"]
+}
