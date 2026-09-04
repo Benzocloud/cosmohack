@@ -81,8 +81,10 @@ digest и версии; при провале возвращается пред�
 govulncheck), Python и frontend (если соответствующие пакеты доставлены),
 сборка обоих образов без публикации. Main — то же + публикация двух образов в
 GHCR через `GITHUB_TOKEN` (`packages:write` только у задачи публикации) и
-деплой по digest, когда владельцем включены `DEPLOY_ENABLED` и SSH-секреты.
-Actions зафиксированы на проверенных SHA.
+локальный деплой по digest на выделенном self-hosted runner, когда владельцем
+включены `DEPLOY_ENABLED`, `MODEL_VERSION`, `GHCR_USER` и `GHCR_TOKEN`.
+Проверки и публикация выполняются на GitHub-hosted runner; self-hosted runner
+используется только для deploy. Actions зафиксированы на проверенных SHA.
 
 ## Лимиты и совместимость выпусков
 

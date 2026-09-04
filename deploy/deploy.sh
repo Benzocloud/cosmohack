@@ -22,11 +22,6 @@ EXPECTED_SCHEMA=${EXPECTED_SCHEMA:-1.0}
 EXPECTED_PROFILE=${EXPECTED_PROFILE:-ndvi-weather-v1}
 APP_PORT=${APP_PORT:-8080}
 DATA_DIR_HOST=${DATA_DIR_HOST:-./data}
-# Приватный GHCR: для pull пакетов серверу нужен токен с read:packages.
-# GHCR_USER — имя владельца или machine user, GHCR_TOKEN — read-only токен.
-GHCR_USER=${GHCR_USER:?set GHCR_USER for the private registry}
-GHCR_TOKEN=${GHCR_TOKEN:?set GHCR_TOKEN (read:packages) for the private registry}
-
 CURRENT_MANIFEST=current-manifest.json
 PREVIOUS_MANIFEST=previous-manifest.json
 COMPOSE=(docker compose --env-file release.env -f compose.yaml)
@@ -36,6 +31,11 @@ if [[ -f release-ghcr.env ]]; then
   # shellcheck disable=SC1091
   source release-ghcr.env
 fi
+
+# Приватный GHCR: для pull пакетов серверу нужен токен с read:packages.
+# GHCR_USER — имя владельца или machine user, GHCR_TOKEN — read-only токен.
+GHCR_USER=${GHCR_USER:?set GHCR_USER for the private registry}
+GHCR_TOKEN=${GHCR_TOKEN:?set GHCR_TOKEN (read:packages) for the private registry}
 
 log() { printf '[deploy] %s\n' "$*"; }
 

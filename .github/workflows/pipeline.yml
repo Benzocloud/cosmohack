@@ -144,41 +144,38 @@ jobs:
           tags: ghcr.io/${{ steps.repo.outputs.repo }}/ml
 
   deploy:
-    # Деплой запускается автоматически после зелёного main, когда пара
-    # образов собрана и владелец включил переменную DEPLOY_ENABLED.
-    # Секреты: SSH_HOST/SSH_USER/SSH_KEY/SSH_KNOWN_HOSTS (fingerprint
-    # проверяется строго), GHCR_USER/GHCR_TOKEN (read:packages на сервере),
-    # переменная MODEL_VERSION — версия модели из манифеста выпуска.
+    # Деплой запускается на выделенном self-hosted runner после зелёного main,
+    # когда владелец включил переменную DEPLOY_ENABLED. Runner находится на
+    # целевой машине, поэтому SSH-доставка не используется.
+    # Секреты: GHCR_USER/GHCR_TOKEN (read:packages), переменная MODEL_VERSION.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.publish.outputs.ml_present == 'true' && vars.DEPLOY_ENABLED == 'true'
     needs: publish
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: deploy release by digests
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
           GHCR_USER: ${{ secrets.GHCR_USER }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           GO_DIGEST: ${{ needs.publish.outputs.go_digest }}
           ML_DIGEST: ${{ needs.publish.outputs.ml_digest }}
           IMAGE_REPO: ${{ needs.publish.outputs.image_repo }}
           MODEL_VERSION: ${{ vars.MODEL_VERSION }}
+          DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/opt/cosmohack' }}
         run: |
-          test -n "$SSH_HOST" && test -n "$SSH_USER" && test -n "$SSH_KEY" && test -n "$SSH_KNOWN_HOSTS" \
-            && test -n "$GHCR_USER" && test -n "$GHCR_TOKEN" \
-            || { echo "SSH or GHCR secrets are not configured"; exit 1; }
-          install -m 700 -d ~/.ssh
-          install -m 600 /dev/null key
-          echo "$SSH_KEY" > key
-          echo "$SSH_KNOWN_HOSTS" > known_hosts
-          # Токен приватного GHCR уезжает отдельным 0600-файлом и подхватывается
-          # deploy.sh (source release-ghcr.env); в argv и логи не попадает.
-          install -m 600 /dev/null release-ghcr.env
-          printf 'GHCR_USER=%s\nGHCR_TOKEN=%s\n' "$GHCR_USER" "$GHCR_TOKEN" > release-ghcr.env
-          ssh_opts=(-i key -o UserKnownHostsFile=known_hosts -o StrictHostKeyChecking=yes)
-          scp "${ssh_opts[@]}" deploy/deploy.sh deploy/compose.yaml release-ghcr.env "${SSH_USER}@${SSH_HOST}:/opt/cosmohack/"
-          ssh "${ssh_opts[@]}" "${SSH_USER}@${SSH_HOST}" \
-            "cd /opt/cosmohack && GO_IMAGE=ghcr.io/${IMAGE_REPO}/go@${GO_DIGEST} ML_IMAGE=ghcr.io/${IMAGE_REPO}/ml@${ML_DIGEST} MODEL_VERSION=${MODEL_VERSION} ./deploy.sh"
+          test -n "$GHCR_USER" && test -n "$GHCR_TOKEN" && test -n "$MODEL_VERSION" \
+            || { echo "GHCR secrets or MODEL_VERSION are not configured"; exit 1; }
+          test -n "$GO_DIGEST" && test -n "$ML_DIGEST" && test -n "$IMAGE_REPO" \
+            || { echo "published image digests are missing"; exit 1; }
+          sudo -n install -d -m 0750 "$DEPLOY_DIR"
+          sudo -n install -m 0755 deploy/deploy.sh "$DEPLOY_DIR/deploy.sh"
+          sudo -n install -m 0644 deploy/compose.yaml "$DEPLOY_DIR/compose.yaml"
+          release_env=$(mktemp)
+          trap 'rm -f "$release_env"' EXIT
+          umask 077
+          printf 'GHCR_USER=%s\nGHCR_TOKEN=%s\n' "$GHCR_USER" "$GHCR_TOKEN" > "$release_env"
+          sudo -n install -m 0600 "$release_env" "$DEPLOY_DIR/release-ghcr.env"
+          cd "$DEPLOY_DIR"
+          export GO_IMAGE="ghcr.io/${IMAGE_REPO}/go@${GO_DIGEST}"
+          export ML_IMAGE="ghcr.io/${IMAGE_REPO}/ml@${ML_DIGEST}"
+          sudo -n --preserve-env=GO_IMAGE,ML_IMAGE,MODEL_VERSION ./deploy.sh
