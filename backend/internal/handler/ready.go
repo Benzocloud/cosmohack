@@ -11,6 +11,11 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
+// readyStatus — значение статуса собственной готовности Go. Форма тела
+// зеркалит readiness-контракт, но словарь готовности Go не зависит от
+// словаря ML-контракта (domain.MLReadyStatus — только для пакета ml).
+const readyStatus = "ready"
+
 // readyResponse — собственная готовность Go по контракту полей /readyz.
 // Публичный /readyz не вызывает ML: готовность ML проверяется отдельно
 // через service/ml.
@@ -29,7 +34,7 @@ func handleReady(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(readyResponse{
-		Status:          domain.MLReadyStatus,
+		Status:          readyStatus,
 		SchemaVersion:   domain.SchemaVersionV1,
 		FeatureProfiles: []string{domain.FeatureProfileNDVIWeatherV1},
 	}); err != nil {

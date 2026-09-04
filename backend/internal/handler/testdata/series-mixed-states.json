@@ -1,0 +1,57 @@
+{
+  "series": [
+    {
+      "date": "2024-06-01",
+      "primary_ndvi": 0.42,
+      "value": 0.42,
+      "state": "observed",
+      "method": null,
+      "baseline": 0.50,
+      "z_score": -0.8,
+      "interval": { "from": "2024-06-01", "to": "2024-06-01" },
+      "valid_fraction": 0.9
+    },
+    {
+      "date": "2024-06-02",
+      "primary_ndvi": null,
+      "value": 0.40,
+      "state": "imputed",
+      "method": "nearest_mean",
+      "baseline": null,
+      "z_score": null,
+      "interval": null,
+      "valid_fraction": null
+    },
+    {
+      "date": "2024-06-03",
+      "primary_ndvi": null,
+      "value": null,
+      "state": "missing",
+      "method": null,
+      "baseline": null,
+      "z_score": null,
+      "interval": null,
+      "valid_fraction": null
+    }
+  ],
+  "weather": [
+    {
+      "date": "2024-06-01",
+      "temperature_mean_c": 18.2,
+      "precipitation_sum_mm": 0.0,
+      "source_id": "era5-1"
+    },
+    {
+      "date": "2024-06-02",
+      "temperature_mean_c": null,
+      "precipitation_sum_mm": null,
+      "source_id": null
+    },
+    {
+      "date": "2024-06-03",
+      "temperature_mean_c": null,
+      "precipitation_sum_mm": null,
+      "source_id": null
+    }
+  ]
+}

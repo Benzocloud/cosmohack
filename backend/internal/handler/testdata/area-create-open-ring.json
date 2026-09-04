@@ -1,0 +1,9 @@
+{
+  "name": "Поле север",
+  "period": { "from": "2024-04-01", "to": "2024-09-30" },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[[37.5, 55.7], [37.6, 55.7], [37.6, 55.8], [37.5, 55.8]]]
+  },
+  "source": { "kind": "drawn", "contour_id": null, "provider": null }
+}

@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "source_unavailable",
+    "message": "Не удалось получить контуры",
+    "retryable": true
+  }
+}

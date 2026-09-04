@@ -1,0 +1,13 @@
+{
+  "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "name": "Поле север",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[[37.5, 55.7], [37.6, 55.7], [37.6, 55.8], [37.5, 55.8], [37.5, 55.7]]]
+  },
+  "source": { "kind": "drawn", "contour_id": null, "provider": null },
+  "period": { "from": "2024-04-01", "to": "2024-09-30" },
+  "created_at": "2026-09-04T17:00:00Z",
+  "shown_result": null,
+  "active_job": null
+}

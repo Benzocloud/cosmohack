@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "invalid_geometry",
+    "message": "Полигон должен быть замкнут",
+    "retryable": false
+  }
+}
