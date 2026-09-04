@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.idea/
+data/
+artifacts/
+awesome-llm-apps/
+criterias.pdf
