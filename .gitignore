@@ -1,0 +1,14 @@
+.agent/instructions.local.md
+.agent/plans/globalarray/
+
+# Рабочие данные, модели и batch-результат — вне Git (.agent/instructions.md)
+data/
+artifacts/
+submission.csv
+
+# Локальное состояние деплоя: release.env содержит GHCR-токен
+deploy/release.env
+deploy/current-manifest.json
+deploy/previous-manifest.json
+
+.DS_Store

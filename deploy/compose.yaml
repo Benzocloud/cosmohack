@@ -1,0 +1,39 @@
+# Один выпуск Compose связывает два образа по digest и переменные совместимости:
+# schema_version, feature_profile и model_version проверяются деплоем
+# (.agent/contracts/go-ml-http.md). Запуск из deploy/: docker compose up -d.
+#
+# GO_IMAGE и ML_IMAGE задаются deploy/deploy.sh (immutable digest) либо
+# вручную; ML_BASE_URL фиксирован сетью Compose. Порт ML не публикуется.
+#
+# Переменные окружения: APP_PORT (по умолчанию 8080), DATA_DIR_HOST — каталог
+# машины команды для постоянного тома снимков Go.
+
+services:
+  go:
+    image: ${GO_IMAGE:?GO_IMAGE is required}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      ML_BASE_URL: http://ml:8000
+      ML_MODEL_VERSION: ${MODEL_VERSION:?MODEL_VERSION is required}
+    volumes:
+      - ${DATA_DIR_HOST:-./data}:/data
+    depends_on:
+      ml:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ml:
+    image: ${ML_IMAGE:?ML_IMAGE is required}
+    environment:
+      MODEL_VERSION: ${MODEL_VERSION:?MODEL_VERSION is required}
+    volumes:
+      - ${DATA_DIR_HOST:-./data}/ml-artifacts:/app/ml/artifacts:ro
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/readyz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped

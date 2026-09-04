@@ -47,7 +47,7 @@ func classifyTransportError(err error) error {
 	if errors.Is(err, context.Canceled) {
 		return err
 	}
-	timeoutErr := &Error{Code: domain.MLErrorTimeout, Message: "ML не ответил за отведённое время", Err: err}
+	timeoutErr := &Error{Code: domain.MLErrorTimeout, Message: "ml did not respond in time", Err: err}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return timeoutErr
 	}
@@ -55,7 +55,7 @@ func classifyTransportError(err error) error {
 	if errors.As(err, &netErr) && netErr.Timeout() {
 		return timeoutErr
 	}
-	return &Error{Code: domain.MLErrorUnavailable, Message: "ML недоступен", Err: err}
+	return &Error{Code: domain.MLErrorUnavailable, Message: "ml is unreachable", Err: err}
 }
 
 // mlErrorRule — строка таблицы обработки ошибок HTTP-контракта.

@@ -1,0 +1,184 @@
+name: pipeline
+
+# PR: проверки Go, Python (если ML доставлен), frontend (если доставлен) и
+# сборка обоих образов без публикации. Main: то же + публикация образов в
+# приватный GHCR через GITHUB_TOKEN (packages:write только здесь) и деплой
+# по digest. Действия зафиксированы на проверенных SHA; версии Go/Python/Node
+# берутся из файлов соответствующих каталогов. Обновления main
+# сериализуются (concurrency), устаревшие PR-прогоны отменяются.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  GOLANGCI_LINT_VERSION: v2.13.2
+  GOVULNCHECK_VERSION: v1.7.0
+
+jobs:
+  go-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: fmt/vet/test with race detector
+        working-directory: backend
+        run: |
+          test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+          go vet ./...
+          go test -race -count=1 ./...
+      - name: lint
+        working-directory: backend
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
+          golangci-lint run ./...
+      - name: vulnerabilities
+        working-directory: backend
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
+          govulncheck ./...
+
+  python-checks:
+    # Job целиком условный: до поставки ML (backend/ml пуст) setup-python
+    # по отсутствующему файлу версии упал бы раньше шагов-пропусков.
+    if: ${{ hashFiles('backend/ml/requirements.txt') != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.12"
+      - name: lint and tests (mask/metric/csv/http contract)
+        working-directory: backend/ml
+        run: |
+          pip install --no-cache-dir -r requirements.txt
+          pip install --no-cache-dir ruff pytest
+          ruff check .
+          python -m pytest tests -q
+
+  frontend-checks:
+    # Job целиком условный: до поставки frontend отсутствуют и package.json,
+    # и .nvmrc, на которые ссылается setup-node.
+    if: ${{ hashFiles('frontend/package.json') != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: typecheck and build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run typecheck --if-present
+          npm run build
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+      - name: build go image (no push)
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+      - name: build ml image (no push)
+        if: ${{ hashFiles('backend/ml/requirements.txt') != '' }}
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: .
+          file: ./backend/ml/Dockerfile
+          push: false
+
+  publish:
+    # Публикация пары образов только для main в приватный GHCR;
+    # packages:write только здесь. Имя репозитория приводится к lowercase:
+    # registry принимает только строчные пути.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [go-checks, python-checks, frontend-checks, docker-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      go_digest: ${{ steps.go.outputs.digest }}
+      ml_digest: ${{ steps.ml.outputs.digest }}
+      ml_present: ${{ steps.ml_guard.outputs.present }}
+      image_repo: ${{ steps.repo.outputs.repo }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - id: repo
+        run: echo "repo=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - id: ml_guard
+        run: echo "present=$([ -f backend/ml/requirements.txt ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: go
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ghcr.io/${{ steps.repo.outputs.repo }}/go
+      - id: ml
+        if: ${{ steps.ml_guard.outputs.present == 'true' }}
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: .
+          file: ./backend/ml/Dockerfile
+          push: true
+          tags: ghcr.io/${{ steps.repo.outputs.repo }}/ml
+
+  deploy:
+    # Деплой запускается автоматически после зелёного main, когда пара
+    # образов собрана и владелец включил переменную DEPLOY_ENABLED.
+    # Секреты: SSH_HOST/SSH_USER/SSH_KEY/SSH_KNOWN_HOSTS (fingerprint
+    # проверяется строго), GHCR_USER/GHCR_TOKEN (read:packages на сервере),
+    # переменная MODEL_VERSION — версия модели из манифеста выпуска.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.publish.outputs.ml_present == 'true' && vars.DEPLOY_ENABLED == 'true'
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: deploy release by digests
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          GHCR_USER: ${{ secrets.GHCR_USER }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GO_DIGEST: ${{ needs.publish.outputs.go_digest }}
+          ML_DIGEST: ${{ needs.publish.outputs.ml_digest }}
+          IMAGE_REPO: ${{ needs.publish.outputs.image_repo }}
+          MODEL_VERSION: ${{ vars.MODEL_VERSION }}
+        run: |
+          test -n "$SSH_HOST" && test -n "$SSH_USER" && test -n "$SSH_KEY" && test -n "$SSH_KNOWN_HOSTS" \
+            && test -n "$GHCR_USER" && test -n "$GHCR_TOKEN" \
+            || { echo "SSH or GHCR secrets are not configured"; exit 1; }
+          install -m 700 -d ~/.ssh
+          install -m 600 /dev/null key
+          echo "$SSH_KEY" > key
+          echo "$SSH_KNOWN_HOSTS" > known_hosts
+          # Токен приватного GHCR уезжает отдельным 0600-файлом и подхватывается
+          # deploy.sh (source release-ghcr.env); в argv и логи не попадает.
+          install -m 600 /dev/null release-ghcr.env
+          printf 'GHCR_USER=%s\nGHCR_TOKEN=%s\n' "$GHCR_USER" "$GHCR_TOKEN" > release-ghcr.env
+          ssh_opts=(-i key -o UserKnownHostsFile=known_hosts -o StrictHostKeyChecking=yes)
+          scp "${ssh_opts[@]}" deploy/deploy.sh deploy/compose.yaml release-ghcr.env "${SSH_USER}@${SSH_HOST}:/opt/cosmohack/"
+          ssh "${ssh_opts[@]}" "${SSH_USER}@${SSH_HOST}" \
+            "cd /opt/cosmohack && GO_IMAGE=ghcr.io/${IMAGE_REPO}/go@${GO_DIGEST} ML_IMAGE=ghcr.io/${IMAGE_REPO}/ml@${ML_DIGEST} MODEL_VERSION=${MODEL_VERSION} ./deploy.sh"

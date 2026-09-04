@@ -19,11 +19,16 @@ B3 (`tsuckermandev`) владеет API/store, B1 (`semennejo`) — source, ML (
 
 ## B4-01 — каркас выполнения, контракты и HTTP-клиент ML (0–2 ч)
 
-**Статус:** in_progress — локальная часть реализована в ветке
-`globalarray/feat/b4_cicd_integration` от базы `ac7eb25`; идёт DDD-рефакторинг
-среза ([globalarray/ddd-refactor.md](globalarray/ddd-refactor.md)) с ревью
-`globalarray` после каждого подэтапа; затем commit/push. Интеграционный критерий
-(настоящий HTTP-вызов к Python-заглушке ML-01) не выполнен и зависит от ML.
+**Статус:** published — **B4-01 опубликован:** commit `62a7e57` `feat: add backend server and ML client`
+в ветке `globalarray/feat/b4_cicd_integration` от базы `ac7eb25`; commit и push выполнены
+владельцем (`globalarray`) после апрува отчёта R2, push подтверждён `git ls-remote`
+(origin = `62a7e57`); опубликованное дерево проверено в изолированном worktree:
+`go build ./...` + `go test -race ./...` — зелёные. Состав коммита: 33 файла B4
+(backend-каркас, фикстуры, пути в 5 документах .agent), чужих файлов нет.
+Статус `done` не присваивается: интеграционный критерий (настоящий HTTP-вызов к
+Python-заглушке ML-01) не выполнен и зависит от ML; постпубликационные CI-проверки
+появятся с B4-02. Следующий этап — B4-02 (образы, Compose, CI, исполнитель на заглушках).
+Журнал DDD-рефакторинга и записи R0–R2 вошли в этот же коммит.
 
 **База:** SHA `ac7eb25`, main; ветка `globalarray/feat/b4_cicd_integration` (переименована из `globalarray/task/b4_cicd_integration` в R0).
 **Проверки локально:** `gofmt -l` чисто, `go vet ./...`, `go test -race ./...` — зелёные;
@@ -70,7 +75,16 @@ smoke-запуск `go run ./cmd/server` с `HTTP_ADDR=:18080`: `GET /readyz` �
 
 ## B4-02 — образы, первая доставка и проход на заглушках (2–6 ч)
 
-**Статус:** planned
+**Статус:** in_progress — локальная часть B4-02 реализована и прошла два
+Sol-ревью с исправлениями; ждёт ревью и апрув `globalarray`. Удалённые проверки
+(GHCR publish, SSH deploy, merge в main) — внешние зависимости.
+
+**Журнал B4-02:**
+
+- Реализовано: исполнитель `internal/service/analysis` (очередь ≤8, один воркер, стадии через колбэк коллектора, отмена active/queued с немедленной помечкой cancelled, ошибки ML → коды контракта, source_failed для сбора, без позднего сохранения — PutResult store, FailInterrupted при старте); проводка app (store.Open(DATA_DIR), ml.New, executor через адаптер executorQueue → handler.ErrQueueFull = 429, NewMux + Register + serveStatic(PUBLIC_DIR, off при отсутствии), помеченные placeholderCollector/placeholderContours до B1); mux.go → `*http.ServeMux` + слияние NewMux/NewMuxWithLimits (координировано с B3, тест B3 обновлён одной строкой); transport-сообщения ml → английский; Dockerfile (многоэтапный, frontend-фолбэк с пометкой, non-root uid 10001, go.sum- wildcard), .dockerignore, backend/ml/Dockerfile, deploy/compose.yaml (ML_MODEL_VERSION для go, healthcheck ml, порт не публикуется), deploy/deploy.sh (GHCR login по release-ghcr.env 0600, два digest, stop go → ml readiness с JSON-проверкой версий → go readyz + API, mkdir тома под uid 10001, манифест пишется только после успеха, откат предыдущей пары), .github/workflows/pipeline.yml (concurrency, SHA-pinned actions, golangci/govulncheck через go install с зафиксированными версиями, job-условия python/frontend до поставки, publish только main в приватный GHCR с lowercase-репо и packages:write, deploy по SSH с known_hosts и DEPLOY_ENABLED), README.md, .gitignore (data/, artifacts/, submission.csv, deploy/release.env и манифесты). По решению владельца runtime-стадия Go-образа — `scratch` (CGO_ENABLED=0): числовой USER 10001, CA-сертификаты из build-стадии для будущих HTTPS-вызовов B1; итоговый образ 17 MB, контейнерный smoke повторён.
+- Две пары замечаний закрыты (caveman + ponytail): 4 блокирующих CI/инфра-находки (setup-python/node на отсутствующих файлах → job-условия; uppercase репо в GHCR-теге → lowercase; root-owned том под uid 10001 → install -d в deploy.sh), дубль сентинела ErrQueueFull (был 500 вместо 429) → адаптер executorQueue, немедленная помечка cancelled при Cancel активной задачи, манифест деплоя только после успеха, JSON-парсинг readiness, ML_MODEL_VERSION в compose, concurrency main, pinned-инструменты; ponytail: ErrNotRunning/base/jobTerminal/StagePrepareInput-write/провenance-guard удалены, Sink-интерфейс → конкретный *store.Store, слияние NewMux.
+- Проверки: `gofmt -l .` чисто; `go vet ./...` ok; `go test -race -count=1 ./...` ok (6 пакетов); `bash -n deploy.sh` ok; `docker compose config` ok; workflow YAML валиден (pyyaml); `docker build` Go-образа ok ×2 + контейнерный smoke (readyz 200, статика 200, POST area 201, DELETE 204, graceful stop).
+- Blockers: сборка ML-образа и полный `compose up` — ждут поставку ML-01; фактический GHCR publish/SSH deploy — ждут merge в main и доступов (DEPLOY_ENABLED, SSH_*, GHCR_*). Согласование с B3: дубли store-типов против domain — отдельный diff.
 
 **Вход:** локально проверенный каркас B4-01 и согласованные примеры. HTTP-сервис ML и источники сначала доступны как заглушки; до готовности frontend использовать явно обозначенную минимальную страницу.
 

@@ -16,6 +16,7 @@ func TestRunRejectsInvalidMLConfig(t *testing.T) {
 func TestRunGracefulShutdown(t *testing.T) {
 	t.Setenv("HTTP_ADDR", "127.0.0.1:0")
 	t.Setenv("ML_BASE_URL", "http://127.0.0.1:1")
+	t.Setenv("DATA_DIR", t.TempDir())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)

@@ -1,0 +1,14 @@
+# Контекст сборки — корень репозитория; лишнее не тащим в образы.
+.git
+.github
+.agent
+data
+artifacts
+submission.csv
+reports
+deploy
+README.md
+frontend/node_modules
+frontend/dist
+backend/ml/artifacts
+**/.DS_Store
