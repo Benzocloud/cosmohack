@@ -22,7 +22,7 @@
 | Компонент | Файл | Реализовано | Этап |
 |---|---|---|---|
 | AreaListItem, AreaCard, DeleteAreaDialog, ResultProvenance, SourcesStatus | `src/features/areas/` | TBD | FE-2 |
-| MapView, ContoursButton, DrawToolbar, AddAreaDialog, MapLegend | `src/features/map/`, `src/features/areas/AddAreaDialog.tsx` | TBD | FE-3 |
+| MapView, ContoursButton, DrawToolbar, AddAreaDialog, MapLegend | `src/features/map/`, `src/features/areas/AddAreaDialog.tsx` | реализованы: подложки Positron/Esri со переключателем, слои §8, terra-draw (рисование/валидация), диалог добавления (202/429/422), легенда, MapEmptyHint, ContourPopover/Drawer | FE-3 |
 | NdviChart, PointDetails, WeatherCharts, ChartLegend | `src/features/analysis/` | TBD | FE-4 |
 | EventList, EventCard, JobStatusBar | `src/features/analysis/` | TBD | FE-5 |
 | DemoBadge, MobileTabBar, PeriodPicker | `src/features/shell/` | DemoBadge и MobileTabBar — реализованы; PeriodPicker — отключённая кнопка-заглушка в Header | FE-0 / FE-5 |
@@ -38,6 +38,7 @@
 ## 6. Строки интерфейса
 Источник истины: `src/lib/labels.ts` (fable5.1 §3). Добавленные строки (FE-0): секция `SCAFFOLD` — название приложения «AgroPulse» и подзаголовок, заголовки панелей/вкладок («Участки», «Карта», «Анализ»), «Период не выбран», «Запустить анализ», кнопки основного пути из брифа §3A («Найти контуры в этой области», «Нарисовать участок», «Добавить»), тексты зон-заглушек каркаса («Здесь будет карта» и т.п.), aria-подписи. Секция подлежит удалению/замене по мере реализации FE-1–FE-5; строки из §3 брифа не менялись.
 Добавленные строки (FE-1): `EVENT_BLOCK_LABEL` — четыре блока карточки события дословно из брифа §4; `JOB_STAGE_FALLBACK` — «Анализ выполняется» (стадия не передана/неизвестна, fable5.1 §3); `DEV_LABELS` — технические подписи dev-страницы состояний (в пользовательский UI не попадают).
+Добавленные строки (FE-3): `MAP_LABELS` — состояния ContoursButton («Ищем контуры…», «Область изменилась — искать снова», счётчик контуров), подсказки/кнопки рисования, подписи легенды, сообщения валидации геометрии/периода (числа лимитов подставляются из useLimits); `DIALOG_LABELS` — поля и кнопки диалога добавления («Добавить и проанализировать», «Только сохранить»); `AREA_LIST_LABELS` — «Не анализировался», «Запустить анализ».
 
 ## 7. Правила данных
 Действуют без изменений (design-brief §4, corrections §5): null → «Нет данных»; observed/imputed/missing — три стиля; фон только при наличии; цвет полигона = период результата; frontend не вычисляет анализ.
@@ -69,6 +70,8 @@
 | Откуда фронт берёт meta (verdict/severity/sources/limitations) для bundle одной версии: `last_result` участка или отдельный маршрут сводки? | B3 | meta из `lastResult` участка, показывается только при совпадении `result_version` | открыт |
 | Несёт ли ответ `GET /api/areas/{id}/events` свою копию `result_version` (конверт `{result_version, events}`)? | B3 | ожидаем конверт с версией; bundle собирается при совпадении с series | открыт |
 | Точные поля сырого ответа series (`weather.aggregation`, `background` по точке) — перечислить | B3+ML | адаптер ждёт форму из frontend-plan §4 | открыт |
+| Растровый слой NDVI на карте (P2): формат URL/схемы, какой маршрут отдаёт, привязка к участку/периоду | B1+B4 | источник `ndvi-raster` заложен и выключен; без URL ничего не рисуем | открыт |
+| Текстовый поиск контуров по имени в ответе `contours` (для автозаполнения названия) | B3 | имя контура из properties.name, иначе «Участок N» | открыт |
 
 ### 8.3. Расхождения реальных ответов с адаптерами
 `Заполняется на FE-7.`
