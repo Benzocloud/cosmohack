@@ -1,0 +1,182 @@
+{
+  "schema_version": "1.0",
+  "request_id": "job-b1-example-1",
+  "area_id": "area-test",
+  "input_revision": "snap-46ce249c7a2b82bc35f01f4f",
+  "mode": "retrospective",
+  "feature_profile": "ndvi-weather-v1",
+  "analysis_period": {
+    "from": "2025-06-01",
+    "to": "2025-06-10"
+  },
+  "sources": [
+    {
+      "id": "satellite-test",
+      "kind": "satellite",
+      "provider": "test-provider",
+      "dataset": "test-dataset",
+      "mapping": "NDVI среднее по полигону",
+      "license": "test-license",
+      "retrieved_at": "2026-09-04T12:00:00Z"
+    },
+    {
+      "id": "weather-test",
+      "kind": "weather",
+      "provider": "test-provider",
+      "dataset": "test-reanalysis",
+      "mapping": "суточная агрегация UTC",
+      "license": "test-license",
+      "retrieved_at": "2026-09-04T12:00:00Z"
+    }
+  ],
+  "observations": [
+    {
+      "date": "2025-06-01",
+      "primary_ndvi": null,
+      "quality": "missing",
+      "ndvi_source_id": null,
+      "interval": null,
+      "valid_fraction": null,
+      "missing_reason": "no_usable_observation",
+      "weather": {
+        "source_id": "weather-test",
+        "temperature_mean_c": 20,
+        "precipitation_sum_mm": 0
+      },
+      "reference": null
+    },
+    {
+      "date": "2025-06-02",
+      "primary_ndvi": null,
+      "quality": "missing",
+      "ndvi_source_id": null,
+      "interval": null,
+      "valid_fraction": null,
+      "missing_reason": "no_usable_observation",
+      "weather": {
+        "source_id": "weather-test",
+        "temperature_mean_c": 20.1,
+        "precipitation_sum_mm": 1
+      },
+      "reference": null
+    },
+    {
+      "date": "2025-06-03",
+      "primary_ndvi": 0.71,
+      "quality": "usable",
+      "ndvi_source_id": "satellite-test",
+      "interval": {
+        "from": "2025-06-01",
+        "to": "2025-06-05"
+      },
+      "valid_fraction": 0.95,
+      "missing_reason": null,
+      "weather": {
+        "source_id": "weather-test",
+        "temperature_mean_c": 20.2,
+        "precipitation_sum_mm": 2
+      },
+      "reference": null
+    },
+    {
+      "date": "2025-06-04",
+      "primary_ndvi": null,
+      "quality": "missing",
+      "ndvi_source_id": null,
+      "interval": null,
+      "valid_fraction": null,
+      "missing_reason": "no_usable_observation",
+      "weather": {
+        "source_id": "weather-test",
+        "temperature_mean_c": 20.3,
+        "precipitation_sum_mm": 0
+      },
+      "reference": null
+    },
+    {
+      "date": "2025-06-05",
+      "primary_ndvi": null,
+      "quality": "missing",
+      "ndvi_source_id": null,
+      "interval": null,
+      "valid_fraction": null,
+      "missing_reason": "no_usable_observation",
+      "weather": {
+        "source_id": "weather-test",
+        "temperature_mean_c": 20.4,
+        "precipitation_sum_mm": 1
+      },
+      "reference": null
+    },
+    {
+      "date": "2025-06-06",
+      "primary_ndvi": null,
+      "quality": "missing",
+      "ndvi_source_id": null,
+      "interval": null,
+      "valid_fraction": null,
+      "missing_reason": "no_usable_observation",
+      "weather": {
+        "source_id": "weather-test",
+        "temperature_mean_c": 20.5,
+        "precipitation_sum_mm": 2
+      },
+      "reference": null
+    },
+    {
+      "date": "2025-06-07",
+      "primary_ndvi": null,
+      "quality": "missing",
+      "ndvi_source_id": null,
+      "interval": null,
+      "valid_fraction": null,
+      "missing_reason": "no_usable_observation",
+      "weather": {
+        "source_id": "weather-test",
+        "temperature_mean_c": 20.6,
+        "precipitation_sum_mm": 0
+      },
+      "reference": null
+    },
+    {
+      "date": "2025-06-08",
+      "primary_ndvi": 0.44,
+      "quality": "unusable",
+      "ndvi_source_id": "satellite-test",
+      "interval": {
+        "from": "2025-06-06",
+        "to": "2025-06-10"
+      },
+      "valid_fraction": 0.2,
+      "missing_reason": "low_valid_fraction",
+      "weather": {
+        "source_id": "weather-test",
+        "temperature_mean_c": 20.7,
+        "precipitation_sum_mm": 1
+      },
+      "reference": null
+    },
+    {
+      "date": "2025-06-09",
+      "primary_ndvi": null,
+      "quality": "missing",
+      "ndvi_source_id": null,
+      "interval": null,
+      "valid_fraction": null,
+      "missing_reason": "no_usable_observation",
+      "weather": null,
+      "reference": null
+    },
+    {
+      "date": "2025-06-10",
+      "primary_ndvi": null,
+      "quality": "missing",
+      "ndvi_source_id": null,
+      "interval": null,
+      "valid_fraction": null,
+      "missing_reason": "no_usable_observation",
+      "weather": null,
+      "reference": null
+    }
+  ]
+}

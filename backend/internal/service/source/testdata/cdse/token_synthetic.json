@@ -1,0 +1,5 @@
+{
+  "access_token": "synthetic-access-token",
+  "expires_in": 600,
+  "token_type": "Bearer"
+}

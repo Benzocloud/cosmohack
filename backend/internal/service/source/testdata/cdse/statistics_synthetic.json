@@ -1,0 +1,39 @@
+{
+  "status": "OK",
+  "data": [
+    {
+      "interval": {"from": "2025-06-01T00:00:00Z", "to": "2025-06-06T00:00:00Z"},
+      "outputs": {
+        "ndvi": {
+          "bands": {
+            "B0": {"stats": {"min": 0.41, "max": 0.88, "mean": 0.71, "stDev": 0.07, "sampleCount": 1000, "noDataCount": 50}}
+          }
+        }
+      }
+    },
+    {
+      "interval": {"from": "2025-06-06T00:00:00Z", "to": "2025-06-11T00:00:00Z"},
+      "outputs": {
+        "ndvi": {
+          "bands": {
+            "B0": {"stats": {"min": 0.20, "max": 0.70, "mean": 0.44, "stDev": 0.12, "sampleCount": 1000, "noDataCount": 800}}
+          }
+        }
+      }
+    },
+    {
+      "interval": {"from": "2025-06-11T00:00:00Z", "to": "2025-06-16T00:00:00Z"},
+      "outputs": {
+        "ndvi": {
+          "bands": {
+            "B0": {"stats": {"min": 0.0, "max": 0.0, "mean": null, "stDev": null, "sampleCount": 1000, "noDataCount": 1000}}
+          }
+        }
+      }
+    },
+    {
+      "interval": {"from": "2025-06-16T00:00:00Z", "to": "2025-06-21T00:00:00Z"},
+      "error": {"type": "EXECUTION_ERROR"}
+    }
+  ]
+}
