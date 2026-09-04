@@ -3,6 +3,8 @@ package source
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
 const (
@@ -63,6 +65,21 @@ func (r *AnalyzeRequest) MarshalJSON() ([]byte, error) {
 type AnalyzeRequestBuilder struct {
 	maxObservations int
 	maxBodyBytes    int
+}
+
+// BuildDomain returns the canonical domain request used by the analysis
+// service. Build remains available as a wire-compatibility adapter during the
+// B1 migration.
+func (b *AnalyzeRequestBuilder) BuildDomain(snapshot *Snapshot, requestID string) (*domain.AnalysisRequest, error) {
+	wire, err := b.Build(snapshot, requestID)
+	if err != nil {
+		return nil, err
+	}
+	var request domain.AnalysisRequest
+	if err := json.Unmarshal(wire.body, &request); err != nil {
+		return nil, fmt.Errorf("decode canonical analysis request: %w", err)
+	}
+	return &request, nil
 }
 
 func NewAnalyzeRequestBuilder(maxObservations, maxBodyBytes int) *AnalyzeRequestBuilder {
