@@ -70,13 +70,21 @@ function notFound(title: string) {
 /** Завершение live-задачи обновляет last_result участка — как это сделает реальный backend. */
 function completeLiveJob(job: LiveJob, resultVersion: string): void {
   const area = AREAS.find((item) => item.id === job.areaId);
-  if (!area?.last_result) return;
+  if (!area) return;
+  const computedAt = new Date().toISOString();
+  // у нового участка результата ещё нет — фиксируем «первичный» разбор (как ML вернёт)
   area.last_result = {
-    ...area.last_result,
+    ...(area.last_result ?? {
+      verdict: 'candidate',
+      severity: null,
+      sources: { sentinel2: { status: 'ok' }, era5: { status: 'ok' } },
+      limitations: [],
+    }),
     result_version: resultVersion,
     period: { from: job.period.from, to: job.period.to },
-    computed_at: new Date().toISOString(),
+    computed_at: computedAt,
   };
+  area.active_job = null;
 }
 
 export const handlers: HttpHandler[] = [
@@ -91,10 +99,15 @@ export const handlers: HttpHandler[] = [
   http.post('*/api/areas', async ({ request }) => {
     const body = (await request.json()) as Partial<AreaRaw> | null;
     const area: AreaRaw = {
-      id: `area-drawn-${Date.now()}`,
+      id: `area-${Date.now()}`,
       name: body?.name ?? 'Новый участок',
       geometry: body?.geometry,
-      source: { kind: 'drawn', label: 'Нарисован вручную' },
+      // источник эхом из тела: контур каталога или нарисованный вручную
+      source: {
+        kind: body?.source?.kind === 'contour' ? 'contour' : 'drawn',
+        label: body?.source?.label ?? 'Нарисован вручную',
+        external_id: body?.source?.external_id,
+      },
       created_at: new Date().toISOString(),
       last_result: null,
       active_job: null,

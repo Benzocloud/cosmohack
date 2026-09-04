@@ -1,18 +1,15 @@
+import { useAreas } from '@/api/queries';
 import { Button } from '@/components/ui/button';
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from '@/components/ui/drawer';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { AreaList } from '@/features/areas/AreaList';
+import { MapView } from '@/features/map/MapView';
 import { Header } from '@/features/shell/Header';
 import { MobileTabBar } from '@/features/shell/MobileTabBar';
 import { EMPTY, SCAFFOLD } from '@/lib/labels';
 import { useBreakpoint } from '@/lib/useMediaQuery';
 import { useUi } from '@/store/ui';
-import { PanelRight, PenLine, Rows3, Search } from 'lucide-react';
+import { PanelRight, Rows3 } from 'lucide-react';
 import { useState } from 'react';
 
 /**
@@ -21,44 +18,26 @@ import { useState } from 'react';
  * Планшет 1024–1279: рейка 56px + Sheet слева, карточка — Sheet справа, низ 400px.
  * Мобильный <1024: вкладки Участки/Карта/Анализ, шапка 48px.
  *
- * SCAFFOLD: зоны-заглушки внутри панелей заменяются фичами на FE-2 (список/карточка),
- * FE-3 (карта) и FE-4 (график/погода) — тексты берутся из labels (SCAFFOLD/EMPTY).
+ * FE-3: центральная зона — MapView (карта, контуры, рисование), слева —
+ * минимальный список участков. Карточка и график остаются заглушками (FE-2/FE-4).
  */
 
 function AreasPanel() {
+  const areasCount = useAreas().data?.length ?? 0;
   return (
-    <section aria-label={SCAFFOLD.areasPanel} className="flex h-full flex-col">
+    <section aria-label={SCAFFOLD.areasPanel} className="flex h-full flex-col overflow-y-auto">
       <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
         <h2 className="text-sm font-semibold">{SCAFFOLD.areasPanel}</h2>
-        {/* AddAreaDialog — FE-3 */}
-        <Button size="sm" disabled>
+        {/* Добавление идёт через карту: контуры/рисование (§3A); прямой ввод — вне P0 */}
+        <Button size="sm" disabled title={SCAFFOLD.findContours}>
           {SCAFFOLD.addArea}
         </Button>
       </div>
-      {/* Честное пустое состояние: текст из брифа, а не демо-данные */}
-      <p className="p-4 text-sm text-ink-secondary">{EMPTY.noAreas}</p>
-    </section>
-  );
-}
-
-function MapPlaceholder() {
-  return (
-    <section
-      aria-label={SCAFFOLD.mapPanel}
-      className="flex h-full min-h-0 flex-col items-center justify-center gap-3 bg-surface-muted p-4"
-    >
-      <p className="text-sm text-ink-tertiary">{SCAFFOLD.placeholderMap}</p>
-      {/* Заглушки основного пути добавления (бриф §3A); MapLibre и поиск контуров — FE-3 */}
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        <Button variant="outline" size="sm" disabled>
-          <Search aria-hidden />
-          {SCAFFOLD.findContours}
-        </Button>
-        <Button variant="outline" size="sm" disabled>
-          <PenLine aria-hidden />
-          {SCAFFOLD.drawArea}
-        </Button>
-      </div>
+      {areasCount > 0 ? (
+        <AreaList />
+      ) : (
+        <p className="p-4 text-sm text-ink-secondary">{EMPTY.noAreas}</p>
+      )}
     </section>
   );
 }
@@ -106,7 +85,7 @@ function DesktopLayout() {
       </aside>
       <main className="flex min-w-0 flex-1 flex-col">
         <div className="min-h-0 flex-1">
-          <MapPlaceholder />
+          <MapView variant="desktop" />
         </div>
         {/* Нижняя зона 440px: график ~300 + погода (§2.4) */}
         <div className="grid h-[440px] shrink-0 grid-rows-[1fr_140px] border-t border-border bg-surface">
@@ -140,13 +119,15 @@ function TabletLayout() {
             <SheetHeader className="border-b border-border">
               <SheetTitle className="text-sm">{SCAFFOLD.areasPanel}</SheetTitle>
             </SheetHeader>
-            <p className="p-4 text-sm text-ink-secondary">{EMPTY.noAreas}</p>
+            <div className="h-[calc(100%-64px)] overflow-y-auto">
+              <AreasPanel />
+            </div>
           </SheetContent>
         </Sheet>
       </aside>
       <main className="flex min-w-0 flex-1 flex-col">
         <div className="relative min-h-0 flex-1">
-          <MapPlaceholder />
+          <MapView variant="desktop" />
           {/* Карточка — выезжающая панель поверх карты (§6.2) */}
           <Sheet open={cardOpen} onOpenChange={setCardOpen}>
             <SheetTrigger asChild>
@@ -154,7 +135,7 @@ function TabletLayout() {
                 variant="outline"
                 size="icon"
                 aria-label={SCAFFOLD.openAreaCard}
-                className="absolute right-3 top-3 shadow-1"
+                className="absolute right-3 top-3 z-10 shadow-1"
               >
                 <PanelRight aria-hidden />
               </Button>
@@ -188,19 +169,9 @@ function MobileLayout() {
         {mobileTab === 'areas' && <AreasPanel />}
         {mobileTab === 'map' && (
           <div className="relative h-full">
-            <MapPlaceholder />
+            <MapView variant="mobile" />
             {/* Краткая карточка участка — выезжает снизу (§6.3) */}
             <Drawer open={cardOpen} onOpenChange={setCardOpen}>
-              <DrawerTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label={SCAFFOLD.openAreaCard}
-                  className="absolute right-3 top-3 shadow-1"
-                >
-                  <PanelRight aria-hidden />
-                </Button>
-              </DrawerTrigger>
               <DrawerContent className="max-h-[70vh]">
                 <DrawerHeader>
                   <DrawerTitle className="text-base">{SCAFFOLD.openAreaCard}</DrawerTitle>

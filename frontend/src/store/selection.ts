@@ -11,6 +11,8 @@ export interface SelectionState {
   selectedAreaId: string | null;
   selectedEventId: string | null;
   selectedDate: string | null;
+  /** Откуда пришёл выбор: карта (без fitBounds) или список (карта подлетает). */
+  selectionSource: 'map' | 'list' | null;
   setFromSearch: (s: { area?: string; event?: string; date?: string }) => void;
 }
 
@@ -18,11 +20,14 @@ export const useSelection = create<SelectionState>()((set) => ({
   selectedAreaId: null,
   selectedEventId: null,
   selectedDate: null,
+  selectionSource: null,
   setFromSearch: ({ area, event, date }) =>
     set({
       selectedAreaId: area ?? null,
       selectedEventId: event ?? null,
       selectedDate: date ?? null,
+      // восстановление по ссылке — как выбор из списка: карта подлетает к участку
+      selectionSource: area ? 'list' : null,
     }),
 }));
 
@@ -45,7 +50,10 @@ export function registerSelectionApi(api: SelectionApi): void {
 
 /** Действия для компонентов: патчат search через роутер; null снимает параметр. */
 export const selectionActions = {
-  selectArea: (areaId: string | null) => selectionApi?.navigate({ area: areaId }),
+  selectArea: (areaId: string | null, source: 'map' | 'list' = 'map') => {
+    useSelection.setState({ selectionSource: areaId ? source : null });
+    selectionApi?.navigate({ area: areaId });
+  },
   selectEvent: (eventId: string | null) => selectionApi?.navigate({ event: eventId }),
   selectDate: (date: string | null) => selectionApi?.navigate({ date }),
 };

@@ -1,36 +1,37 @@
 import { create } from 'zustand';
 
 /**
- * Режим рисования полигона и черновик геометрии (frontend-plan §5 store/draft).
- * Каркас FE-0: состояние и операции без привязки к карте (карта — FE-3).
- * Валидация (самопересечение, вершины, площадь) появится в lib/geo.ts на FE-3.
+ * Режим рисования полигона и черновик геометрии (frontend-plan §5 store/draft, §8).
+ * Вершины синхронизируются из terra-draw ('change' → setVertices); источник
+ * готовой геометрии — событие 'finish' (setFinishedGeometry) → AddAreaDialog.
+ * Валидация выполняется в lib/geo.ts с лимитами из useLimits (corrections §1).
  */
 export type DrawMode = 'off' | 'drawing';
 
 export interface DraftState {
   drawMode: DrawMode;
-  /** Черновик: вершины [longitude, latitude] в порядке ввода. */
+  /** Черновик: вершины [longitude, latitude] в порядке ввода (без замыкания). */
   vertices: [number, number][];
   validationError: string | null;
+  /** Завершённый черновик: открытый AddAreaDialog предзаполняется им. */
+  finishedGeometry: GeoJSON.Polygon | null;
   startDrawing: () => void;
   cancelDrawing: () => void;
-  addVertex: (lng: number, lat: number) => void;
-  undoVertex: () => void;
+  setVertices: (vertices: [number, number][]) => void;
   setValidationError: (error: string | null) => void;
+  setFinishedGeometry: (geometry: GeoJSON.Polygon | null) => void;
 }
 
 export const useDraft = create<DraftState>()((set) => ({
   drawMode: 'off',
   vertices: [],
   validationError: null,
-  startDrawing: () => set({ drawMode: 'drawing', vertices: [], validationError: null }),
-  cancelDrawing: () => set({ drawMode: 'off', vertices: [], validationError: null }),
-  addVertex: (lng, lat) =>
-    set((state) =>
-      state.drawMode === 'drawing'
-        ? { vertices: [...state.vertices, [lng, lat] as [number, number]] }
-        : state,
-    ),
-  undoVertex: () => set((state) => ({ vertices: state.vertices.slice(0, -1) })),
+  finishedGeometry: null,
+  startDrawing: () =>
+    set({ drawMode: 'drawing', vertices: [], validationError: null, finishedGeometry: null }),
+  cancelDrawing: () =>
+    set({ drawMode: 'off', vertices: [], validationError: null, finishedGeometry: null }),
+  setVertices: (vertices) => set({ vertices }),
   setValidationError: (validationError) => set({ validationError }),
+  setFinishedGeometry: (finishedGeometry) => set({ finishedGeometry }),
 }));

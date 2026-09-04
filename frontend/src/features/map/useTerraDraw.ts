@@ -1,0 +1,190 @@
+import type { Map as MaplibreMap } from 'maplibre-gl';
+import { useEffect, useRef } from 'react';
+import { TerraDraw, TerraDrawPolygonMode, TerraDrawSelectMode } from 'terra-draw';
+import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
+
+/**
+ * Жизненный цикл terra-draw (frontend-plan §8): один экземпляр на карту,
+ * режим polygon — только пока drawMode==='drawing'.
+ *
+ * Особенности версии 1.33 (проверено по dist .d.ts):
+ *  - публичного finish() нет — полигон закрывается клавиатурным событием Enter
+ *    (режим слушает keyup), поэтому «Завершить» диспатчит его на document;
+ *  - «Отменить точку» — публичный session-undo (draw.undo()), он снимает
+ *    последнюю поставленную вершину;
+ *  - черновик в снапшоте помечен свойством currentlyDrawing; после поставленных
+ *    вершин идут координата курсора и превью-замыкание (см. draftVertices).
+ */
+
+export type Ring = [number, number][];
+
+interface UseTerraDrawOptions {
+  map: MaplibreMap | null;
+  drawing: boolean;
+  /** Синхронизация поставленных вершин черновика в draft-store. */
+  onVerticesChange?: (vertices: Ring) => void;
+  /** Полигон закрыт (кнопка «Завершить»/двойной клик/клик по первой точке). */
+  onFinish?: (ring: Ring) => void;
+}
+
+function draftFeature(draw: TerraDraw) {
+  return draw
+    .getSnapshot()
+    .find(
+      (feature) =>
+        feature.properties?.currentlyDrawing === true && feature.properties?.mode === 'polygon',
+    );
+}
+
+/** Черновик: поставленные вершины. Формат черновика terra-draw (проверено на 1.33):
+ *  [...вершины, координата курсора, превью-замыкание к первой вершине] —
+ *  поэтому поставленных = coordinates.length − 2. */
+function draftVertices(draw: TerraDraw): Ring {
+  const feature = draftFeature(draw);
+  if (!feature || feature.geometry.type !== 'Polygon') return [];
+  const coordinates = feature.geometry.coordinates[0] as Ring;
+  return coordinates.length > 2 ? coordinates.slice(0, -2) : [];
+}
+
+/**
+ * Возвращает вершины в черновик: серия pointer/click-событий по canvas
+ * с координатами, спроецированными из lng/lat.
+ */
+function replayClicks(map: MaplibreMap, ring: Ring): void {
+  const canvas = map.getCanvas();
+  const rect = canvas.getBoundingClientRect();
+  let delay = 40;
+  for (const [lng, lat] of ring) {
+    const point = map.project([lng, lat]);
+    const base = {
+      clientX: rect.left + point.x,
+      clientY: rect.top + point.y,
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      pointerId: 1,
+      isPrimary: true,
+      pointerType: 'mouse',
+    };
+    window.setTimeout(() => {
+      canvas.dispatchEvent(new PointerEvent('pointerdown', { ...base, buttons: 1 }));
+      canvas.dispatchEvent(new MouseEvent('mousedown', { ...base, buttons: 1 }));
+      canvas.dispatchEvent(new PointerEvent('pointerup', { ...base, buttons: 0 }));
+      canvas.dispatchEvent(new MouseEvent('mouseup', { ...base, buttons: 0 }));
+      canvas.dispatchEvent(new MouseEvent('click', base));
+    }, delay);
+    delay += 70;
+  }
+}
+
+export function useTerraDraw({ map, drawing, onVerticesChange, onFinish }: UseTerraDrawOptions) {
+  const drawRef = useRef<TerraDraw | null>(null);
+  const mapLatest = useRef<MaplibreMap | null>(map);
+  mapLatest.current = map;
+  const finishRef = useRef(onFinish);
+  finishRef.current = onFinish;
+  const verticesRef = useRef(onVerticesChange);
+  verticesRef.current = onVerticesChange;
+
+  // Один экземпляр на карту; stop() при размонтировании карты
+  useEffect(() => {
+    if (!map || drawRef.current) return undefined;
+    const draw = new TerraDraw({
+      adapter: new TerraDrawMapLibreGLAdapter({ map }),
+      // StaticMode в v1.33 нет: «спокойный» режим — SelectMode
+      modes: [new TerraDrawPolygonMode(), new TerraDrawSelectMode()],
+    });
+    draw.start();
+    draw.setMode('select');
+    drawRef.current = draw;
+    if (import.meta.env.DEV) {
+      (window as unknown as { __agroDraw?: TerraDraw }).__agroDraw = draw;
+    }
+
+    draw.on('change', () => {
+      if (draw.getMode() !== 'polygon') return;
+      verticesRef.current?.(draftVertices(draw));
+    });
+    draw.on('finish', (id, context) => {
+      if (context.action !== 'draw') return;
+      const feature = draw.getSnapshotFeature(id);
+      if (!feature || feature.geometry.type !== 'Polygon') return;
+      const closed = feature.geometry.coordinates[0] as Ring;
+      // закрытое кольцо: последняя точка дублирует первую — отдаем незамкнутый набор
+      const ring = closed.slice(0, -1);
+      verticesRef.current?.([]);
+      finishRef.current?.(ring);
+    });
+
+    return () => {
+      draw.stop();
+      drawRef.current = null;
+    };
+  }, [map]);
+
+  // Пересоздание чертёжных слоёв после смены подложки: setStyle уничтожает
+  // слои адаптера, поэтому экземпляр пересоздаётся на каждом basemap-ключе
+  // (см. MapView: ключ передаётся через dependency mapInstance).
+  // map в зависимостях обязателен: пользователь может включить рисование до
+  // загрузки карты — тогда режим выставляется, как только экземпляр появился
+  useEffect(() => {
+    const draw = drawRef.current;
+    if (!draw || !map) return;
+    if (drawing) {
+      draw.clear();
+      draw.setMode('polygon');
+    } else {
+      draw.setMode('select');
+    }
+  }, [drawing, map]);
+
+  return {
+    /**
+     * Программное завершение. Основной путь — keyup Enter элементам карты
+     * (режим закрывает полигон сам); подстраховка: если черновик всё ещё
+     * в снапшоте, убираем его и завершаем вручную (план §8, фолбэк).
+     */
+    finishDrawing(): void {
+      const currentMap = mapLatest.current;
+      const draw = drawRef.current;
+      if (!draw || !currentMap || draw.getMode() !== 'polygon') return;
+      const ring = draftVertices(draw);
+      if (ring.length < 3) return;
+      const draft = draftFeature(draw);
+      for (const element of [currentMap.getCanvasContainer(), currentMap.getCanvas()]) {
+        element.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
+      }
+      window.setTimeout(() => {
+        if (!drawRef.current) return;
+        const stillDrawing = draftFeature(drawRef.current);
+        if (!stillDrawing || String(stillDrawing.id) !== String(draft?.id)) return; // режим закрыл сам
+        // id определён: выше сравнили с draft?.id, но тип снапшота допускает undefined
+        drawRef.current.removeFeatures([stillDrawing.id as never]);
+        verticesRef.current?.([]);
+        finishRef.current?.(ring);
+      }, 120);
+    },
+    /**
+     * «Отменить точку». Session-undo в v1.33 не откатывает вершины в режиме
+     * рисования, а прямая правка геометрии ломает внутренний счётчик режима.
+     * Поэтому черновик пересоздаётся, а оставшиеся вершины возвращаются
+     * синтетическими кликами по canvas (maplibre не требует trusted events).
+     */
+    undoVertex(): void {
+      const draw = drawRef.current;
+      const currentMap = mapLatest.current;
+      if (!draw || !currentMap || draw.getMode() !== 'polygon') return;
+      const remaining = draftVertices(draw).slice(0, -1);
+      draw.clear();
+      draw.setMode('polygon');
+      verticesRef.current?.([]);
+      if (remaining.length > 0) {
+        replayClicks(currentMap, remaining);
+      }
+    },
+    /** Полная очистка чертёжных фич (после сохранения/отмены диалога). */
+    clear(): void {
+      drawRef.current?.clear();
+    },
+  };
+}

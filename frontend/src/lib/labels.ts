@@ -90,6 +90,64 @@ export const DEV_LABELS = {
 } as const;
 
 /**
+ * Строки карты и рисования (FE-3). Тексты состояний ContoursButton — из плана §6.4,
+ * сообщения валидации геометрии — из corrections §1 (самопересечение/лимиты).
+ */
+export const MAP_LABELS = {
+  searching: 'Ищем контуры…',
+  stale: 'Область изменилась — искать снова',
+  contourSource: 'Контур OpenStreetMap',
+  drawHint: 'Ставьте вершины касанием или кликом',
+  undoVertex: 'Отменить точку',
+  finishDraw: 'Завершить',
+  cancelDraw: 'Отмена',
+  vertexCount: (n: number) => `Вершин: ${n}`,
+  basemapToMap: 'Карта',
+  basemapToSatellite: 'Спутник',
+  legend: 'Легенда',
+  legendNone: 'Не анализировался',
+  legendContour: 'Найденный контур',
+  legendSelected: 'Выбранный участок',
+  areaHa: (v: string) => `${v} га`,
+  selfIntersection: 'Полигон самопересекается',
+  tooFewVertices: 'Нужно минимум 3 вершины',
+  areaLimit: (max: number) => `Площадь больше ${max} га`,
+  verticesLimit: (max: number) => `Слишком много вершин: максимум ${max}`,
+  periodLimit: (max: number) => `Период длиннее ${max} дней`,
+  badPeriod: 'Дата «с» позже даты «по»',
+  contoursCount: (n: number) => {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    const word =
+      mod10 === 1 && mod100 !== 11
+        ? 'контур'
+        : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
+          ? 'контура'
+          : 'контуров';
+    return `${n} ${word}`;
+  },
+} as const;
+
+/** Строки диалога добавления участка (FE-3, бриф §3A). */
+export const DIALOG_LABELS = {
+  name: 'Название',
+  nameRequired: 'Укажите название участка',
+  period: 'Период',
+  from: 'с',
+  to: 'по',
+  source: 'Источник',
+  area: 'Площадь',
+  addAndAnalyze: 'Добавить и проанализировать',
+  saveOnly: 'Только сохранить',
+} as const;
+
+/** Строки минимального списка участков (FE-3; полноценный список — FE-2). */
+export const AREA_LIST_LABELS = {
+  notAnalyzed: 'Не анализировался',
+  runAnalysis: 'Запустить анализ',
+} as const;
+
+/**
  * SCAFFOLD (FE-0): строки каркаса — заголовки панелей, вкладки, тексты зон-заглушек
  * и aria-подписи. Не являются утверждённым словарём брифа; заменяются на этапах FE-1–FE-5.
  */
