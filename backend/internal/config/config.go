@@ -31,6 +31,13 @@ const (
 )
 
 const (
+	DefaultCDSEStatisticsURL   = "https://sh.dataspace.copernicus.eu/api/v1/statistics"
+	DefaultCDSETokenURL        = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
+	DefaultOverpassURL         = "https://overpass-api.de/api/interpreter"
+	DefaultOverpassFallbackURL = "https://overpass.kumi.systems/api/interpreter"
+	DefaultWeatherURL          = "https://archive-api.open-meteo.com/v1/archive"
+	DefaultWeatherFallbackURL  = "https://archive-api.open-meteo.com/v1/era5"
+
 	defaultHTTPAddr          = ":8080"
 	defaultPublicDir         = "/app/public"
 	defaultMLBaseURL         = "http://127.0.0.1:8000"
@@ -106,12 +113,12 @@ func LoadFrom(lookup Lookup) (Config, error) {
 		Source: SourceConfig{
 			CDSEClientID:        value(lookup, EnvCDSEClientID, ""),
 			CDSEClientSecret:    value(lookup, EnvCDSEClientSecret, ""),
-			CDSEStatisticsURL:   value(lookup, EnvCDSEStatisticsURL, "https://sh.dataspace.copernicus.eu/api/v1/statistics"),
-			CDSETokenURL:        value(lookup, EnvCDSETokenURL, "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"),
-			OverpassURL:         value(lookup, EnvOverpassURL, "https://overpass-api.de/api/interpreter"),
-			OverpassFallbackURL: value(lookup, EnvOverpassFallbackURL, "https://overpass.kumi.systems/api/interpreter"),
-			WeatherURL:          value(lookup, EnvWeatherURL, "https://archive-api.open-meteo.com/v1/archive"),
-			WeatherFallbackURL:  value(lookup, EnvWeatherFallbackURL, "https://archive-api.open-meteo.com/v1/era5"),
+			CDSEStatisticsURL:   value(lookup, EnvCDSEStatisticsURL, DefaultCDSEStatisticsURL),
+			CDSETokenURL:        value(lookup, EnvCDSETokenURL, DefaultCDSETokenURL),
+			OverpassURL:         value(lookup, EnvOverpassURL, DefaultOverpassURL),
+			OverpassFallbackURL: value(lookup, EnvOverpassFallbackURL, DefaultOverpassFallbackURL),
+			WeatherURL:          value(lookup, EnvWeatherURL, DefaultWeatherURL),
+			WeatherFallbackURL:  value(lookup, EnvWeatherFallbackURL, DefaultWeatherFallbackURL),
 		},
 		Postgres: PostgresConfig{URL: value(lookup, EnvDBURL, ""), Timeout: defaultDBTimeout},
 		Analysis: AnalysisConfig{Workers: defaultAnalysisWorkers, QueueSize: defaultAnalysisQueueSize},

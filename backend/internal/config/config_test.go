@@ -24,6 +24,9 @@ func TestLoadFrom(t *testing.T) {
 	if c.Source.AggregationDays != 7 || c.Source.MinValidFraction != 0.4 {
 		t.Fatalf("source config = %+v", c.Source)
 	}
+	if c.Source.CDSEStatisticsURL != DefaultCDSEStatisticsURL || c.Source.WeatherURL != DefaultWeatherURL {
+		t.Fatalf("source defaults = %+v", c.Source)
+	}
 	if c.HTTP.Addr != defaultHTTPAddr || c.Analysis.Workers != 3 || c.Analysis.QueueSize != 12 {
 		t.Fatalf("defaults = %+v %+v", c.HTTP, c.Analysis)
 	}
