@@ -70,10 +70,9 @@ func (h *handler) postAnalyses(w http.ResponseWriter, r *http.Request) {
 				return jerr
 			}
 		}
-		period := a.Period
-		if req.Period != nil {
-			period = store.Period(*req.Period)
-		}
+		period := store.Period(analysisusecase.ResolvePeriod(
+			domain.Area{Period: domain.Period(a.Period)}, req.Period,
+		))
 		domainJob, err := analysisusecase.NewJob(domain.Area{
 			ID: a.ID, Generation: a.Generation,
 		}, domain.Period(period), time.Now().UTC())

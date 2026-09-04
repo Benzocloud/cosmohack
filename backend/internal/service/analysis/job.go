@@ -8,6 +8,14 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
+// ResolvePeriod returns the requested period or the area's default period.
+func ResolvePeriod(area domain.Area, requested *domain.Period) domain.Period {
+	if requested != nil {
+		return *requested
+	}
+	return area.Period
+}
+
 // NewJob creates a queued analysis job for the current area generation.
 func NewJob(area domain.Area, period domain.Period, now time.Time) (domain.Job, error) {
 	id, err := newJobID()
