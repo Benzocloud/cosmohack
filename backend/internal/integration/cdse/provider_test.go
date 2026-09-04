@@ -11,11 +11,13 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/cdse"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
-	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 )
 
 type stubService struct {
@@ -245,10 +247,10 @@ func TestProviderReportsAuthorizationFailure(t *testing.T) {
 	service := newService(t)
 	service.tokenStatus = http.StatusUnauthorized
 	_, err := newProvider(t, service, fixedClock()).FetchNDVI(context.Background(), satelliteRequest(t, "2025-06-01", "2025-06-20"))
-	if source.KindOf(err) != source.FailureUnauthorized {
-		t.Fatalf("вид ошибки %q", source.KindOf(err))
+	if domain.KindOf(err) != domain.FailureUnauthorized {
+		t.Fatalf("вид ошибки %q", domain.KindOf(err))
 	}
-	if source.IsRetryable(err) {
+	if domain.IsRetryable(err) {
 		t.Fatal("ошибка доступа не должна помечаться как повторяемая")
 	}
 	if service.statisticCall != 0 {
@@ -260,8 +262,8 @@ func TestProviderReportsStatisticsFailure(t *testing.T) {
 	service := newService(t)
 	service.statusCode = http.StatusServiceUnavailable
 	_, err := newProvider(t, service, fixedClock()).FetchNDVI(context.Background(), satelliteRequest(t, "2025-06-01", "2025-06-20"))
-	if source.KindOf(err) != source.FailureUnavailable {
-		t.Fatalf("вид ошибки %q", source.KindOf(err))
+	if domain.KindOf(err) != domain.FailureUnavailable {
+		t.Fatalf("вид ошибки %q", domain.KindOf(err))
 	}
 }
 

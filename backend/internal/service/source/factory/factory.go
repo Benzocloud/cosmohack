@@ -15,6 +15,12 @@ import (
 )
 
 const (
+	errSettingsLookup = "source settings lookup is nil"
+	errInvalidInteger = "source setting %s must be an integer"
+	errInvalidNumber  = "source setting %s must be a number"
+)
+
+const (
 	EnvCDSEClientID           = "CDSE_CLIENT_ID"
 	EnvCDSEClientSecret       = "CDSE_CLIENT_SECRET"
 	EnvCDSEStatisticsURL      = "CDSE_STATISTICS_URL"
@@ -71,7 +77,7 @@ func (s Settings) String() string {
 
 func SettingsFromEnv(lookup Lookup) (Settings, error) {
 	if lookup == nil {
-		return Settings{}, errors.New(source.ErrSettingsLookup)
+		return Settings{}, errors.New(errSettingsLookup)
 	}
 	settings := Settings{
 		CDSEClientID:        value(lookup, EnvCDSEClientID, ""),
@@ -179,7 +185,7 @@ func integer(lookup Lookup, key string, fallback int) (int, error) {
 	}
 	parsed, err := strconv.Atoi(raw)
 	if err != nil {
-		return 0, fmt.Errorf(source.ErrInvalidInteger, key)
+		return 0, fmt.Errorf(errInvalidInteger, key)
 	}
 	return parsed, nil
 }
@@ -191,7 +197,7 @@ func fractional(lookup Lookup, key string, fallback float64) (float64, error) {
 	}
 	parsed, err := strconv.ParseFloat(raw, 64)
 	if err != nil {
-		return 0, fmt.Errorf(source.ErrInvalidNumber, key)
+		return 0, fmt.Errorf(errInvalidNumber, key)
 	}
 	return parsed, nil
 }

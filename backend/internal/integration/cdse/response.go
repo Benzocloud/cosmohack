@@ -5,6 +5,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
@@ -84,7 +85,7 @@ func (i statisticsItem) dateRange() (source.DateRange, error) {
 	}
 	interval, buildErr := source.NewDateRange(from, last)
 	if buildErr != nil {
-		return source.DateRange{}, source.WrapProviderError(source.FailureMalformed, ProviderName, buildErr,
+		return source.DateRange{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, buildErr,
 			"интервал агрегации некорректен")
 	}
 	return interval, nil
@@ -131,7 +132,7 @@ func (i statisticsItem) stats() (bandStats, bool) {
 func newSample(interval source.DateRange, value, validFraction *float64, usable bool, reason string) (source.SatelliteSample, error) {
 	sample, err := source.NewSatelliteSample(interval, value, validFraction, usable, reason)
 	if err != nil {
-		return source.SatelliteSample{}, source.WrapProviderError(source.FailureMalformed, ProviderName, err,
+		return source.SatelliteSample{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
 			"наблюдение интервала %s не принято", interval)
 	}
 	return sample, nil
@@ -139,7 +140,7 @@ func newSample(interval source.DateRange, value, validFraction *float64, usable 
 
 func parseInterval(value string) (source.Date, error) {
 	if value == "" {
-		return source.Date{}, source.NewProviderError(source.FailureMalformed, ProviderName,
+		return source.Date{}, domain.NewProviderError(domain.FailureMalformed, ProviderName,
 			"интервал агрегации не содержит дат")
 	}
 	if moment, err := time.Parse(time.RFC3339, value); err == nil {
@@ -147,7 +148,7 @@ func parseInterval(value string) (source.Date, error) {
 	}
 	date, err := source.ParseDate(value)
 	if err != nil {
-		return source.Date{}, source.WrapProviderError(source.FailureMalformed, ProviderName, err,
+		return source.Date{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
 			"дата интервала %q не разбирается", value)
 	}
 	return date, nil

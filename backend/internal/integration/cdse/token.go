@@ -11,7 +11,6 @@ import (
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/httpx"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
 const (
@@ -99,7 +98,7 @@ func (t *TokenSource) Token(ctx context.Context) (string, error) {
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, t.endpoint, strings.NewReader(t.credentials.form().Encode()))
 	if err != nil {
-		return "", source.WrapProviderError(source.FailureInvalidRequest, ProviderName, err, "запрос токена не построен")
+		return "", domain.WrapProviderError(domain.FailureInvalidRequest, ProviderName, err, "запрос токена не построен")
 	}
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
@@ -108,7 +107,7 @@ func (t *TokenSource) Token(ctx context.Context) (string, error) {
 		return "", err
 	}
 	if payload.AccessToken == "" || payload.ExpiresIn <= 0 {
-		return "", source.NewProviderError(source.FailureMalformed, ProviderName, "ответ сервиса токенов неполон")
+		return "", domain.NewProviderError(domain.FailureMalformed, ProviderName, "ответ сервиса токенов неполон")
 	}
 	t.token = payload.AccessToken
 	t.expiresAt = now.Add(time.Duration(payload.ExpiresIn)*time.Second - expiryMargin)

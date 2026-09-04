@@ -3,6 +3,7 @@ package openmeteo
 import (
 	"fmt"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
@@ -26,19 +27,19 @@ type responseDocument struct {
 
 func (d *responseDocument) validate() error {
 	if d.UTCOffsetSeconds != expectedOffsetSeconds {
-		return source.NewProviderError(source.FailureMalformed, ProviderName,
+		return domain.NewProviderError(domain.FailureMalformed, ProviderName,
 			"сдвиг времени %d секунд вместо UTC", d.UTCOffsetSeconds)
 	}
 	if d.DailyUnits.Temperature != expectedTemperatureUnit {
-		return source.NewProviderError(source.FailureMalformed, ProviderName,
+		return domain.NewProviderError(domain.FailureMalformed, ProviderName,
 			"единица температуры %q вместо %q", d.DailyUnits.Temperature, expectedTemperatureUnit)
 	}
 	if d.DailyUnits.Precipitation != expectedPrecipitationUnit {
-		return source.NewProviderError(source.FailureMalformed, ProviderName,
+		return domain.NewProviderError(domain.FailureMalformed, ProviderName,
 			"единица осадков %q вместо %q", d.DailyUnits.Precipitation, expectedPrecipitationUnit)
 	}
 	if len(d.Daily.Time) != len(d.Daily.Temperature) || len(d.Daily.Time) != len(d.Daily.Precipitation) {
-		return source.NewProviderError(source.FailureMalformed, ProviderName,
+		return domain.NewProviderError(domain.FailureMalformed, ProviderName,
 			"длины массивов дат и значений не совпадают")
 	}
 	return nil
@@ -51,7 +52,7 @@ func (d *responseDocument) days(period source.DateRange) ([]source.WeatherDay, [
 	for index, text := range d.Daily.Time {
 		date, err := source.ParseDate(text)
 		if err != nil {
-			return nil, nil, source.WrapProviderError(source.FailureMalformed, ProviderName, err,
+			return nil, nil, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
 				"дата %q не разбирается", text)
 		}
 		if !period.Contains(date) {
@@ -65,7 +66,7 @@ func (d *responseDocument) days(period source.DateRange) ([]source.WeatherDay, [
 		}
 		day, err := source.NewWeatherDay(date, d.Daily.Temperature[index], precipitation)
 		if err != nil {
-			return nil, nil, source.WrapProviderError(source.FailureMalformed, ProviderName, err,
+			return nil, nil, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
 				"погодные значения на %s не приняты", date)
 		}
 		days = append(days, day)

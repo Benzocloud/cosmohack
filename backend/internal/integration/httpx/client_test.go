@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/httpx"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
 type payload struct {
@@ -48,13 +48,13 @@ func TestClientDecodesJSONAndSendsUserAgent(t *testing.T) {
 }
 
 func TestClientMapsStatusToFailureKind(t *testing.T) {
-	cases := map[int]source.FailureKind{
-		http.StatusUnauthorized:       source.FailureUnauthorized,
-		http.StatusForbidden:          source.FailureUnauthorized,
-		http.StatusTooManyRequests:    source.FailureRateLimited,
-		http.StatusGatewayTimeout:     source.FailureTimeout,
-		http.StatusServiceUnavailable: source.FailureUnavailable,
-		http.StatusBadRequest:         source.FailureInvalidRequest,
+	cases := map[int]domain.FailureKind{
+		http.StatusUnauthorized:       domain.FailureUnauthorized,
+		http.StatusForbidden:          domain.FailureUnauthorized,
+		http.StatusTooManyRequests:    domain.FailureRateLimited,
+		http.StatusGatewayTimeout:     domain.FailureTimeout,
+		http.StatusServiceUnavailable: domain.FailureUnavailable,
+		http.StatusBadRequest:         domain.FailureInvalidRequest,
 	}
 	for status, expected := range cases {
 		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
@@ -62,8 +62,8 @@ func TestClientMapsStatusToFailureKind(t *testing.T) {
 		}))
 		err := httpx.NewClient().DoJSON(context.Background(), "test", newRequest(t, server.URL), &payload{})
 		server.Close()
-		if source.KindOf(err) != expected {
-			t.Fatalf("статус %d дал вид %q, ожидался %q", status, source.KindOf(err), expected)
+		if domain.KindOf(err) != expected {
+			t.Fatalf("статус %d дал вид %q, ожидался %q", status, domain.KindOf(err), expected)
 		}
 	}
 }
@@ -76,8 +76,8 @@ func TestClientRejectsOversizedResponse(t *testing.T) {
 
 	client := httpx.NewClient(httpx.WithMaxResponseBytes(128))
 	err := client.DoJSON(context.Background(), "test", newRequest(t, server.URL), &payload{})
-	if source.KindOf(err) != source.FailureMalformed {
-		t.Fatalf("вид ошибки %q, ожидался %q", source.KindOf(err), source.FailureMalformed)
+	if domain.KindOf(err) != domain.FailureMalformed {
+		t.Fatalf("вид ошибки %q, ожидался %q", domain.KindOf(err), domain.FailureMalformed)
 	}
 }
 
@@ -88,8 +88,8 @@ func TestClientRejectsMalformedJSON(t *testing.T) {
 	defer server.Close()
 
 	err := httpx.NewClient().DoJSON(context.Background(), "test", newRequest(t, server.URL), &payload{})
-	if source.KindOf(err) != source.FailureMalformed {
-		t.Fatalf("вид ошибки %q", source.KindOf(err))
+	if domain.KindOf(err) != domain.FailureMalformed {
+		t.Fatalf("вид ошибки %q", domain.KindOf(err))
 	}
 }
 
@@ -105,10 +105,10 @@ func TestClientReportsTimeout(t *testing.T) {
 
 	client := httpx.NewClient(httpx.WithTimeout(50 * time.Millisecond))
 	err := client.DoJSON(context.Background(), "test", newRequest(t, server.URL), &payload{})
-	if source.KindOf(err) != source.FailureTimeout {
-		t.Fatalf("вид ошибки %q, ожидался %q", source.KindOf(err), source.FailureTimeout)
+	if domain.KindOf(err) != domain.FailureTimeout {
+		t.Fatalf("вид ошибки %q, ожидался %q", domain.KindOf(err), domain.FailureTimeout)
 	}
-	if !source.IsRetryable(err) {
+	if !domain.IsRetryable(err) {
 		t.Fatal("тайм-аут должен допускать явный повтор")
 	}
 }

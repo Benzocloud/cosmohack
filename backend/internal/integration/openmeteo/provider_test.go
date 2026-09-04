@@ -9,11 +9,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
-	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 )
 
 func fixture(t *testing.T, name string) []byte {
@@ -114,8 +116,8 @@ func TestProviderRejectsUnexpectedUnitsAndTimezone(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			server := serve(t, []byte(body), nil)
 			_, err := newProvider(t, server.URL).FetchDaily(context.Background(), request(t, "2025-06-01", "2025-06-02"))
-			if source.KindOf(err) != source.FailureMalformed {
-				t.Fatalf("вид ошибки %q, ожидался %q", source.KindOf(err), source.FailureMalformed)
+			if domain.KindOf(err) != domain.FailureMalformed {
+				t.Fatalf("вид ошибки %q, ожидался %q", domain.KindOf(err), domain.FailureMalformed)
 			}
 		})
 	}
@@ -162,7 +164,7 @@ func TestProviderReportsProviderFailure(t *testing.T) {
 	defer server.Close()
 
 	_, err := newProvider(t, server.URL).FetchDaily(context.Background(), request(t, "2025-06-01", "2025-06-02"))
-	if source.KindOf(err) != source.FailureRateLimited {
-		t.Fatalf("вид ошибки %q", source.KindOf(err))
+	if domain.KindOf(err) != domain.FailureRateLimited {
+		t.Fatalf("вид ошибки %q", domain.KindOf(err))
 	}
 }

@@ -124,7 +124,7 @@ func (p *Provider) FetchNDVI(ctx context.Context, request source.SatelliteReques
 	}
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, p.endpoint, bytes.NewReader(body))
 	if err != nil {
-		return source.SatelliteSeries{}, source.WrapProviderError(source.FailureInvalidRequest, ProviderName, err,
+		return source.SatelliteSeries{}, domain.WrapProviderError(domain.FailureInvalidRequest, ProviderName, err,
 			"запрос статистики не построен")
 	}
 	httpRequest.Header.Set("Content-Type", "application/json")
@@ -150,7 +150,7 @@ func (p *Provider) FetchNDVI(ctx context.Context, request source.SatelliteReques
 		RetrievedAt: p.clock().UTC(),
 	})
 	if err != nil {
-		return source.SatelliteSeries{}, source.WrapProviderError(source.FailureMalformed, ProviderName, err,
+		return source.SatelliteSeries{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
 			"описание спутникового источника не построено")
 	}
 	return source.NewSatelliteSeries(descriptor, samples, notes)
@@ -175,7 +175,7 @@ func newRequestBuilder(collection, mosaickingOrder string, aggregationDays int, 
 func (b *requestBuilder) build(request source.SatelliteRequest) ([]byte, error) {
 	geometry, err := geom.NewPolygonCodec(0).Encode(request.Polygon())
 	if err != nil {
-		return nil, source.WrapProviderError(source.FailureInvalidRequest, ProviderName, err,
+		return nil, domain.WrapProviderError(domain.FailureInvalidRequest, ProviderName, err,
 			"геометрия не сериализована")
 	}
 	payload := map[string]any{
@@ -205,7 +205,7 @@ func (b *requestBuilder) build(request source.SatelliteRequest) ([]byte, error) 
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return nil, source.WrapProviderError(source.FailureInvalidRequest, ProviderName, err,
+		return nil, domain.WrapProviderError(domain.FailureInvalidRequest, ProviderName, err,
 			"тело запроса не сериализовано")
 	}
 	return body, nil

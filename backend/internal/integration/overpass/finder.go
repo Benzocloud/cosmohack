@@ -110,7 +110,7 @@ func (f *Finder) FindContours(ctx context.Context, bbox geom.BBox) (source.Conto
 		RetrievedAt:     f.clock().UTC(),
 	})
 	if err != nil {
-		return source.ContourSearchResult{}, source.WrapProviderError(source.FailureMalformed, ProviderName, err,
+		return source.ContourSearchResult{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
 			"происхождение контуров не построено")
 	}
 	contours, notes := f.convert(document, origin)

@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/httpx"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
 func factory() httpx.RequestFactory {
@@ -69,8 +69,8 @@ func TestFailoverKeepsNonRetryableFailure(t *testing.T) {
 	defer fallback.Close()
 
 	_, err := newFailover(t, primary.URL, fallback.URL).DoJSON(context.Background(), "test", factory(), &payload{})
-	if source.KindOf(err) != source.FailureInvalidRequest {
-		t.Fatalf("вид ошибки %q", source.KindOf(err))
+	if domain.KindOf(err) != domain.FailureInvalidRequest {
+		t.Fatalf("вид ошибки %q", domain.KindOf(err))
 	}
 	if fallbackCalls != 0 {
 		t.Fatal("резервный адрес вызван при неисправимой ошибке основного")
@@ -91,8 +91,8 @@ func TestFailoverReportsBothFailures(t *testing.T) {
 	if err == nil {
 		t.Fatal("отказ обоих адресов не сообщён")
 	}
-	if source.KindOf(err) != source.FailureRateLimited {
-		t.Fatalf("вид ошибки %q, ожидался вид отказа резервного адреса", source.KindOf(err))
+	if domain.KindOf(err) != domain.FailureRateLimited {
+		t.Fatalf("вид ошибки %q, ожидался вид отказа резервного адреса", domain.KindOf(err))
 	}
 }
 

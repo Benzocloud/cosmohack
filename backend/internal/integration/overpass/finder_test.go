@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/overpass"
@@ -175,8 +176,8 @@ func TestFinderRejectsTooLargeSearchArea(t *testing.T) {
 		t.Fatalf("пределы не построены: %v", err)
 	}
 	_, err = newFinder(t, server.URL, limits, 200).FindContours(context.Background(), searchArea(t))
-	if source.KindOf(err) != source.FailureLimitExceeded {
-		t.Fatalf("вид ошибки %q", source.KindOf(err))
+	if domain.KindOf(err) != domain.FailureLimitExceeded {
+		t.Fatalf("вид ошибки %q", domain.KindOf(err))
 	}
 }
 
@@ -210,8 +211,8 @@ func TestFinderMapsProviderFailure(t *testing.T) {
 	defer server.Close()
 
 	_, err := newFinder(t, server.URL, source.DefaultLimits(), 200).FindContours(context.Background(), searchArea(t))
-	if source.KindOf(err) != source.FailureRateLimited {
-		t.Fatalf("вид ошибки %q", source.KindOf(err))
+	if domain.KindOf(err) != domain.FailureRateLimited {
+		t.Fatalf("вид ошибки %q", domain.KindOf(err))
 	}
 }
 
