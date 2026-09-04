@@ -85,8 +85,18 @@ type Contour struct {
 	tags    map[string]string
 }
 
+func requireContourID(value string) error {
+	if value == "" {
+		return fmt.Errorf("contour id is required")
+	}
+	if len(value) > 128 {
+		return fmt.Errorf("contour id exceeds 128 characters")
+	}
+	return nil
+}
+
 func NewContour(id, name string, polygon *geom.Polygon, origin Origin, tags map[string]string) (Contour, error) {
-	if err := requireIdentifier("id контура", id); err != nil {
+	if err := requireContourID(id); err != nil {
 		return Contour{}, err
 	}
 	if polygon == nil {

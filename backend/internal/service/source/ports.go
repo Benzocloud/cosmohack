@@ -5,10 +5,11 @@ import (
 	"fmt"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
+	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 )
 
 type ContourFinder interface {
-	FindContours(ctx context.Context, bbox geom.BBox) (ContourSearchResult, error)
+	FindContours(ctx context.Context, bbox geom.BBox) (domainsource.ContourSearchResult, error)
 }
 
 type SatelliteRequest struct {

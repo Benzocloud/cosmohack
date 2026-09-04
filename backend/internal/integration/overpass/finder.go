@@ -10,9 +10,8 @@ import (
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
-	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/httpx"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
 const (
@@ -32,7 +31,7 @@ type Config struct {
 	FallbackEndpoint    string
 	QueryTimeoutSeconds int
 	MaxResults          int
-	Limits              domainsource.Limits
+	Limits              source.Limits
 	Client              *httpx.Client
 	Clock               domain.Clock
 }
@@ -43,7 +42,7 @@ func DefaultConfig() Config {
 		FallbackEndpoint:    FallbackEndpoint,
 		QueryTimeoutSeconds: defaultQueryTimeout,
 		MaxResults:          defaultMaxResults,
-		Limits:              domainsource.DefaultLimits(),
+		Limits:              source.DefaultLimits(),
 		Client:              httpx.NewClient(httpx.WithTimeout(90 * time.Second)),
 		Clock:               time.Now,
 	}
@@ -52,7 +51,7 @@ func DefaultConfig() Config {
 type Finder struct {
 	failover *httpx.Failover
 	query    *queryBuilder
-	limits   domainsource.Limits
+	limits   source.Limits
 	clock    domain.Clock
 }
 
@@ -72,8 +71,8 @@ func NewFinder(config Config) (*Finder, error) {
 	if config.Clock == nil {
 		config.Clock = time.Now
 	}
-	if config.Limits == (domainsource.Limits{}) {
-		config.Limits = domainsource.DefaultLimits()
+	if config.Limits == (source.Limits{}) {
+		config.Limits = source.DefaultLimits()
 	}
 	endpoints, err := httpx.NewEndpoints(config.PrimaryEndpoint, config.FallbackEndpoint)
 	if err != nil {
