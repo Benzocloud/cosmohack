@@ -97,9 +97,9 @@ func Load() (Config, error) {
 	return LoadFrom(os.LookupEnv)
 }
 
-func LoadFrom(lookup Lookup) (Config, error) {
+func LoadFrom(lookup Lookup) (cfg Config, err error) {
 	if lookup == nil {
-		return Config{}, fmt.Errorf("config lookup is nil")
+		return cfg, fmt.Errorf("config lookup is nil")
 	}
 	c := Config{
 		HTTP: HTTPConfig{
@@ -124,35 +124,35 @@ func LoadFrom(lookup Lookup) (Config, error) {
 		Analysis: AnalysisConfig{Workers: defaultAnalysisWorkers, QueueSize: defaultAnalysisQueueSize},
 	}
 
-	var err error
 	if c.Source.AggregationDays, err = integer(lookup, EnvSatelliteAggregationDays, defaultAggregationDays); err != nil {
-		return Config{}, err
+		return cfg, err
 	}
 	if c.Source.MinValidFraction, err = fractional(lookup, EnvSatelliteMinValidFraction, defaultMinValidFraction); err != nil {
-		return Config{}, err
+		return cfg, err
 	}
 	if c.Analysis.Workers, err = integer(lookup, EnvAnalysisWorkers, defaultAnalysisWorkers); err != nil {
-		return Config{}, err
+		return cfg, err
 	}
 	if c.Analysis.QueueSize, err = integer(lookup, EnvAnalysisQueueSize, defaultAnalysisQueueSize); err != nil {
-		return Config{}, err
+		return cfg, err
 	}
 	if c.Postgres.URL == "" {
-		return Config{}, fmt.Errorf("%s is required", EnvDBURL)
+		return cfg, fmt.Errorf("%s is required", EnvDBURL)
 	}
 	if raw, ok := lookup(EnvDBTimeout); ok && strings.TrimSpace(raw) != "" {
 		c.Postgres.Timeout, err = time.ParseDuration(raw)
 		if err != nil || c.Postgres.Timeout <= 0 {
-			return Config{}, fmt.Errorf("%s must be a positive duration", EnvDBTimeout)
+			return cfg, fmt.Errorf("%s must be a positive duration", EnvDBTimeout)
 		}
 	}
 	if c.Source.AggregationDays <= 0 || c.Source.MinValidFraction <= 0 || c.Source.MinValidFraction > 1 {
-		return Config{}, fmt.Errorf("invalid satellite source limits")
+		return cfg, fmt.Errorf("invalid satellite source limits")
 	}
 	if c.Analysis.Workers <= 0 || c.Analysis.QueueSize <= 0 {
-		return Config{}, fmt.Errorf("invalid analysis worker limits")
+		return cfg, fmt.Errorf("invalid analysis worker limits")
 	}
-	return c, nil
+	cfg = c
+	return cfg, nil
 }
 
 func value(lookup Lookup, key, fallback string) string {
