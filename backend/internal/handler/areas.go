@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/service/area"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
@@ -44,20 +45,17 @@ func (h *handler) createArea(w http.ResponseWriter, r *http.Request) {
 		writeValidation(w, err)
 		return
 	}
-	src := store.Source{Kind: req.Source.Kind, ContourID: req.Source.ContourID, Provider: req.Source.Provider}
-	id, err := newUUID()
+	domainArea, err := area.Create(area.CreateInput{
+		Name: req.Name, Period: req.Period, Geometry: req.Geometry, Source: *req.Source,
+	}, time.Now().UTC())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal_error", "Не удалось прочитать или записать снимок", true)
 		return
 	}
 	a := store.Area{
-		ID:         id,
-		Name:       req.Name,
-		Geometry:   store.Polygon(req.Geometry),
-		Source:     src,
-		Period:     store.Period(req.Period),
-		CreatedAt:  time.Now().UTC(),
-		Generation: 1,
+		ID: domainArea.ID, Name: domainArea.Name, Geometry: store.Polygon(domainArea.Geometry),
+		Source: store.Source{Kind: domainArea.Source.Kind, ContourID: domainArea.Source.ContourID, Provider: domainArea.Source.Provider},
+		Period: store.Period(domainArea.Period), CreatedAt: domainArea.CreatedAt, Generation: domainArea.Generation,
 	}
 	if err := h.store.PutArea(a); err != nil {
 		writeStoreErr(w, err)
