@@ -18,3 +18,12 @@ func storeJobFromDomain(job domain.Job) store.Job {
 		AreaGeneration: job.AreaGeneration,
 	}
 }
+
+func storeAreaFromDomain(area domain.Area) store.Area {
+	return store.Area{
+		ID: area.ID, Name: area.Name, Geometry: store.Polygon(area.Geometry),
+		Source: store.Source{Kind: area.Source.Kind, ContourID: area.Source.ContourID, Provider: area.Source.Provider},
+		Period: store.Period(area.Period), CreatedAt: area.CreatedAt,
+		Generation: area.Generation, ShownResultVersion: area.ShownResultVersion, ActiveJobID: area.ActiveJobID,
+	}
+}

@@ -52,11 +52,7 @@ func (h *handler) createArea(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal_error", "Не удалось прочитать или записать снимок", true)
 		return
 	}
-	a := store.Area{
-		ID: domainArea.ID, Name: domainArea.Name, Geometry: store.Polygon(domainArea.Geometry),
-		Source: store.Source{Kind: domainArea.Source.Kind, ContourID: domainArea.Source.ContourID, Provider: domainArea.Source.Provider},
-		Period: store.Period(domainArea.Period), CreatedAt: domainArea.CreatedAt, Generation: domainArea.Generation,
-	}
+	a := storeAreaFromDomain(domainArea)
 	if err := h.store.PutArea(a); err != nil {
 		writeStoreErr(w, err)
 		return
