@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/httpx"
+	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
 const (
@@ -65,14 +66,14 @@ type TokenSource struct {
 	endpoint    string
 	credentials Credentials
 	client      *httpx.Client
-	clock       source.Clock
+	clock       domain.Clock
 
 	mutex     sync.Mutex
 	token     string
 	expiresAt time.Time
 }
 
-func NewTokenSource(endpoint string, credentials Credentials, client *httpx.Client, clock source.Clock) (*TokenSource, error) {
+func NewTokenSource(endpoint string, credentials Credentials, client *httpx.Client, clock domain.Clock) (*TokenSource, error) {
 	if endpoint == "" {
 		endpoint = TokenEndpoint
 	}

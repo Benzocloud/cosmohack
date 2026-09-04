@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/httpx"
+	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
 const (
@@ -32,7 +33,7 @@ type Config struct {
 	MaxResults          int
 	Limits              source.Limits
 	Client              *httpx.Client
-	Clock               source.Clock
+	Clock               domain.Clock
 }
 
 func DefaultConfig() Config {
@@ -51,7 +52,7 @@ type Finder struct {
 	failover *httpx.Failover
 	query    *queryBuilder
 	limits   source.Limits
-	clock    source.Clock
+	clock    domain.Clock
 }
 
 func NewFinder(config Config) (*Finder, error) {

@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 )
 
-type Clock func() time.Time
+type Clock = domain.Clock
 
 type CollectRequest struct {
 	areaID  string

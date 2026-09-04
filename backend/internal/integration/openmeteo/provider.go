@@ -8,9 +8,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/httpx"
+	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
 const (
@@ -33,7 +34,7 @@ type Config struct {
 	FallbackEndpoint string
 	Model            string
 	Client           *httpx.Client
-	Clock            source.Clock
+	Clock            domain.Clock
 }
 
 func DefaultConfig() Config {
@@ -49,7 +50,7 @@ func DefaultConfig() Config {
 type Provider struct {
 	failover *httpx.Failover
 	model    string
-	clock    source.Clock
+	clock    domain.Clock
 }
 
 func NewProvider(config Config) (*Provider, error) {

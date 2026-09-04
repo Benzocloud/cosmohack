@@ -8,9 +8,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/httpx"
+	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
 const (
@@ -37,7 +38,7 @@ type Config struct {
 	MinValidFraction   float64
 	MosaickingOrder    string
 	Client             *httpx.Client
-	Clock              source.Clock
+	Clock              domain.Clock
 }
 
 func DefaultConfig(credentials Credentials) Config {
@@ -65,7 +66,7 @@ type Provider struct {
 	collection       string
 	mosaickingOrder  string
 	resolutionMeters float64
-	clock            source.Clock
+	clock            domain.Clock
 }
 
 func NewProvider(config Config) (*Provider, error) {
