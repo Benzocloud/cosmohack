@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
+	analysisusecase "github.com/Benzocloud/cosmohack/backend/internal/service/analysis"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
@@ -72,20 +74,15 @@ func (h *handler) postAnalyses(w http.ResponseWriter, r *http.Request) {
 		if req.Period != nil {
 			period = store.Period(*req.Period)
 		}
-		now := time.Now().UTC()
-		jobID, err := newUUID()
+		domainJob, err := analysisusecase.NewJob(domain.Area{
+			ID: a.ID, Generation: a.Generation,
+		}, domain.Period(period), time.Now().UTC())
 		if err != nil {
 			return err
 		}
-		job := store.Job{
-			ID:             jobID,
-			AreaID:         a.ID,
-			Status:         store.JobQueued,
-			Period:         period,
-			CreatedAt:      now,
-			UpdatedAt:      now,
-			AreaGeneration: a.Generation,
-		}
+		job := store.Job{ID: domainJob.ID, AreaID: domainJob.AreaID, Status: store.JobQueued,
+			Period: store.Period(domainJob.Period), CreatedAt: domainJob.CreatedAt,
+			UpdatedAt: domainJob.UpdatedAt, AreaGeneration: domainJob.AreaGeneration}
 		if err := tx.PutJobQueued(job); err != nil {
 			return err
 		}

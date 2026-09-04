@@ -33,13 +33,18 @@ type AreaSource struct {
 // ErrorCode/ErrorMessage заполняются при failed кодами MLErrorCode,
 // ResultVersion появляется после сохранения результата.
 type Job struct {
-	ID            string    `json:"id"`
-	AreaID        string    `json:"area_id"`
-	Status        JobStatus `json:"status"`
-	Stage         *string   `json:"stage"`
-	ErrorCode     *string   `json:"error_code"`
-	ErrorMessage  *string   `json:"error_message"`
-	ResultVersion *string   `json:"result_version"`
+	ID             string    `json:"id"`
+	AreaID         string    `json:"area_id"`
+	Status         JobStatus `json:"status"`
+	Period         Period    `json:"period"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	AreaGeneration int       `json:"area_generation"`
+	Stage          *string   `json:"stage"`
+	ErrorCode      *string   `json:"error_code"`
+	ErrorMessage   *string   `json:"error_message"`
+	ResultVersion  *string   `json:"result_version"`
+	InputRevision  *string   `json:"input_revision"`
 }
 
 // Терминальные стадии прогресса исполнителя. B1 и ML могут добавлять свои
