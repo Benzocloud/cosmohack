@@ -15,6 +15,9 @@ const (
 	FailureTimeout        FailureKind = "provider_timeout"
 	FailureMalformed      FailureKind = "provider_malformed_response"
 	FailureLimitExceeded  FailureKind = "limit_exceeded"
+	ErrSettingsLookup                 = "source settings lookup is nil"
+	ErrInvalidInteger                 = "source setting %s must be an integer"
+	ErrInvalidNumber                  = "source setting %s must be a number"
 )
 
 type ProviderError struct {

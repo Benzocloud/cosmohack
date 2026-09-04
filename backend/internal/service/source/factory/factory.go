@@ -1,6 +1,7 @@
 package factory
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -69,7 +70,7 @@ func (s Settings) String() string {
 
 func SettingsFromEnv(lookup Lookup) (Settings, error) {
 	if lookup == nil {
-		return Settings{}, fmt.Errorf("источник настроек не задан")
+		return Settings{}, errors.New(source.ErrSettingsLookup)
 	}
 	settings := Settings{
 		CDSEClientID:        value(lookup, EnvCDSEClientID, ""),
@@ -177,7 +178,7 @@ func integer(lookup Lookup, key string, fallback int) (int, error) {
 	}
 	parsed, err := strconv.Atoi(raw)
 	if err != nil {
-		return 0, fmt.Errorf("переменная %s не является целым числом", key)
+		return 0, fmt.Errorf(source.ErrInvalidInteger, key)
 	}
 	return parsed, nil
 }
@@ -189,7 +190,7 @@ func fractional(lookup Lookup, key string, fallback float64) (float64, error) {
 	}
 	parsed, err := strconv.ParseFloat(raw, 64)
 	if err != nil {
-		return 0, fmt.Errorf("переменная %s не является числом", key)
+		return 0, fmt.Errorf(source.ErrInvalidNumber, key)
 	}
 	return parsed, nil
 }
