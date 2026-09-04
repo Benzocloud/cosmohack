@@ -1,0 +1,65 @@
+{
+  "_synthetic": true,
+  "jobs": [
+    {
+      "id": "job-running-stage",
+      "area_id": "area-candidate",
+      "requested_period": {
+        "from": "2024-03-01",
+        "to": "2024-09-30"
+      },
+      "status": "running",
+      "stage": "weather",
+      "message": null,
+      "error_code": null,
+      "error_message": null,
+      "result_version": null,
+      "updated_at": "2026-09-04T08:16:00Z"
+    },
+    {
+      "id": "job-running-plain",
+      "area_id": "area-candidate",
+      "requested_period": {
+        "from": "2024-03-01",
+        "to": "2024-09-30"
+      },
+      "status": "running",
+      "stage": null,
+      "message": null,
+      "error_code": null,
+      "error_message": null,
+      "result_version": null,
+      "updated_at": "2026-09-04T08:16:00Z"
+    },
+    {
+      "id": "job-failed-interrupted",
+      "area_id": "area-confirmed",
+      "requested_period": {
+        "from": "2024-03-01",
+        "to": "2024-09-30"
+      },
+      "status": "failed",
+      "stage": null,
+      "message": null,
+      "error_code": "interrupted",
+      "error_message": "interrupted",
+      "result_version": null,
+      "updated_at": "2026-09-04T08:16:00Z"
+    },
+    {
+      "id": "job-completed",
+      "area_id": "area-normal",
+      "requested_period": {
+        "from": "2024-03-01",
+        "to": "2024-09-30"
+      },
+      "status": "completed",
+      "stage": null,
+      "message": null,
+      "error_code": null,
+      "error_message": null,
+      "result_version": "v-normal-1",
+      "updated_at": "2026-09-04T08:16:00Z"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "_synthetic": true,
+  "events": [
+    {
+      "id": "ev-candidate-2",
+      "period": {
+        "from": "2024-06-20",
+        "to": "2024-07-10"
+      },
+      "verdict": "candidate",
+      "severity": null,
+      "detected": {
+        "magnitude": -0.09,
+        "unit": "ndvi",
+        "base": "сезонный фон 2017–2023, MODIS",
+        "text": "−0.09 NDVI к сезонному фону"
+      },
+      "basis": {
+        "observed_count": 9,
+        "imputed_count": 1,
+        "background_comparable": true,
+        "criteria": "z < −1.5"
+      },
+      "weather": {
+        "facts": [
+          {
+            "label": "Осадки за 30 дней",
+            "value": "48 мм"
+          }
+        ],
+        "hypothesis": null
+      },
+      "limitations": ["Часть сцен исключена из-за облачности"]
+    }
+  ]
+}

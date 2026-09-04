@@ -1,0 +1,1046 @@
+{
+  "_synthetic": true,
+  "series": {
+    "area_id": "area-confirmed",
+    "result_version": "v-confirmed-1",
+    "period": {
+      "from": "2024-03-01",
+      "to": "2024-10-07"
+    },
+    "points": [
+      {
+        "date": "2024-03-01",
+        "ndvi": 0.26,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.27,
+          "low": 0.19,
+          "high": 0.35
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-03-06",
+        "ndvi": 0.26,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.27,
+          "low": 0.19,
+          "high": 0.35
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-03-11",
+        "ndvi": 0.26,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.27,
+          "low": 0.19,
+          "high": 0.35
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-03-16",
+        "ndvi": 0.27,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.28,
+          "low": 0.2,
+          "high": 0.36
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-03-21",
+        "ndvi": 0.28,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.29,
+          "low": 0.21,
+          "high": 0.37
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-03-26",
+        "ndvi": 0.29,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.3,
+          "low": 0.22,
+          "high": 0.38
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-03-31",
+        "ndvi": 0.3,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.31,
+          "low": 0.23,
+          "high": 0.39
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-04-05",
+        "ndvi": 0.31,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.32,
+          "low": 0.24,
+          "high": 0.4
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-04-10",
+        "ndvi": 0.32,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.33,
+          "low": 0.25,
+          "high": 0.41
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-04-15",
+        "ndvi": 0.34,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.35,
+          "low": 0.27,
+          "high": 0.43
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-04-20",
+        "ndvi": null,
+        "provenance": "missing",
+        "quality": "cloud",
+        "background": {
+          "mean": 0.36,
+          "low": 0.28,
+          "high": 0.44
+        },
+        "deviation": null,
+        "z": null,
+        "source": null
+      },
+      {
+        "date": "2024-04-25",
+        "ndvi": 0.37,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.38,
+          "low": 0.3,
+          "high": 0.46
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-04-30",
+        "ndvi": 0.39,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.4,
+          "low": 0.32,
+          "high": 0.48
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-05-05",
+        "ndvi": 0.41,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.42,
+          "low": 0.34,
+          "high": 0.5
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-05-10",
+        "ndvi": 0.44,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.45,
+          "low": 0.37,
+          "high": 0.53
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-05-15",
+        "ndvi": 0.46,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.47,
+          "low": 0.39,
+          "high": 0.55
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-05-20",
+        "ndvi": 0.48,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.49,
+          "low": 0.41,
+          "high": 0.57
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-05-25",
+        "ndvi": 0.51,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.52,
+          "low": 0.44,
+          "high": 0.6
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-05-30",
+        "ndvi": 0.35,
+        "provenance": "imputed",
+        "quality": null,
+        "background": {
+          "mean": 0.54,
+          "low": 0.46,
+          "high": 0.62
+        },
+        "deviation": null,
+        "z": null,
+        "source": "reconstruction"
+      },
+      {
+        "date": "2024-06-04",
+        "ndvi": 0.38,
+        "provenance": "imputed",
+        "quality": null,
+        "background": {
+          "mean": 0.57,
+          "low": 0.49,
+          "high": 0.65
+        },
+        "deviation": null,
+        "z": null,
+        "source": "reconstruction"
+      },
+      {
+        "date": "2024-06-09",
+        "ndvi": 0.4,
+        "provenance": "imputed",
+        "quality": null,
+        "background": {
+          "mean": 0.59,
+          "low": 0.51,
+          "high": 0.67
+        },
+        "deviation": null,
+        "z": null,
+        "source": "reconstruction"
+      },
+      {
+        "date": "2024-06-14",
+        "ndvi": 0.42,
+        "provenance": "imputed",
+        "quality": null,
+        "background": {
+          "mean": 0.61,
+          "low": 0.53,
+          "high": 0.69
+        },
+        "deviation": null,
+        "z": null,
+        "source": "reconstruction"
+      },
+      {
+        "date": "2024-06-19",
+        "ndvi": 0.62,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.63,
+          "low": 0.55,
+          "high": 0.71
+        },
+        "deviation": {
+          "value": -0.21,
+          "unit": "ndvi",
+          "base": "сезонный фон 2017–2023, MODIS"
+        },
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-06-24",
+        "ndvi": 0.63,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.64,
+          "low": 0.56,
+          "high": 0.72
+        },
+        "deviation": {
+          "value": -0.21,
+          "unit": "ndvi",
+          "base": "сезонный фон 2017–2023, MODIS"
+        },
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-06-29",
+        "ndvi": 0.65,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.66,
+          "low": 0.58,
+          "high": 0.74
+        },
+        "deviation": {
+          "value": -0.21,
+          "unit": "ndvi",
+          "base": "сезонный фон 2017–2023, MODIS"
+        },
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-07-04",
+        "ndvi": 0.65,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.66,
+          "low": 0.58,
+          "high": 0.74
+        },
+        "deviation": {
+          "value": -0.21,
+          "unit": "ndvi",
+          "base": "сезонный фон 2017–2023, MODIS"
+        },
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-07-09",
+        "ndvi": 0.66,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.67,
+          "low": 0.59,
+          "high": 0.75
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-07-14",
+        "ndvi": 0.66,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.67,
+          "low": 0.59,
+          "high": 0.75
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-07-19",
+        "ndvi": 0.66,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.67,
+          "low": 0.59,
+          "high": 0.75
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-07-24",
+        "ndvi": 0.65,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.66,
+          "low": 0.58,
+          "high": 0.74
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-07-29",
+        "ndvi": 0.64,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.65,
+          "low": 0.57,
+          "high": 0.73
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-08-03",
+        "ndvi": 0.63,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.64,
+          "low": 0.56,
+          "high": 0.72
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-08-08",
+        "ndvi": 0.61,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.62,
+          "low": 0.54,
+          "high": 0.7
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-08-13",
+        "ndvi": 0.59,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.6,
+          "low": 0.52,
+          "high": 0.68
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-08-18",
+        "ndvi": null,
+        "provenance": "missing",
+        "quality": "cloud",
+        "background": {
+          "mean": 0.58,
+          "low": 0.5,
+          "high": 0.66
+        },
+        "deviation": null,
+        "z": null,
+        "source": null
+      },
+      {
+        "date": "2024-08-23",
+        "ndvi": null,
+        "provenance": "missing",
+        "quality": "cloud",
+        "background": {
+          "mean": 0.56,
+          "low": 0.48,
+          "high": 0.64
+        },
+        "deviation": null,
+        "z": null,
+        "source": null
+      },
+      {
+        "date": "2024-08-28",
+        "ndvi": 0.52,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.53,
+          "low": 0.45,
+          "high": 0.61
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-09-02",
+        "ndvi": 0.5,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.51,
+          "low": 0.43,
+          "high": 0.59
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-09-07",
+        "ndvi": 0.48,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.49,
+          "low": 0.41,
+          "high": 0.57
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-09-12",
+        "ndvi": 0.45,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.46,
+          "low": 0.38,
+          "high": 0.54
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-09-17",
+        "ndvi": 0.43,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.44,
+          "low": 0.36,
+          "high": 0.52
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-09-22",
+        "ndvi": 0.41,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.42,
+          "low": 0.34,
+          "high": 0.5
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-09-27",
+        "ndvi": 0.38,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.39,
+          "low": 0.31,
+          "high": 0.47
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-10-02",
+        "ndvi": 0.36,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.37,
+          "low": 0.29,
+          "high": 0.45
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-10-07",
+        "ndvi": 0.35,
+        "provenance": "observed",
+        "quality": "good",
+        "background": {
+          "mean": 0.36,
+          "low": 0.28,
+          "high": 0.44
+        },
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      }
+    ],
+    "background": {
+      "label": "Сезонный фон: среднее и разброс p10–p90 по годам 2017–2023 (MODIS)",
+      "years_from": 2017,
+      "years_to": 2023,
+      "source": "modis",
+      "band_meaning": "p10–p90 межгодового разброса"
+    },
+    "weather": {
+      "temperature": [
+        {
+          "date": "2024-03-01",
+          "value": 5.8
+        },
+        {
+          "date": "2024-03-06",
+          "value": 6.9
+        },
+        {
+          "date": "2024-03-11",
+          "value": 8.1
+        },
+        {
+          "date": "2024-03-16",
+          "value": 9.2
+        },
+        {
+          "date": "2024-03-21",
+          "value": 10.4
+        },
+        {
+          "date": "2024-03-26",
+          "value": 11.5
+        },
+        {
+          "date": "2024-03-31",
+          "value": 12.6
+        },
+        {
+          "date": "2024-04-05",
+          "value": 13.7
+        },
+        {
+          "date": "2024-04-10",
+          "value": 14.8
+        },
+        {
+          "date": "2024-04-15",
+          "value": 15.9
+        },
+        {
+          "date": "2024-04-20",
+          "value": 16.9
+        },
+        {
+          "date": "2024-04-25",
+          "value": 17.8
+        },
+        {
+          "date": "2024-04-30",
+          "value": 18.8
+        },
+        {
+          "date": "2024-05-05",
+          "value": 19.6
+        },
+        {
+          "date": "2024-05-10",
+          "value": 20.5
+        },
+        {
+          "date": "2024-05-15",
+          "value": 21.2
+        },
+        {
+          "date": "2024-05-20",
+          "value": 21.9
+        },
+        {
+          "date": "2024-05-25",
+          "value": 22.6
+        },
+        {
+          "date": "2024-05-30",
+          "value": 23.2
+        },
+        {
+          "date": "2024-06-04",
+          "value": 23.6
+        },
+        {
+          "date": "2024-06-09",
+          "value": 24.1
+        },
+        {
+          "date": "2024-06-14",
+          "value": 24.4
+        },
+        {
+          "date": "2024-06-19",
+          "value": 24.7
+        },
+        {
+          "date": "2024-06-24",
+          "value": 24.9
+        },
+        {
+          "date": "2024-06-29",
+          "value": 25
+        },
+        {
+          "date": "2024-07-04",
+          "value": 25
+        },
+        {
+          "date": "2024-07-09",
+          "value": 24.9
+        },
+        {
+          "date": "2024-07-14",
+          "value": 24.8
+        },
+        {
+          "date": "2024-07-19",
+          "value": 24.6
+        },
+        {
+          "date": "2024-07-24",
+          "value": 24.3
+        },
+        {
+          "date": "2024-07-29",
+          "value": 23.9
+        },
+        {
+          "date": "2024-08-03",
+          "value": 23.5
+        },
+        {
+          "date": "2024-08-08",
+          "value": 22.9
+        },
+        {
+          "date": "2024-08-13",
+          "value": 22.3
+        },
+        {
+          "date": "2024-08-18",
+          "value": 21.7
+        },
+        {
+          "date": "2024-08-23",
+          "value": 20.9
+        },
+        {
+          "date": "2024-08-28",
+          "value": 20.2
+        },
+        {
+          "date": "2024-09-02",
+          "value": 19.3
+        },
+        {
+          "date": "2024-09-07",
+          "value": 18.4
+        },
+        {
+          "date": "2024-09-12",
+          "value": 17.5
+        },
+        {
+          "date": "2024-09-17",
+          "value": 16.5
+        },
+        {
+          "date": "2024-09-22",
+          "value": 15.4
+        },
+        {
+          "date": "2024-09-27",
+          "value": 14.4
+        },
+        {
+          "date": "2024-10-02",
+          "value": 13.3
+        },
+        {
+          "date": "2024-10-07",
+          "value": 12.2
+        }
+      ],
+      "precipitation": [
+        {
+          "date": "2024-03-01",
+          "value": 0
+        },
+        {
+          "date": "2024-03-06",
+          "value": 0
+        },
+        {
+          "date": "2024-03-11",
+          "value": 8.7
+        },
+        {
+          "date": "2024-03-16",
+          "value": 0
+        },
+        {
+          "date": "2024-03-21",
+          "value": 0
+        },
+        {
+          "date": "2024-03-26",
+          "value": 8.9
+        },
+        {
+          "date": "2024-03-31",
+          "value": 0
+        },
+        {
+          "date": "2024-04-05",
+          "value": 0
+        },
+        {
+          "date": "2024-04-10",
+          "value": 8
+        },
+        {
+          "date": "2024-04-15",
+          "value": 0
+        },
+        {
+          "date": "2024-04-20",
+          "value": 1.8
+        },
+        {
+          "date": "2024-04-25",
+          "value": 5.9
+        },
+        {
+          "date": "2024-04-30",
+          "value": 0
+        },
+        {
+          "date": "2024-05-05",
+          "value": 4.9
+        },
+        {
+          "date": "2024-05-10",
+          "value": 3.1
+        },
+        {
+          "date": "2024-05-15",
+          "value": 0
+        },
+        {
+          "date": "2024-05-20",
+          "value": 7.3
+        },
+        {
+          "date": "2024-05-25",
+          "value": 0
+        },
+        {
+          "date": "2024-05-30",
+          "value": 0
+        },
+        {
+          "date": "2024-06-04",
+          "value": 8.7
+        },
+        {
+          "date": "2024-06-09",
+          "value": 0
+        },
+        {
+          "date": "2024-06-14",
+          "value": 0
+        },
+        {
+          "date": "2024-06-19",
+          "value": 9
+        },
+        {
+          "date": "2024-06-24",
+          "value": 0
+        },
+        {
+          "date": "2024-06-29",
+          "value": 0
+        },
+        {
+          "date": "2024-07-04",
+          "value": 8
+        },
+        {
+          "date": "2024-07-09",
+          "value": 0
+        },
+        {
+          "date": "2024-07-14",
+          "value": 1.7
+        },
+        {
+          "date": "2024-07-19",
+          "value": 6
+        },
+        {
+          "date": "2024-07-24",
+          "value": 0
+        },
+        {
+          "date": "2024-07-29",
+          "value": 4.8
+        },
+        {
+          "date": "2024-08-03",
+          "value": 3.2
+        },
+        {
+          "date": "2024-08-08",
+          "value": 0
+        },
+        {
+          "date": "2024-08-13",
+          "value": 7.2
+        },
+        {
+          "date": "2024-08-18",
+          "value": 0
+        },
+        {
+          "date": "2024-08-23",
+          "value": 0
+        },
+        {
+          "date": "2024-08-28",
+          "value": 8.7
+        },
+        {
+          "date": "2024-09-02",
+          "value": 0
+        },
+        {
+          "date": "2024-09-07",
+          "value": 0
+        },
+        {
+          "date": "2024-09-12",
+          "value": 9
+        },
+        {
+          "date": "2024-09-17",
+          "value": 0
+        },
+        {
+          "date": "2024-09-22",
+          "value": 0
+        },
+        {
+          "date": "2024-09-27",
+          "value": 8.1
+        },
+        {
+          "date": "2024-10-02",
+          "value": 0
+        },
+        {
+          "date": "2024-10-07",
+          "value": 1.6
+        }
+      ],
+      "units": {
+        "temperature": "°C",
+        "precipitation": "мм"
+      },
+      "aggregation": {
+        "temperature": "средняя за интервал",
+        "precipitation": "сумма за интервал"
+      },
+      "coverage": {
+        "from": "2024-03-01",
+        "to": "2024-10-07"
+      },
+      "source": "Open-Meteo ERA5",
+      "spatial_note": "Ячейка реанализа ERA5 (~9 км), не измерение на поле"
+    }
+  }
+}
