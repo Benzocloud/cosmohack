@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/cdse"
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/cdse"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source/geom"
 )
 

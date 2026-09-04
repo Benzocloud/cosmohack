@@ -8,9 +8,9 @@ import (
 
 	"github.com/Benzocloud/cosmohack/backend/internal/config"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/cdse"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/openmeteo"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/overpass"
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/cdse"
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/overpass"
 )
 
 const (

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/httpx"
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/httpx"
 )
 
 func factory() httpx.RequestFactory {

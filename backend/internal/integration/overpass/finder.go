@@ -10,7 +10,7 @@ import (
 
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source/geom"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/httpx"
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/httpx"
 )
 
 const (

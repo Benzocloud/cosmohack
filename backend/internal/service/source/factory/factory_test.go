@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/cdse"
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/cdse"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source/factory"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/openmeteo"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/overpass"
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/overpass"
 )
 
 func lookupFrom(values map[string]string) factory.Lookup {

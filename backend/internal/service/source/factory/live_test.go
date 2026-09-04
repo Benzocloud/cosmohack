@@ -11,8 +11,8 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source/factory"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source/geom"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/openmeteo"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/overpass"
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/overpass"
 )
 
 const (
