@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/config"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source/cdse"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source/openmeteo"
@@ -40,6 +41,25 @@ type Settings struct {
 	MinValidFraction    float64
 	Limits              source.Limits
 	Clock               source.Clock
+}
+
+// SettingsFromConfig adapts validated application configuration to B1 source
+// settings. Environment lookup belongs exclusively to internal/config.
+func SettingsFromConfig(cfg config.SourceConfig, limits source.Limits, clock source.Clock) Settings {
+	if limits == (source.Limits{}) {
+		limits = source.DefaultLimits()
+	}
+	if clock == nil {
+		clock = time.Now
+	}
+	return Settings{
+		CDSEClientID: cfg.CDSEClientID, CDSEClientSecret: cfg.CDSEClientSecret,
+		CDSEStatisticsURL: cfg.CDSEStatisticsURL, CDSETokenURL: cfg.CDSETokenURL,
+		OverpassURL: cfg.OverpassURL, OverpassFallbackURL: cfg.OverpassFallbackURL,
+		WeatherURL: cfg.WeatherURL, WeatherFallbackURL: cfg.WeatherFallbackURL,
+		AggregationDays: cfg.AggregationDays, MinValidFraction: cfg.MinValidFraction,
+		Limits: limits, Clock: clock,
+	}
 }
 
 func (s Settings) String() string {
