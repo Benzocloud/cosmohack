@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/cdse"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source/factory"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/overpass"
+	"github.com/Benzocloud/cosmohack/backend/internal/service/source/factory"
 )
 
 func lookupFrom(values map[string]string) factory.Lookup {
@@ -20,28 +20,28 @@ func lookupFrom(values map[string]string) factory.Lookup {
 func TestSettingsFromEnvUsesDocumentedDefaults(t *testing.T) {
 	settings, err := factory.SettingsFromEnv(lookupFrom(map[string]string{}))
 	if err != nil {
-		t.Fatalf("настройки не собраны: %v", err)
+		t.Fatalf("settings were not built: %v", err)
 	}
 	if settings.CDSEStatisticsURL != cdse.StatisticsEndpoint || settings.CDSETokenURL != cdse.TokenEndpoint {
-		t.Fatalf("адреса CDSE %s / %s", settings.CDSEStatisticsURL, settings.CDSETokenURL)
+		t.Fatalf("CDSE endpoints %s / %s", settings.CDSEStatisticsURL, settings.CDSETokenURL)
 	}
 	if settings.OverpassURL != overpass.PrimaryEndpoint || settings.OverpassFallbackURL != overpass.FallbackEndpoint {
-		t.Fatalf("адреса Overpass %s / %s", settings.OverpassURL, settings.OverpassFallbackURL)
+		t.Fatalf("Overpass endpoints %s / %s", settings.OverpassURL, settings.OverpassFallbackURL)
 	}
 	if settings.WeatherURL != openmeteo.PrimaryEndpoint || settings.WeatherFallbackURL != openmeteo.FallbackEndpoint {
-		t.Fatalf("адреса погоды %s / %s", settings.WeatherURL, settings.WeatherFallbackURL)
+		t.Fatalf("weather endpoints %s / %s", settings.WeatherURL, settings.WeatherFallbackURL)
 	}
 }
 
 func TestSettingsFromEnvRejectsInvalidNumbers(t *testing.T) {
 	cases := map[string]map[string]string{
-		"интервал агрегации": {factory.EnvAggregationDays: "пять"},
-		"доля пригодности":   {factory.EnvMinValidFraction: "половина"},
+		"aggregation interval": {factory.EnvAggregationDays: "five"},
+		"valid fraction":       {factory.EnvMinValidFraction: "half"},
 	}
 	for name, values := range cases {
 		t.Run(name, func(t *testing.T) {
 			if _, err := factory.SettingsFromEnv(lookupFrom(values)); err == nil {
-				t.Fatal("некорректное значение переменной принято")
+				t.Fatal("invalid setting was accepted")
 			}
 		})
 	}
@@ -53,20 +53,20 @@ func TestSettingsHideSecret(t *testing.T) {
 		factory.EnvCDSEClientSecret: "very-secret-value",
 	}))
 	if err != nil {
-		t.Fatalf("настройки не собраны: %v", err)
+		t.Fatalf("settings were not built: %v", err)
 	}
 	if strings.Contains(settings.String(), "very-secret-value") {
-		t.Fatal("секрет попадает в строковое представление настроек")
+		t.Fatal("secret leaked into settings string")
 	}
 }
 
 func TestNewRequiresCredentials(t *testing.T) {
 	settings, err := factory.SettingsFromEnv(lookupFrom(map[string]string{}))
 	if err != nil {
-		t.Fatalf("настройки не собраны: %v", err)
+		t.Fatalf("settings were not built: %v", err)
 	}
 	if _, err := factory.New(settings); err == nil {
-		t.Fatal("сборка без доступа к CDSE выполнена")
+		t.Fatal("assembly succeeded without CDSE credentials")
 	}
 }
 
@@ -80,17 +80,17 @@ func TestNewBuildsCollectorAndFinder(t *testing.T) {
 		factory.EnvMinValidFraction: "0.4",
 	}))
 	if err != nil {
-		t.Fatalf("настройки не собраны: %v", err)
+		t.Fatalf("settings were not built: %v", err)
 	}
 	assembly, err := factory.New(settings)
 	if err != nil {
-		t.Fatalf("сборка не выполнена: %v", err)
+		t.Fatalf("assembly failed: %v", err)
 	}
 	if assembly.Collector() == nil || assembly.ContourFinder() == nil {
-		t.Fatal("сборка вернула неполный набор источников")
+		t.Fatal("assembly returned incomplete providers")
 	}
 	if assembly.Limits().MaxObservations() <= 0 {
-		t.Fatal("пределы сборки не заданы")
+		t.Fatal("assembly limits are not configured")
 	}
 }
 
@@ -101,9 +101,9 @@ func TestNewRejectsBrokenEndpoint(t *testing.T) {
 		factory.EnvOverpassURL:      "overpass-without-scheme",
 	}))
 	if err != nil {
-		t.Fatalf("настройки не собраны: %v", err)
+		t.Fatalf("settings were not built: %v", err)
 	}
 	if _, err := factory.New(settings); err == nil {
-		t.Fatal("некорректный адрес источника принят")
+		t.Fatal("invalid provider endpoint was accepted")
 	}
 }

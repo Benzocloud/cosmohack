@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
+	"github.com/Benzocloud/cosmohack/backend/internal/integration/overpass"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source/factory"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source/geom"
-	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
-	"github.com/Benzocloud/cosmohack/backend/internal/integration/overpass"
 )
 
 const (
@@ -25,7 +25,7 @@ func liveSettings(t *testing.T) factory.Settings {
 	t.Helper()
 	settings, err := factory.SettingsFromEnv(os.LookupEnv)
 	if err != nil {
-		t.Fatalf("настройки не собраны: %v", err)
+		t.Fatalf("settings were not built: %v", err)
 	}
 	return settings
 }
@@ -37,25 +37,25 @@ func TestLiveOverpassReturnsContours(t *testing.T) {
 	config.FallbackEndpoint = settings.OverpassFallbackURL
 	finder, err := overpass.NewFinder(config)
 	if err != nil {
-		t.Fatalf("поиск контуров не построен: %v", err)
+		t.Fatalf("contour finder was not built: %v", err)
 	}
 	bbox, err := geom.ParseBBox(liveBBox)
 	if err != nil {
-		t.Fatalf("область поиска не построена: %v", err)
+		t.Fatalf("search bbox was not built: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
 	result, err := finder.FindContours(ctx, bbox)
 	if err != nil {
-		t.Fatalf("контуры не получены: %v", err)
+		t.Fatalf("contours were not fetched: %v", err)
 	}
-	t.Logf("контуров: %d, версия данных OSM: %s", result.Count(), result.Origin().UpstreamVersion())
+	t.Logf("contours: %d, версия данных OSM: %s", result.Count(), result.Origin().UpstreamVersion())
 	if result.IsEmpty() {
-		t.Skip("в выбранной области нет контуров landuse=farmland")
+		t.Skip("no landuse=farmland contours in selected area")
 	}
 	if result.Contours()[0].Polygon().AreaHectares() <= 0 {
-		t.Fatal("площадь найденного контура не вычислена")
+		t.Fatal("found contour area was not calculated")
 	}
 }
 
@@ -66,37 +66,37 @@ func TestLiveOpenMeteoReturnsWeather(t *testing.T) {
 	config.FallbackEndpoint = settings.WeatherFallbackURL
 	provider, err := openmeteo.NewProvider(config)
 	if err != nil {
-		t.Fatalf("провайдер погоды не построен: %v", err)
+		t.Fatalf("weather provider was not built: %v", err)
 	}
 	period, err := source.ParseDateRange(livePeriodFrom, livePeriodTo)
 	if err != nil {
-		t.Fatalf("период не построен: %v", err)
+		t.Fatalf("period was not built: %v", err)
 	}
 	request, err := source.NewWeatherRequest(geom.MustCoordinate(39.0, 45.25), period)
 	if err != nil {
-		t.Fatalf("запрос погоды не построен: %v", err)
+		t.Fatalf("weather request was not built: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	series, err := provider.FetchDaily(ctx, request)
 	if err != nil {
-		t.Fatalf("погода не получена: %v", err)
+		t.Fatalf("weather was not fetched: %v", err)
 	}
 	if len(series.Days()) == 0 {
-		t.Fatal("погодный ряд пуст")
+		t.Fatal("weather series is empty")
 	}
-	t.Logf("дней: %d, ячейка: %v", len(series.Days()), series.Cell())
+	t.Logf("days: %d, ячейка: %v", len(series.Days()), series.Cell())
 }
 
 func TestLiveCollectorProcessesPolygon(t *testing.T) {
 	settings := liveSettings(t)
 	if settings.CDSEClientID == "" || settings.CDSEClientSecret == "" {
-		t.Skipf("доступ к CDSE не настроен: задайте %s и %s", factory.EnvCDSEClientID, factory.EnvCDSEClientSecret)
+		t.Skipf("CDSE access is not configured: set %s и %s", factory.EnvCDSEClientID, factory.EnvCDSEClientSecret)
 	}
 	assembly, err := factory.New(settings)
 	if err != nil {
-		t.Fatalf("сборка не выполнена: %v", err)
+		t.Fatalf("assembly failed: %v", err)
 	}
 	ring := []geom.Coordinate{
 		geom.MustCoordinate(38.9746397, 45.2056541),
@@ -107,27 +107,27 @@ func TestLiveCollectorProcessesPolygon(t *testing.T) {
 	}
 	polygon, err := geom.NewPolygon(ring)
 	if err != nil {
-		t.Fatalf("полигон не построен: %v", err)
+		t.Fatalf("polygon was not built: %v", err)
 	}
 	period, err := source.ParseDateRange(livePeriodFrom, livePeriodTo)
 	if err != nil {
-		t.Fatalf("период не построен: %v", err)
+		t.Fatalf("period was not built: %v", err)
 	}
 	request, err := source.NewCollectRequest("area-live-1", polygon, period)
 	if err != nil {
-		t.Fatalf("запрос сбора не построен: %v", err)
+		t.Fatalf("collection request was not built: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	snapshot, err := assembly.Collector().Collect(ctx, request)
 	if err != nil {
-		t.Fatalf("сбор не выполнен: %v", err)
+		t.Fatalf("collection failed: %v", err)
 	}
 	analyze, err := source.NewAnalyzeRequestBuilder(0, 0).Build(snapshot, "job-live-1")
 	if err != nil {
-		t.Fatalf("запрос анализа не построен: %v", err)
+		t.Fatalf("analysis request was not built: %v", err)
 	}
-	t.Logf("версия входа: %s, наблюдений: %d, пригодных: %d, ограничения: %v",
+	t.Logf("input revision: %s, наблюдений: %d, пригодных: %d, ограничения: %v",
 		snapshot.Revision(), analyze.ObservationCount(), snapshot.UsableCount(), snapshot.Limitations())
 }
