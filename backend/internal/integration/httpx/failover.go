@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
 type Endpoints struct {
@@ -58,7 +58,7 @@ func (f *Failover) DoJSON(ctx context.Context, provider string, factory RequestF
 	if err == nil {
 		return endpoint, nil
 	}
-	if !f.endpoints.HasFallback() || !source.IsRetryable(err) {
+	if !f.endpoints.HasFallback() || !domain.IsRetryable(err) {
 		return endpoint, err
 	}
 	fallback := f.endpoints.Fallback()
@@ -66,14 +66,14 @@ func (f *Failover) DoJSON(ctx context.Context, provider string, factory RequestF
 	if fallbackErr == nil {
 		return fallback, nil
 	}
-	return fallback, source.WrapProviderError(source.KindOfOrUnknown(fallbackErr), provider, fallbackErr,
+	return fallback, domain.WrapProviderError(domain.KindOfOrUnknown(fallbackErr), provider, fallbackErr,
 		"основной адрес отказал (%v), резервный адрес отказал", err)
 }
 
 func (f *Failover) attempt(ctx context.Context, provider, endpoint string, factory RequestFactory, target any) error {
 	request, err := factory(ctx, endpoint)
 	if err != nil {
-		return source.WrapProviderError(source.FailureInvalidRequest, provider, err, "запрос не построен")
+		return domain.WrapProviderError(domain.FailureInvalidRequest, provider, err, "запрос не построен")
 	}
 	return f.client.DoJSON(ctx, provider, request, target)
 }

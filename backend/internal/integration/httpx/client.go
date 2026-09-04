@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
 const (
@@ -84,7 +84,7 @@ func (c *Client) DoJSON(ctx context.Context, provider string, request *http.Requ
 		return nil
 	}
 	if err := json.Unmarshal(body, target); err != nil {
-		return source.NewProviderError(source.FailureMalformed, provider, "ответ не разбирается как JSON")
+		return domain.NewProviderError(domain.FailureMalformed, provider, "ответ не разбирается как JSON")
 	}
 	return nil
 }
@@ -107,14 +107,14 @@ func (c *Client) Do(ctx context.Context, provider string, request *http.Request)
 
 	body, err := io.ReadAll(io.LimitReader(response.Body, c.maxResponseBytes+1))
 	if err != nil {
-		return nil, source.WrapProviderError(source.FailureUnavailable, provider, err, "ответ не прочитан")
+		return nil, domain.WrapProviderError(domain.FailureUnavailable, provider, err, "ответ не прочитан")
 	}
 	if int64(len(body)) > c.maxResponseBytes {
-		return nil, source.NewProviderError(source.FailureMalformed, provider,
+		return nil, domain.NewProviderError(domain.FailureMalformed, provider,
 			"ответ больше предела %d байт", c.maxResponseBytes)
 	}
 	if response.StatusCode < 200 || response.StatusCode > 299 {
-		return nil, source.NewProviderError(statusKind(response.StatusCode), provider,
+		return nil, domain.NewProviderError(statusKind(response.StatusCode), provider,
 			"HTTP %d", response.StatusCode)
 	}
 	return body, nil
@@ -123,25 +123,25 @@ func (c *Client) Do(ctx context.Context, provider string, request *http.Request)
 func transportError(ctx context.Context, provider string, err error) error {
 	switch {
 	case errors.Is(err, context.Canceled):
-		return source.WrapProviderError(source.FailureUnavailable, provider, err, "запрос отменён")
+		return domain.WrapProviderError(domain.FailureUnavailable, provider, err, "запрос отменён")
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(ctx.Err(), context.DeadlineExceeded):
-		return source.WrapProviderError(source.FailureTimeout, provider, err, "истёк тайм-аут запроса")
+		return domain.WrapProviderError(domain.FailureTimeout, provider, err, "истёк тайм-аут запроса")
 	default:
-		return source.WrapProviderError(source.FailureUnavailable, provider, err, "соединение не установлено")
+		return domain.WrapProviderError(domain.FailureUnavailable, provider, err, "соединение не установлено")
 	}
 }
 
-func statusKind(status int) source.FailureKind {
+func statusKind(status int) domain.FailureKind {
 	switch {
 	case status == http.StatusUnauthorized, status == http.StatusForbidden:
-		return source.FailureUnauthorized
+		return domain.FailureUnauthorized
 	case status == http.StatusTooManyRequests:
-		return source.FailureRateLimited
+		return domain.FailureRateLimited
 	case status == http.StatusRequestTimeout, status == http.StatusGatewayTimeout:
-		return source.FailureTimeout
+		return domain.FailureTimeout
 	case status >= 500:
-		return source.FailureUnavailable
+		return domain.FailureUnavailable
 	default:
-		return source.FailureInvalidRequest
+		return domain.FailureInvalidRequest
 	}
 }

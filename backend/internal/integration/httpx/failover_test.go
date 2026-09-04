@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/httpx"
+	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
 func factory() httpx.RequestFactory {
