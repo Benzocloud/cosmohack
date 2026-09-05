@@ -2,12 +2,59 @@
 package area
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
+
+// Repository is the consumer-owned persistence port for area use cases.
+type Repository interface {
+	CreateArea(context.Context, domain.Area) error
+	GetArea(context.Context, string) (domain.Area, error)
+	ListAreas(context.Context) ([]domain.Area, error)
+	DeleteArea(context.Context, string) ([]string, error)
+}
+
+// Service owns area use cases and delegates persistence to Repository.
+type Service struct {
+	repo Repository
+	now  func() time.Time
+}
+
+// New constructs the area use-case service.
+func New(repo Repository) *Service {
+	return &Service{repo: repo, now: time.Now}
+}
+
+// CreateArea builds and persists a new area.
+func (s *Service) CreateArea(ctx context.Context, input CreateInput) (domain.Area, error) {
+	area, err := Create(input, s.now())
+	if err != nil {
+		return domain.Area{}, err
+	}
+	if err := s.repo.CreateArea(ctx, area); err != nil {
+		return domain.Area{}, err
+	}
+	return area, nil
+}
+
+// GetArea loads one area.
+func (s *Service) GetArea(ctx context.Context, id string) (domain.Area, error) {
+	return s.repo.GetArea(ctx, id)
+}
+
+// ListAreas loads all areas.
+func (s *Service) ListAreas(ctx context.Context) ([]domain.Area, error) {
+	return s.repo.ListAreas(ctx)
+}
+
+// DeleteArea removes an area and returns jobs that were cancelled by storage.
+func (s *Service) DeleteArea(ctx context.Context, id string) ([]string, error) {
+	return s.repo.DeleteArea(ctx, id)
+}
 
 // CreateInput contains validated user input for a new area.
 type CreateInput struct {
