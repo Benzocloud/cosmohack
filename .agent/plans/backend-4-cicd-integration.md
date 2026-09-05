@@ -75,9 +75,17 @@ smoke-запуск `go run ./cmd/server` с `HTTP_ADDR=:18080`: `GET /readyz` �
 
 ## B4-02 — образы, первая доставка и проход на заглушках (2–6 ч)
 
-**Статус:** in_progress — локальная часть B4-02 реализована и прошла два
-Sol-ревью с исправлениями; ждёт ревью и апрув `globalarray`. Удалённые проверки
-(GHCR publish, SSH deploy, merge в main) — внешние зависимости.
+**Статус:** published — **B4-02 опубликован** двумя коммитами в ветке
+`globalarray/feat/b4_cicd_integration` (push `62a7e57..b444bfd`, подтверждён `git ls-remote`;
+опубликованное дерево проверено в изолированном worktree: `go build ./...` +
+`go test -race ./...` — зелёные):
+- `da1cd14` `feat: add public handler api and file store` — интегрированный срез B3
+  (владелец `tsuckermandev`, решение владельца проекта о DDD-интеграции в side-chat;
+  ревью среза B3 и согласование дублей store/domain типов — отдельный цикл за B3);
+- `b444bfd` `feat: add analysis executor, images and CI/CD delivery` — B4-02.
+Статус `done` не присваивается: фактический GHCR publish и SSH deploy требуют
+merge в main и доступов (DEPLOY_ENABLED, SSH_*, GHCR_*); сборка ML-образа ждёт ML-01.
+Следующий этап — B4-03 (первая реальная интеграция, batch CLI от ML).
 
 **Журнал B4-02:**
 
