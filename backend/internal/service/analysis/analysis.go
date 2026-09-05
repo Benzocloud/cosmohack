@@ -16,7 +16,6 @@ import (
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/ml"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
 // queueWaitingLimit — начальный лимит ожидающих задач; активная задача
@@ -27,6 +26,29 @@ const queueWaitingLimit = 8
 // Обработчик B3 транслирует его в 429 публичного API.
 var ErrQueueFull = errors.New("analysis queue is full")
 
+// ErrBadState indicates that a concurrent cancellation or terminal transition
+// already won the job race.
+var ErrBadState = errors.New("invalid job state")
+
+// ErrNotFound indicates that a job or area disappeared before persistence.
+var ErrNotFound = errors.New("record not found")
+
+// ErrGeneration indicates that an area changed during analysis.
+var ErrGeneration = errors.New("area generation changed")
+
+// Persistence is the consumer-owned storage port of the executor.
+type Persistence interface {
+	GetJob(context.Context, string) (domain.Job, error)
+	GetArea(context.Context, string) (domain.Area, error)
+	SetJobRunning(context.Context, string, string) error
+	SetJobStage(context.Context, string, string) error
+	SetJobFailed(context.Context, string, string, string, bool) error
+	SetJobCancelled(context.Context, string) error
+	SetJobInputRevision(context.Context, string, string) error
+	PutResult(context.Context, int, string, domain.AnalysisRecord) error
+	RecoverInterrupted(context.Context) error
+}
+
 // Analyzer — синхронный клиент ML; реализуется *ml.Client.
 type Analyzer interface {
 	Analyze(ctx context.Context, req *domain.AnalysisRequest) (*domain.AnalysisResult, error)
@@ -36,7 +58,7 @@ type Analyzer interface {
 // реализация — зона B1; подробности стадий сообщает сам коллектор через
 // StageReporter, исполнитель их только переносит в хранилище.
 type Collector interface {
-	Collect(ctx context.Context, job store.Job, area store.Area, report StageReporter) (Collected, error)
+	Collect(ctx context.Context, job domain.Job, area domain.Area, report StageReporter) (Collected, error)
 }
 
 // StageReporter сообщает фактическую стадию выполняемого модуля.
@@ -50,14 +72,13 @@ type Collected struct {
 }
 
 // Executor — очередь ожидающих задач и один воркер. Состояния и результаты
-// принадлежат *store.Store: он же защищает от позднего сохранения (generation
-// и состояние job проверяются в PutResult) и переводит незавершённые задачи
-// в failed/interrupted при рестарте (FailInterrupted).
+// принадлежат реализации Persistence: она защищает позднее сохранение и
+// переводит незавершённые задачи в failed/interrupted при рестарте.
 type Executor struct {
-	store     *store.Store
-	collector Collector
-	analyzer  Analyzer
-	queue     chan string
+	persistence Persistence
+	collector   Collector
+	analyzer    Analyzer
+	queue       chan string
 
 	mu     sync.Mutex
 	active map[string]context.CancelFunc
@@ -65,21 +86,21 @@ type Executor struct {
 }
 
 // New собирает исполнитель с лимитом очереди из контракта.
-func New(st *store.Store, collector Collector, analyzer Analyzer) *Executor {
+func New(persistence Persistence, collector Collector, analyzer Analyzer) *Executor {
 	return &Executor{
-		store:     st,
-		collector: collector,
-		analyzer:  analyzer,
-		queue:     make(chan string, queueWaitingLimit),
-		active:    map[string]context.CancelFunc{},
-		queued:    map[string]bool{},
+		persistence: persistence,
+		collector:   collector,
+		analyzer:    analyzer,
+		queue:       make(chan string, queueWaitingLimit),
+		active:      map[string]context.CancelFunc{},
+		queued:      map[string]bool{},
 	}
 }
 
 // Start помечает прерванные задачи и запускает единственного воркера.
 // Повторный вызов не допускается.
 func (e *Executor) Start(ctx context.Context) error {
-	if err := e.store.FailInterrupted(); err != nil {
+	if err := e.persistence.RecoverInterrupted(ctx); err != nil {
 		return fmt.Errorf("recover interrupted jobs: %w", err)
 	}
 	go e.worker(ctx)
@@ -119,7 +140,7 @@ func (e *Executor) Cancel(jobID string) {
 	if !ok && !wasQueued {
 		return
 	}
-	if err := e.store.SetJobCancelled(jobID); err != nil && !errors.Is(err, store.ErrBadState) {
+	if err := e.persistence.SetJobCancelled(context.Background(), jobID); err != nil && !errors.Is(err, ErrBadState) {
 		slog.Error("cancel job failed", "job_id", jobID, "error", err)
 	}
 }
@@ -154,9 +175,9 @@ func (e *Executor) forgetCancel(jobID string) {
 
 // setStage переносит стадию в хранилище; false значит «задача уже не running,
 // выполнение прекращается». Прочие ошибки логируются, но не срывают задачу.
-func (e *Executor) setStage(jobID, stage string) bool {
-	if err := e.store.SetJobStage(jobID, stage); err != nil {
-		if errors.Is(err, store.ErrBadState) {
+func (e *Executor) setStage(ctx context.Context, jobID, stage string) bool {
+	if err := e.persistence.SetJobStage(ctx, jobID, stage); err != nil {
+		if errors.Is(err, ErrBadState) {
 			return false
 		}
 		slog.Error("set stage failed", "job_id", jobID, "stage", stage, "error", err)
@@ -173,36 +194,36 @@ func (e *Executor) runJob(base context.Context, jobID string) {
 	defer e.forgetCancel(jobID)
 
 	// Отмена до старта или удаление участка: воркер пропускает запись.
-	job, err := e.store.GetJob(jobID)
+	job, err := e.persistence.GetJob(jobCtx, jobID)
 	if err != nil {
 		slog.Error("job snapshot unavailable, skipping", "job_id", jobID, "error", err)
 		return
 	}
-	if job.Status != store.JobQueued {
+	if job.Status != domain.JobQueued {
 		return
 	}
-	if err := e.store.SetJobRunning(jobID, domain.StageCollectSatellite); err != nil {
-		if errors.Is(err, store.ErrBadState) {
+	if err := e.persistence.SetJobRunning(jobCtx, jobID, domain.StageCollectSatellite); err != nil {
+		if errors.Is(err, ErrBadState) {
 			return
 		}
 		slog.Error("mark running failed", "job_id", jobID, "error", err)
 		return
 	}
-	area, err := e.store.GetArea(job.AreaID)
+	area, err := e.persistence.GetArea(jobCtx, job.AreaID)
 	if err != nil {
 		e.failSource(jobCtx, jobID, fmt.Sprintf("area %s is unavailable", job.AreaID))
 		return
 	}
 
-	collected, err := e.collector.Collect(jobCtx, *job, *area, e.reportStage(jobID))
+	collected, err := e.collector.Collect(jobCtx, job, area, e.reportStage(jobCtx, jobID))
 	if err != nil {
 		e.failSource(jobCtx, jobID, err.Error())
 		return
 	}
-	if err := e.store.SetJobInputRevision(jobID, collected.Request.InputRevision); err != nil && !errors.Is(err, store.ErrBadState) {
+	if err := e.persistence.SetJobInputRevision(jobCtx, jobID, collected.Request.InputRevision); err != nil && !errors.Is(err, ErrBadState) {
 		slog.Error("set input revision failed", "job_id", jobID, "error", err)
 	}
-	if !e.setStage(jobID, domain.StageAnalyze) {
+	if !e.setStage(jobCtx, jobID, domain.StageAnalyze) {
 		return
 	}
 
@@ -212,19 +233,19 @@ func (e *Executor) runJob(base context.Context, jobID string) {
 		return
 	}
 	if jobCtx.Err() != nil {
-		e.markCancelled(jobID)
+		e.markCancelled(jobCtx, jobID)
 		return
 	}
 
-	if !e.setStage(jobID, domain.StageSaveResult) {
+	if !e.setStage(jobCtx, jobID, domain.StageSaveResult) {
 		return
 	}
-	storeResult := mapResult(&collected.Request, collected.Provenance, result)
+	domainResult := mapResult(&collected.Request, collected.Provenance, result)
 	// PutResult отклоняет запись, если участок удалён (generation сменился)
 	// или задача уже не running: поздний результат не сохраняется.
-	if err := e.store.PutResult(job.AreaID, job.AreaGeneration, jobID, storeResult); err != nil {
+	if err := e.persistence.PutResult(jobCtx, job.AreaGeneration, jobID, domainResult); err != nil {
 		switch {
-		case errors.Is(err, store.ErrGeneration), errors.Is(err, store.ErrBadState), errors.Is(err, store.ErrNotFound):
+		case errors.Is(err, ErrGeneration), errors.Is(err, ErrBadState), errors.Is(err, ErrNotFound):
 			slog.Info("late result discarded", "job_id", jobID, "error", err)
 		default:
 			slog.Error("save result failed", "job_id", jobID, "error", err)
@@ -234,19 +255,19 @@ func (e *Executor) runJob(base context.Context, jobID string) {
 
 // reportStage возвращает колбэк для коллектора: стадии чужого модуля
 // переносятся как есть и только если задача ещё running.
-func (e *Executor) reportStage(jobID string) StageReporter {
+func (e *Executor) reportStage(ctx context.Context, jobID string) StageReporter {
 	return func(stage string) {
-		e.setStage(jobID, stage)
+		e.setStage(ctx, jobID, stage)
 	}
 }
 
 // failSource помечает ошибку сбора; отмена задачи сильнее ошибки источника.
 func (e *Executor) failSource(ctx context.Context, jobID, message string) {
 	if ctx.Err() != nil {
-		e.markCancelled(jobID)
+		e.markCancelled(ctx, jobID)
 		return
 	}
-	if err := e.store.SetJobFailed(jobID, store.JobError{Code: "source_failed", Message: message}); err != nil && !errors.Is(err, store.ErrBadState) {
+	if err := e.persistence.SetJobFailed(ctx, jobID, "source_failed", message, false); err != nil && !errors.Is(err, ErrBadState) {
 		slog.Error("mark source failure failed", "job_id", jobID, "error", err)
 	}
 }
@@ -254,7 +275,7 @@ func (e *Executor) failSource(ctx context.Context, jobID, message string) {
 // failAnalyze различает отмену, коды контракта и неожиданный сбой вызова.
 func (e *Executor) failAnalyze(ctx context.Context, jobID string, err error) {
 	if ctx.Err() != nil {
-		e.markCancelled(jobID)
+		e.markCancelled(ctx, jobID)
 		return
 	}
 	var mlErr *ml.Error
@@ -266,13 +287,13 @@ func (e *Executor) failAnalyze(ctx context.Context, jobID string, err error) {
 		message = mlErr.Message
 		retryable = mlErr.Retryable
 	}
-	if serr := e.store.SetJobFailed(jobID, store.JobError{Code: code, Message: message, Retryable: retryable}); serr != nil && !errors.Is(serr, store.ErrBadState) {
+	if serr := e.persistence.SetJobFailed(ctx, jobID, code, message, retryable); serr != nil && !errors.Is(serr, ErrBadState) {
 		slog.Error("mark analyze failure failed", "job_id", jobID, "error", serr)
 	}
 }
 
-func (e *Executor) markCancelled(jobID string) {
-	if err := e.store.SetJobCancelled(jobID); err != nil && !errors.Is(err, store.ErrBadState) {
+func (e *Executor) markCancelled(ctx context.Context, jobID string) {
+	if err := e.persistence.SetJobCancelled(ctx, jobID); err != nil && !errors.Is(err, ErrBadState) {
 		slog.Error("mark cancelled failed", "job_id", jobID, "error", err)
 	}
 }

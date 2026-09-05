@@ -157,7 +157,7 @@ type stubCollector struct {
 	err    error
 }
 
-func (c *stubCollector) Collect(_ context.Context, job store.Job, _ store.Area, report StageReporter) (Collected, error) {
+func (c *stubCollector) Collect(_ context.Context, job domain.Job, _ domain.Area, report StageReporter) (Collected, error) {
 	report(domain.StageCollectSatellite)
 	report(domain.StageCollectWeather)
 	c.mu.Lock()
@@ -236,7 +236,7 @@ func TestExecutor_SuccessPath(t *testing.T) {
 	st := newTestStore(t)
 
 	collector := &stubCollector{}
-	exec := New(st, collector, okAnalyzer{})
+	exec := NewLegacy(st, collector, okAnalyzer{})
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -292,7 +292,7 @@ func TestExecutor_SuccessPath(t *testing.T) {
 
 func TestExecutor_QueueFull(t *testing.T) {
 	st := newTestStore(t)
-	exec := New(st, &stubCollector{}, okAnalyzer{})
+	exec := NewLegacy(st, &stubCollector{}, okAnalyzer{})
 
 	for range queueWaitingLimit {
 		if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -308,7 +308,7 @@ func TestExecutor_SourceError(t *testing.T) {
 	st := newTestStore(t)
 
 	collector := &stubCollector{err: errors.New("provider unavailable")}
-	exec := New(st, collector, okAnalyzer{})
+	exec := NewLegacy(st, collector, okAnalyzer{})
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -340,7 +340,7 @@ func TestExecutor_BusyML(t *testing.T) {
 
 	analyzeErr := analyzeErrorAgainstServer(t, http.StatusTooManyRequests,
 		`{"schema_version":"1.0","request_id":"`+testJobID+`","error":{"code":"busy","message":"ML busy","retryable":true}}`)
-	exec := New(st, &stubCollector{}, mlErrorAnalyzer{err: analyzeErr})
+	exec := NewLegacy(st, &stubCollector{}, mlErrorAnalyzer{err: analyzeErr})
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -371,7 +371,7 @@ func TestExecutor_CancelDuringAnalyze(t *testing.T) {
 	st := newTestStore(t)
 
 	blocker := &blockingAnalyzer{entered: make(chan struct{}), release: make(chan struct{})}
-	exec := New(st, &stubCollector{}, blocker)
+	exec := NewLegacy(st, &stubCollector{}, blocker)
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -418,7 +418,7 @@ func TestExecutor_CancelPending(t *testing.T) {
 	enqueueJob(t, st, testArea2ID, testJob2ID)
 
 	blocker := &blockingAnalyzer{entered: make(chan struct{}), release: make(chan struct{})}
-	exec := New(st, &stubCollector{}, blocker)
+	exec := NewLegacy(st, &stubCollector{}, blocker)
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -451,7 +451,7 @@ func TestExecutor_RestartMarksInterrupted(t *testing.T) {
 	enqueueJob(t, st, testAreaID, testJobID)
 
 	// Новый процесс: Start вызывает FailInterrupted хранилища.
-	New(st, &stubCollector{}, okAnalyzer{}).Start(context.Background())
+	NewLegacy(st, &stubCollector{}, okAnalyzer{}).Start(context.Background())
 
 	var failed *store.Job
 	waitFor(t, func() bool {

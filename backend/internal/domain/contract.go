@@ -77,13 +77,15 @@ type AnalysisRequest struct {
 // SeriesPoint — точка восстановленного ряда результата. PrimaryNDVI повторяет
 // исходное значение, включая null; исходное значение не перезаписывается.
 type SeriesPoint struct {
-	Date        string     `json:"date"`
-	PrimaryNDVI *float64   `json:"primary_ndvi"`
-	Value       *float64   `json:"value"`
-	State       PointState `json:"state"`
-	Method      *string    `json:"method"`
-	Baseline    *float64   `json:"baseline"`
-	ZScore      *float64   `json:"z_score"`
+	Date          string     `json:"date"`
+	PrimaryNDVI   *float64   `json:"primary_ndvi"`
+	Value         *float64   `json:"value"`
+	State         PointState `json:"state"`
+	Method        *string    `json:"method"`
+	Baseline      *float64   `json:"baseline"`
+	ZScore        *float64   `json:"z_score"`
+	Interval      *Period    `json:"interval,omitempty"`
+	ValidFraction *float64   `json:"valid_fraction,omitempty"`
 }
 
 // AnomalyEvent — негативный период с основаниями. Confirmed требует

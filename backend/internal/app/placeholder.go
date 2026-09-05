@@ -8,7 +8,6 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/handler"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/analysis"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
 // placeholderCollector — временная заглушка сбора данных до подключения
@@ -16,7 +15,7 @@ import (
 // наблюдений, ML отвечает insufficient_data; не является рабочим сбором.
 type placeholderCollector struct{}
 
-func (placeholderCollector) Collect(_ context.Context, job store.Job, area store.Area, report analysis.StageReporter) (analysis.Collected, error) {
+func (placeholderCollector) Collect(_ context.Context, job domain.Job, area domain.Area, report analysis.StageReporter) (analysis.Collected, error) {
 	report(domain.StageCollectSatellite)
 	report(domain.StageCollectWeather)
 	return analysis.Collected{
