@@ -1,3 +1,4 @@
+import { useStartAnalysis } from '@/api/mutations';
 import type { AnalysisEvent, Area, Series } from '@/api/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -197,6 +198,29 @@ function AreaSummary({ area, result }: { area: Area; result: ResultData }) {
   );
 }
 
+function AnalysisAction({ area }: { area: Area }) {
+  const start = useStartAnalysis();
+  const period = area.period ?? area.lastResult?.period;
+  if (!period || area.activeJob) return null;
+
+  return (
+    <div className="border-b border-border px-5 py-3">
+      <Button
+        size="sm"
+        disabled={start.isPending}
+        onClick={() => start.mutate({ areaId: area.id, period })}
+      >
+        {area.lastResult ? 'Повторить анализ' : 'Провести анализ'}
+      </Button>
+      {start.isError && (
+        <p className="mt-2 text-xs text-verdict-confirmed" role="alert">
+          Не удалось запустить анализ. Повторите попытку.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function AreaCard({
   area,
   areaLoading,
@@ -213,6 +237,7 @@ export function AreaCard({
   return (
     <section aria-label="Карточка участка" className="h-full overflow-y-auto">
       <AreaSummary area={area} result={result} />
+      <AnalysisAction area={area} />
       {area.lastResult && result.error ? (
         <ErrorState message={EMPTY.resultLoadFailed} onRetry={onRetryResult} />
       ) : area.lastResult && result.versionMismatch ? (

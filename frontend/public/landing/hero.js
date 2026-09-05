@@ -34,12 +34,9 @@
   const outline = document.querySelector('.field-polygon__outline');
   const dots = document.querySelectorAll('.field-polygon__dots circle');
 
-  const exampleAreas = {
-    'area-normal': { name: 'Поле Южное', status: 'Без отклонений' },
-    'area-candidate': { name: 'Поле Северное', status: 'Возможное изменение' },
-    'area-confirmed': { name: 'Поле у Тимашевска', status: 'Подтверждённое изменение' },
-  };
   const areaOptions = document.querySelectorAll('[data-area-id]');
+  const areaIds = new Set([...areaOptions].map((option) => option.dataset.areaId));
+  const panelLink = document.querySelector('.stepper__run');
   const regionTrigger = document.querySelector('[data-region-trigger]');
   const regionValue = document.querySelector('[data-region-value]');
   const regionMenu = document.querySelector('[data-region-menu]');
@@ -53,15 +50,16 @@
     footerObserver.observe(footer);
   }
   const selectExampleArea = (id) => {
-    const area = exampleAreas[id];
-    if (!area) return;
+    if (!id || !areaIds.has(id)) return;
     areaOptions.forEach((option) => {
       const active = option.dataset.areaId === id;
       option.classList.toggle('is-selected', active);
       option.setAttribute('aria-pressed', String(active));
-      option.querySelector('.plots__check')?.classList.toggle('is-on', active);
-      option.querySelector('.plots__check').textContent = active ? '✓' : '';
+      const check = option.querySelector('.plots__check');
+      check?.classList.toggle('is-on', active);
+      if (check) check.textContent = active ? '✓' : '';
     });
+    if (panelLink) panelLink.href = `/panel.html?area=${encodeURIComponent(id)}`;
   };
   areaOptions.forEach((option) => {
     option.addEventListener('click', () => selectExampleArea(option.dataset.areaId));
@@ -72,6 +70,7 @@
       }
     });
   });
+  selectExampleArea(document.querySelector('.plots .is-selected')?.dataset.areaId || '');
   regionTrigger?.addEventListener('click', () => {
     const open = regionMenu.hidden;
     regionMenu.hidden = !open;
