@@ -1,7 +1,5 @@
 package domain
 
-import "encoding/json"
-
 // Period — включённый диапазон дат YYYY-MM-DD (UTC). Границы включены.
 type Period struct {
 	From string `json:"from"`
@@ -12,13 +10,13 @@ type Period struct {
 // Секреты и URL с токенами сюда не входят; подробную геометрию и сцены
 // источник хранит в снимке Go (B1).
 type Source struct {
-	ID          string          `json:"id"`
-	Kind        SourceKind      `json:"kind"`
-	Provider    string          `json:"provider"`
-	Dataset     string          `json:"dataset"`
-	Mapping     json.RawMessage `json:"mapping"`
-	RetrievedAt string          `json:"retrieved_at"`
-	License     *string         `json:"license"`
+	ID          string     `json:"id"`
+	Kind        SourceKind `json:"kind"`
+	Provider    string     `json:"provider"`
+	Dataset     string     `json:"dataset"`
+	Mapping     string     `json:"mapping"`
+	RetrievedAt string     `json:"retrieved_at"`
+	License     *string    `json:"license"`
 }
 
 // Interval — включённый диапазон дат агрегации наблюдения.

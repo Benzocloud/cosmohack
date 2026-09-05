@@ -12,7 +12,7 @@
       "kind": "satellite",
       "provider": "cdse",
       "dataset": "SENTINEL-2 L2A",
-      "mapping": {"index": "NDVI", "aggregation": "mean_over_polygon", "cloud_mask": "SCL"},
+      "mapping": "NDVI mean over polygon; cloud mask SCL",
       "retrieved_at": "2026-08-01T10:00:00Z",
       "license": null
     },
@@ -21,7 +21,7 @@
       "kind": "weather",
       "provider": "open-meteo",
       "dataset": "ERA5",
-      "mapping": {"variables": ["temperature_2m", "precipitation_sum"], "units": {"temperature": "celsius", "precipitation": "mm"}},
+      "mapping": "daily UTC temperature and precipitation aggregation",
       "retrieved_at": "2026-08-01T10:00:00Z",
       "license": null
     },
@@ -30,7 +30,7 @@
       "kind": "reference",
       "provider": "team",
       "dataset": "seasonal-baseline-2019-2025",
-      "mapping": {"aggregation": "monthly_mean_std", "target_year_excluded": true},
+      "mapping": "monthly mean/std with target year excluded",
       "retrieved_at": "2026-08-01T10:00:00Z",
       "license": null
     }

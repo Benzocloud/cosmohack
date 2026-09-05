@@ -403,6 +403,9 @@ func TestClient_Analyze_RejectsInvalidRequest(t *testing.T) {
 		{"duplicate source id", func(r *domain.AnalysisRequest) {
 			r.Sources = append(r.Sources, r.Sources[0])
 		}},
+		{"empty source mapping", func(r *domain.AnalysisRequest) {
+			r.Sources[0].Mapping = ""
+		}},
 		{"retrieved at not utc", func(r *domain.AnalysisRequest) {
 			r.Sources[0].RetrievedAt = "2026-08-01T12:00:00+02:00"
 		}},

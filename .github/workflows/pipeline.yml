@@ -131,14 +131,20 @@ jobs:
           push: false
           load: true
           tags: cosmohack/ml:ci
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        if: ${{ hashFiles('backend/ml/requirements.txt') != '' }}
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
       - name: run ML image contract smoke test
         if: ${{ hashFiles('backend/ml/requirements.txt') != '' }}
+        timeout-minutes: 5
         working-directory: backend/ml
         run: |
           set -euo pipefail
           container=cosmohack-ml-ci
           trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
-          docker run -d --name "$container" cosmohack/ml:ci
+          docker run -d --name "$container" --publish 127.0.0.1:18000:8000 cosmohack/ml:ci
           ready=false
           for _ in $(seq 1 30); do
             if docker exec "$container" python -c 'import json, urllib.request; body=json.load(urllib.request.urlopen("http://127.0.0.1:8000/readyz")); assert body["status"] == "ready", body' >/dev/null 2>&1; then
@@ -151,6 +157,12 @@ jobs:
           docker exec "$container" python -c 'import hashlib, json, urllib.request; body=json.load(urllib.request.urlopen("http://127.0.0.1:8000/readyz")); manifest=json.load(open("/app/ml/artifacts/manifest.json")); artifact=open("/app/ml/artifacts/restoration.pkl", "rb").read(); assert body["status"] == "ready", body; assert body["schema_version"] == "1.0", body; assert body["feature_profiles"] == ["ndvi-weather-v1"], body; assert body["model_version"] == manifest["model_version"], body; assert hashlib.sha256(artifact).hexdigest() == manifest["sha256"], manifest'
           docker cp "$GITHUB_WORKSPACE/backend/testdata/ml-http/analyze_request_example.json" "$container:/tmp/analyze_request.json"
           docker exec "$container" python -c 'import json, urllib.request; payload=json.load(open("/tmp/analyze_request.json")); request=urllib.request.Request("http://127.0.0.1:8000/v1/analyze", data=json.dumps(payload).encode(), headers={"Content-Type":"application/json", "Accept":"application/json"}); response=urllib.request.urlopen(request); result=json.load(response); assert result["request_id"] == payload["request_id"], result; assert result["area_id"] == payload["area_id"], result; assert result["input_revision"] == payload["input_revision"], result; assert result["schema_version"] == payload["schema_version"] == "1.0", result; assert result["feature_profile"] == payload["feature_profile"] == "ndvi-weather-v1", result; assert isinstance(result["series"], list) and result["series"], result'
+          model_version=$(sed -n 's/.*"model_version": *"\([^"]*\)".*/\1/p' model-manifest.json)
+          test -n "$model_version"
+          cd "$GITHUB_WORKSPACE/backend"
+          ML_CONTRACT_URL=http://127.0.0.1:18000 \
+          ML_CONTRACT_MODEL_VERSION="$model_version" timeout 180s \
+            go test -tags=integration -run '^TestContract_AnalyzeAgainstFastAPI$' -count=1 ./internal/service/ml
       - name: build development ML stub image (no push)
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
         with:

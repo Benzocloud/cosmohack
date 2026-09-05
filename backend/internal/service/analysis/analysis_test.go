@@ -2,7 +2,6 @@ package analysis
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -94,9 +93,9 @@ func fixtureRequest(jobID string) domain.AnalysisRequest {
 		FeatureProfile: domain.FeatureProfileNDVIWeatherV1,
 		AnalysisPeriod: domain.Period{From: "2026-05-01", To: "2026-05-01"},
 		Sources: []domain.Source{
-			{ID: satellite, Kind: domain.SourceSatellite, Provider: "cdse", Dataset: "S2L2A", Mapping: json.RawMessage(`{}`), RetrievedAt: "2026-08-01T10:00:00Z"},
-			{ID: weatherSrc, Kind: domain.SourceWeather, Provider: "open-meteo", Dataset: "ERA5", Mapping: json.RawMessage(`{}`), RetrievedAt: "2026-08-01T10:00:00Z"},
-			{ID: referenceSrc, Kind: domain.SourceReference, Provider: "team", Dataset: "baseline", Mapping: json.RawMessage(`{}`), RetrievedAt: "2026-08-01T10:00:00Z"},
+			{ID: satellite, Kind: domain.SourceSatellite, Provider: "cdse", Dataset: "S2L2A", Mapping: "NDVI mean over polygon", RetrievedAt: "2026-08-01T10:00:00Z"},
+			{ID: weatherSrc, Kind: domain.SourceWeather, Provider: "open-meteo", Dataset: "ERA5", Mapping: "daily UTC aggregation", RetrievedAt: "2026-08-01T10:00:00Z"},
+			{ID: referenceSrc, Kind: domain.SourceReference, Provider: "team", Dataset: "baseline", Mapping: "monthly mean/std", RetrievedAt: "2026-08-01T10:00:00Z"},
 		},
 		Observations: []domain.Observation{{
 			Date:          "2026-05-01",

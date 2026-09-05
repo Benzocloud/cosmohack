@@ -1,7 +1,6 @@
 package ml
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -98,8 +97,8 @@ func validateSources(sources []domain.Source) error {
 		if src.Provider == "" || src.Dataset == "" {
 			return newError(domain.MLErrorInvalidRequest, fmt.Sprintf("source %q requires provider and dataset", src.ID))
 		}
-		if len(src.Mapping) == 0 || !json.Valid(src.Mapping) {
-			return newError(domain.MLErrorInvalidRequest, fmt.Sprintf("source %q requires a valid json mapping", src.ID))
+		if src.Mapping == "" {
+			return newError(domain.MLErrorInvalidRequest, fmt.Sprintf("source %q requires a mapping", src.ID))
 		}
 		retrievedAt, err := time.Parse(time.RFC3339, src.RetrievedAt)
 		if err != nil {

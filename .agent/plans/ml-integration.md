@@ -121,7 +121,7 @@ client tests. Математику модели в Go не переносить.
   дополнительные поля readiness считать совместимыми, но не активировать v1.1.
 - [x] Взять реальный JSON из `AnalyzeRequestBuilder`, а не вручную написанный
   похожий объект, и принять его строгой Pydantic-схемой.
-- [ ] Ответ Python тем же запросом прогнать через Go `validateResult`: точные
+- [x] Ответ Python тем же запросом прогнать через Go `validateResult`: точные
   echo-поля, даты, original/imputed/missing, status/severity/events и ограничения.
 - [x] Свести `Source.mapping` к одному типу во всех документах, Go DTO,
   Python-модели и общих фикстурах.
