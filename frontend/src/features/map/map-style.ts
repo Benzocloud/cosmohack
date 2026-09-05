@@ -40,6 +40,8 @@ export interface PersistedMapView {
   zoom: number;
 }
 
+const minimumContourSearchZoom = 9;
+
 export function readLastMapView(): PersistedMapView | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -49,7 +51,8 @@ export function readLastMapView(): PersistedMapView | null {
     if (
       typeof parsed.longitude !== 'number' ||
       typeof parsed.latitude !== 'number' ||
-      typeof parsed.zoom !== 'number'
+      typeof parsed.zoom !== 'number' ||
+      parsed.zoom < minimumContourSearchZoom
     ) {
       return null;
     }
