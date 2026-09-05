@@ -290,6 +290,39 @@ func TestExecutor_SuccessPath(t *testing.T) {
 	}
 }
 
+func TestExecutor_ResultConflictFailsJob(t *testing.T) {
+	st := newExecutorPersistence(t)
+	st.putResultErr = domain.ErrConflict
+	exec := New(st, &stubCollector{}, okAnalyzer{}, 8, testLogger())
+	exec.Start(context.Background())
+	enqueueJob(t, st, testAreaID, testJobID)
+	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+
+	var failed domain.Job
+	waitFor(t, func() bool {
+		job, err := st.getJob(testJobID)
+		if err != nil {
+			return false
+		}
+		if job.Status == domain.JobFailed {
+			failed = job
+			return true
+		}
+		return false
+	})
+	if failed.ErrorCode == nil || *failed.ErrorCode != "result_conflict" {
+		t.Fatalf("want result_conflict, got %s", valueOrEmpty(failed.ErrorCode))
+	}
+	if failed.ErrorRetryable == nil || !*failed.ErrorRetryable {
+		t.Fatal("result conflict must be retryable")
+	}
+	if jobStillActive(st, testAreaID, testJobID) {
+		t.Fatal("failed result job must clear active_job_id")
+	}
+}
+
 func TestExecutor_QueueUsesConfiguredCapacity(t *testing.T) {
 	st := newExecutorPersistence(t)
 	exec := New(st, &stubCollector{}, okAnalyzer{}, 2, testLogger())
@@ -482,6 +515,11 @@ func TestExecutor_ResultVersionDeterministic(t *testing.T) {
 	other.ModelVersion = "model-other"
 	if resultVersion(&req, &res) == resultVersion(&req, &other) {
 		t.Fatal("different model versions must produce different result versions")
+	}
+	req.Peers = []domain.PeerSeries{{AreaID: "peer-1", Observations: []domain.PeerObservation{{Date: "2026-05-01", PrimaryNDVI: ptrFloat(0.4), Quality: domain.QualityUsable}}}}
+	baselineReq := fixtureRequest(testJobID)
+	if resultVersion(&req, &res) == resultVersion(&baselineReq, &res) {
+		t.Fatal("different peer context must produce different result versions")
 	}
 }
 

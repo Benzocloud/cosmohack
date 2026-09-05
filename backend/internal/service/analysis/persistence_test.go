@@ -12,10 +12,11 @@ import (
 // production implementation is repository.Repository; this fake only models
 // the domain port needed to exercise worker transitions without a database.
 type testPersistence struct {
-	mu      sync.Mutex
-	areas   map[string]domain.Area
-	jobs    map[string]domain.Job
-	results map[string]domain.AnalysisRecord
+	mu           sync.Mutex
+	areas        map[string]domain.Area
+	jobs         map[string]domain.Job
+	results      map[string]domain.AnalysisRecord
+	putResultErr error
 }
 
 func newTestPersistence() *testPersistence {
@@ -170,6 +171,9 @@ func (p *testPersistence) SetJobInputRevision(_ context.Context, id, revision st
 func (p *testPersistence) PutResult(_ context.Context, _ int, jobID string, result domain.AnalysisRecord) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if p.putResultErr != nil {
+		return p.putResultErr
+	}
 	job, ok := p.jobs[jobID]
 	if !ok {
 		return domain.ErrNotFound
