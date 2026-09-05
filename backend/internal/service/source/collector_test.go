@@ -242,6 +242,34 @@ func TestCollectorBuildsDenseSeries(t *testing.T) {
 	}
 }
 
+func TestCollectorMapsSatelliteSampleWithoutNDVIToMissingObservation(t *testing.T) {
+	period := mustRange(t, "2025-06-01", "2025-06-05")
+	satellite := &stubSatellite{series: satelliteSeries(t,
+		sampleFor(t, "2025-06-01", "2025-06-05", nil, new(0.2), false, domainsource.ReasonNoValidSamples),
+	)}
+
+	snapshot, err := newCollector(t, satellite, &stubWeather{series: weatherSeries(t, period)}).
+		Collect(context.Background(), collectRequest(t, period))
+	if err != nil {
+		t.Fatalf("сбор не выполнен: %v", err)
+	}
+
+	observations := snapshot.Observations()
+	if len(observations) != period.Days() {
+		t.Fatalf("наблюдений %d, ожидалось %d", len(observations), period.Days())
+	}
+	observation := observations[2]
+	if observation.Quality() != domainsource.QualityMissing {
+		t.Fatalf("наблюдение без NDVI имеет качество %s", observation.Quality())
+	}
+	if observation.PrimaryNDVI() != nil || observation.ValidFraction() != nil {
+		t.Fatal("наблюдение без NDVI сохранило числовые данные")
+	}
+	if observation.MissingReason() != domainsource.ReasonNoValidSamples {
+		t.Fatalf("причина отсутствия %q, ожидалась %q", observation.MissingReason(), domainsource.ReasonNoValidSamples)
+	}
+}
+
 func TestCollectorUsesRepresentativePointForWeather(t *testing.T) {
 	period := mustRange(t, "2025-06-01", "2025-06-03")
 	satellite := &stubSatellite{series: satelliteSeries(t)}

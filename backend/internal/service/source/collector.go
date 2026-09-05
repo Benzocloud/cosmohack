@@ -211,8 +211,12 @@ func (c *Collector) buildObservations(period domainsource.DateRange, samples map
 		switch sample, found := samples[date.String()]; {
 		case found && sample.Usable():
 			builder.Measured(*sample.NDVI(), satelliteSourceID, sample.Interval(), sample.ValidFraction())
-		case found:
+		case found && sample.NDVI() != nil:
 			builder.Rejected(sample.NDVI(), satelliteSourceID, sample.Interval(), sample.Reason(), sample.ValidFraction())
+		case found:
+			// Интервал без числового NDVI передаём как missing: ML не может
+			// принять unusable-наблюдение без исходного значения.
+			builder.Missing(sample.Reason())
 		default:
 			builder.Missing(domainsource.ReasonNoObservation)
 		}
