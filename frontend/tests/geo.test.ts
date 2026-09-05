@@ -166,4 +166,13 @@ describe('validatePeriod', () => {
       false,
     );
   });
+
+  it('отклоняет начало раньше минимальной даты лимитов', () => {
+    expect(
+      validatePeriod('2023-12-31', '2024-01-15', { ...limits, minDate: '2024-01-01' }).ok,
+    ).toBe(false);
+    expect(
+      validatePeriod('2024-01-01', '2024-01-15', { ...limits, minDate: '2024-01-01' }).ok,
+    ).toBe(true);
+  });
 });

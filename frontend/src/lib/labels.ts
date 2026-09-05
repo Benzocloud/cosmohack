@@ -123,6 +123,7 @@ export const MAP_LABELS = {
   areaLimit: (max: number) => `Площадь больше ${max} га`,
   verticesLimit: (max: number) => `Слишком много вершин: максимум ${max}`,
   periodLimit: (max: number) => `Период длиннее ${max} дней`,
+  periodBeforeMinDate: (minDate: string) => `Дата «с» раньше доступной: ${minDate}`,
   badPeriod: 'Дата «с» позже даты «по»',
   contoursCount: (n: number) => {
     const mod10 = n % 10;

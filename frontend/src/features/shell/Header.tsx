@@ -3,6 +3,7 @@ import { useArea, useJob, useLimits } from '@/api/queries';
 import type { Period } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { validatePeriod } from '@/lib/geo';
 import { jobStatusText } from '@/lib/job-status';
 import { SCAFFOLD } from '@/lib/labels';
 import { useSelection } from '@/store/selection';
@@ -39,7 +40,16 @@ export function Header() {
   }, [areaQuery.data]);
 
   const selectedPeriod = period ?? areaQuery.data?.period ?? areaQuery.data?.lastResult?.period;
-  const canRun = Boolean(selectedAreaId && selectedPeriod?.from && selectedPeriod.to);
+  const periodValidation = selectedPeriod
+    ? validatePeriod(selectedPeriod.from, selectedPeriod.to, limitsQuery.data ?? null)
+    : { ok: false };
+  const canRun = Boolean(
+    selectedAreaId && selectedPeriod?.from && selectedPeriod.to && periodValidation.ok,
+  );
+  const periodError =
+    selectedAreaId && selectedPeriod?.from && selectedPeriod.to && !periodValidation.ok
+      ? periodValidation.error
+      : null;
   const status = jobStatusText(job);
 
   const updatePeriod = (field: keyof Period, value: string) => {
@@ -51,7 +61,8 @@ export function Header() {
   };
 
   const runAnalysis = () => {
-    if (!selectedAreaId || !selectedPeriod || !canRun || start.isPending) return;
+    if (!selectedAreaId || !selectedPeriod || !canRun || !periodValidation.ok || start.isPending)
+      return;
     setJobId(null);
     start.mutate(
       { areaId: selectedAreaId, period: selectedPeriod },
@@ -127,12 +138,12 @@ export function Header() {
               : SCAFFOLD.runAnalysis}
         </Button>
       </div>
-      {start.isError && (
+      {(periodError || start.isError) && (
         <span
           role="alert"
           className="absolute right-3 top-full z-30 mt-1 rounded-md bg-surface px-3 py-2 text-2xs text-verdict-confirmed shadow-2"
         >
-          Не удалось запустить анализ. Повторите попытку.
+          {periodError ?? 'Не удалось запустить анализ. Повторите попытку.'}
         </span>
       )}
     </header>
