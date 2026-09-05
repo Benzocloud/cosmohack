@@ -48,11 +48,6 @@ func (s *Storage) GetJob(ctx context.Context, id string) (domain.Job, error) {
 	return job, mapHandlerError(err)
 }
 
-func (s *Storage) ListJobsByArea(ctx context.Context, areaID string) ([]domain.Job, error) {
-	jobs, err := s.repo.ListJobsByArea(ctx, areaID)
-	return jobs, mapHandlerError(err)
-}
-
 func (s *Storage) PutJobQueued(ctx context.Context, job domain.Job) error {
 	return mapHandlerError(s.repo.PutJobQueued(ctx, job))
 }

@@ -2,13 +2,12 @@ package handler
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/service/area"
 )
 
 func (h *handler) listAreas(w http.ResponseWriter, r *http.Request) {
-	areas, err := h.storage.ListAreas(r.Context())
+	areas, err := h.areas.ListAreas(r.Context())
 	if err != nil {
 		writeStoreErr(w, err)
 		return
@@ -44,15 +43,11 @@ func (h *handler) createArea(w http.ResponseWriter, r *http.Request) {
 		writeValidation(w, err)
 		return
 	}
-	domainArea, err := area.Create(area.CreateInput{
+	domainArea, err := h.areas.CreateArea(r.Context(), area.CreateInput{
 		Name: req.Name, Period: req.Period, Geometry: req.Geometry, Source: *req.Source,
-	}, time.Now().UTC())
+	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal_error", "Не удалось прочитать или записать снимок", true)
-		return
-	}
-	if err := h.storage.CreateArea(r.Context(), domainArea); err != nil {
-		writeStoreErr(w, err)
 		return
 	}
 	p, err := h.projectArea(r.Context(), domainArea)
@@ -71,7 +66,7 @@ func (h *handler) deleteArea(w http.ResponseWriter, r *http.Request) {
 		writeValidation(w, err)
 		return
 	}
-	cancelIDs, err := h.storage.DeleteArea(r.Context(), id)
+	cancelIDs, err := h.areas.DeleteArea(r.Context(), id)
 	if err != nil {
 		writeStoreErr(w, err)
 		return

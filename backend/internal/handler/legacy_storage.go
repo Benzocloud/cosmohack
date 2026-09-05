@@ -77,18 +77,6 @@ func (s legacyStorage) GetJob(_ context.Context, id string) (domain.Job, error) 
 	return domainJobFromStore(*job), nil
 }
 
-func (s legacyStorage) ListJobsByArea(_ context.Context, areaID string) ([]domain.Job, error) {
-	jobs, err := s.store.ListJobsByArea(areaID)
-	if err != nil {
-		return nil, mapStorageError(err)
-	}
-	out := make([]domain.Job, 0, len(jobs))
-	for _, job := range jobs {
-		out = append(out, domainJobFromStore(job))
-	}
-	return out, nil
-}
-
 func (s legacyStorage) PutJobQueued(_ context.Context, job domain.Job) error {
 	return mapStorageError(s.store.PutJobQueued(storeJobFromDomain(job)))
 }

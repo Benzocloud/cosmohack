@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
+	"github.com/Benzocloud/cosmohack/backend/internal/service/area"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
@@ -49,7 +50,6 @@ type Storage interface {
 	ListAreas(context.Context) ([]domain.Area, error)
 	DeleteArea(context.Context, string) ([]string, error)
 	GetJob(context.Context, string) (domain.Job, error)
-	ListJobsByArea(context.Context, string) ([]domain.Job, error)
 	PutJobQueued(context.Context, domain.Job) error
 	DeleteJob(context.Context, string) error
 	GetResult(context.Context, string, string) (domain.AnalysisRecord, error)
@@ -57,6 +57,7 @@ type Storage interface {
 
 type handler struct {
 	storage  Storage
+	areas    *area.Service
 	contours ContourFinder
 	queue    Queue
 	limits   Limits
@@ -72,7 +73,7 @@ func NewMux(st *store.Store, contours ContourFinder, queue Queue, lim Limits) *h
 
 // NewMuxWithStorage builds routes over a domain persistence implementation.
 func NewMuxWithStorage(storage Storage, contours ContourFinder, queue Queue, lim Limits) *http.ServeMux {
-	h := &handler{storage: storage, contours: contours, queue: queue, limits: lim}
+	h := &handler{storage: storage, areas: area.New(storage), contours: contours, queue: queue, limits: lim}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/areas", h.listAreas)
 	mux.HandleFunc("POST /api/areas", h.createArea)
