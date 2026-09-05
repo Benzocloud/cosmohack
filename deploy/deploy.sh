@@ -104,7 +104,7 @@ assert body.get('model_version') == '${MODEL_VERSION}', body"
 
 check_migration_state() {
   local state version dirty
-  state=$(docker run --rm --network host postgres:16-alpine \
+  state=$("${COMPOSE[@]}" exec -T postgres \
     psql "$DATABASE_URL" -Atc "SELECT version || ':' || CASE WHEN dirty THEN 't' ELSE 'f' END FROM schema_migrations ORDER BY version DESC LIMIT 1")
   version=${state%%:*}
   dirty=${state##*:}
