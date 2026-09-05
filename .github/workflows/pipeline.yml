@@ -216,22 +216,29 @@ jobs:
           test -n "$DATABASE_URL" || { echo "DATABASE_URL secret is not configured"; exit 1; }
           test -n "$GO_DIGEST" && test -n "$ML_DIGEST" && test -n "$IMAGE_REPO" \
             || { echo "published image digests are missing"; exit 1; }
-          sudo -n install -d -m 0750 "$DEPLOY_DIR"
-          sudo -n install -m 0755 deploy/deploy.sh "$DEPLOY_DIR/deploy.sh"
-          sudo -n install -m 0644 deploy/compose.yaml "$DEPLOY_DIR/compose.yaml"
-          sudo -n install -d -m 0755 "$DEPLOY_DIR/migrations"
-          sudo -n install -m 0644 backend/migrations/*.sql "$DEPLOY_DIR/migrations/"
+          run_as_root() {
+            if [ "$(id -u)" -eq 0 ]; then
+              "$@"
+            else
+              sudo -n --preserve-env=GO_IMAGE,ML_IMAGE,MODEL_VERSION,MIGRATIONS_DIR_HOST "$@"
+            fi
+          }
+          run_as_root install -d -m 0750 "$DEPLOY_DIR"
+          run_as_root install -m 0755 deploy/deploy.sh "$DEPLOY_DIR/deploy.sh"
+          run_as_root install -m 0644 deploy/compose.yaml "$DEPLOY_DIR/compose.yaml"
+          run_as_root install -d -m 0755 "$DEPLOY_DIR/migrations"
+          run_as_root install -m 0644 backend/migrations/*.sql "$DEPLOY_DIR/migrations/"
           release_env=$(mktemp)
           trap 'rm -f "$release_env"' EXIT
           umask 077
           printf 'GHCR_USER=%s\nGHCR_TOKEN=%s\nDATABASE_URL=%s\nCDSE_CLIENT_ID=%s\nCDSE_CLIENT_SECRET=%s\n' \
             "$GHCR_USER" "$GHCR_TOKEN" "$DATABASE_URL" "$CDSE_CLIENT_ID" "$CDSE_CLIENT_SECRET" > "$release_env"
-          sudo -n install -m 0600 "$release_env" "$DEPLOY_DIR/release-ghcr.env"
+          run_as_root install -m 0600 "$release_env" "$DEPLOY_DIR/release-ghcr.env"
           cd "$DEPLOY_DIR"
           export GO_IMAGE="ghcr.io/${IMAGE_REPO}/go@${GO_DIGEST}"
           export ML_IMAGE="ghcr.io/${IMAGE_REPO}/ml@${ML_DIGEST}"
           export MIGRATIONS_DIR_HOST=./migrations
-          sudo -n --preserve-env=GO_IMAGE,ML_IMAGE,MODEL_VERSION,MIGRATIONS_DIR_HOST ./deploy.sh
+          run_as_root ./deploy.sh
 
   deploy-stub:
     # До поставки настоящего ML запускаем production Go с образом ML stub на
@@ -260,20 +267,27 @@ jobs:
           test -n "$DATABASE_URL" || { echo "DATABASE_URL secret is not configured"; exit 1; }
           test -n "$GO_DIGEST" && test -n "$ML_STUB_DIGEST" && test -n "$IMAGE_REPO" \
             || { echo "published Go or ML stub image digest is missing"; exit 1; }
-          sudo -n install -d -m 0750 "$DEPLOY_DIR"
-          sudo -n install -m 0755 deploy/deploy.sh "$DEPLOY_DIR/deploy.sh"
-          sudo -n install -m 0644 deploy/compose.yaml "$DEPLOY_DIR/compose.yaml"
-          sudo -n install -d -m 0755 "$DEPLOY_DIR/migrations"
-          sudo -n install -m 0644 backend/migrations/*.sql "$DEPLOY_DIR/migrations/"
+          run_as_root() {
+            if [ "$(id -u)" -eq 0 ]; then
+              "$@"
+            else
+              sudo -n --preserve-env=GO_IMAGE,ML_IMAGE,MODEL_VERSION,MIGRATIONS_DIR_HOST "$@"
+            fi
+          }
+          run_as_root install -d -m 0750 "$DEPLOY_DIR"
+          run_as_root install -m 0755 deploy/deploy.sh "$DEPLOY_DIR/deploy.sh"
+          run_as_root install -m 0644 deploy/compose.yaml "$DEPLOY_DIR/compose.yaml"
+          run_as_root install -d -m 0755 "$DEPLOY_DIR/migrations"
+          run_as_root install -m 0644 backend/migrations/*.sql "$DEPLOY_DIR/migrations/"
           release_env=$(mktemp)
           trap 'rm -f "$release_env"' EXIT
           umask 077
           printf 'GHCR_USER=%s\nGHCR_TOKEN=%s\nDATABASE_URL=%s\nCDSE_CLIENT_ID=%s\nCDSE_CLIENT_SECRET=%s\n' \
             "$GHCR_USER" "$GHCR_TOKEN" "$DATABASE_URL" "$CDSE_CLIENT_ID" "$CDSE_CLIENT_SECRET" > "$release_env"
-          sudo -n install -m 0600 "$release_env" "$DEPLOY_DIR/release-ghcr.env"
+          run_as_root install -m 0600 "$release_env" "$DEPLOY_DIR/release-ghcr.env"
           cd "$DEPLOY_DIR"
           export GO_IMAGE="ghcr.io/${IMAGE_REPO}/go@${GO_DIGEST}"
           export ML_IMAGE="ghcr.io/${IMAGE_REPO}/ml-stub@${ML_STUB_DIGEST}"
           export MODEL_VERSION
           export MIGRATIONS_DIR_HOST=./migrations
-          sudo -n --preserve-env=GO_IMAGE,ML_IMAGE,MODEL_VERSION,MIGRATIONS_DIR_HOST ./deploy.sh
+          run_as_root ./deploy.sh
