@@ -1,0 +1,165 @@
+{
+  "_synthetic": true,
+  "areas": [
+    {
+      "id": "area-normal",
+      "name": "Поле Южное",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[38.9, 45.55], [38.98, 45.55], [38.98, 45.61], [38.9, 45.61], [38.9, 45.55]]
+        ]
+      },
+      "source": {
+        "kind": "contour",
+        "label": "Контур OpenStreetMap",
+        "external_id": "way/123456"
+      },
+      "created_at": "2026-09-04T08:00:00Z",
+      "last_result": {
+        "result_version": "v-normal-1",
+        "period": {
+          "from": "2024-03-01",
+          "to": "2024-10-18"
+        },
+        "computed_at": "2026-09-04T08:05:00Z",
+        "verdict": "normal",
+        "severity": null,
+        "sources": {
+          "sentinel2": {
+            "status": "ok"
+          },
+          "era5": {
+            "status": "ok"
+          }
+        },
+        "limitations": []
+      },
+      "active_job": null
+    },
+    {
+      "id": "area-candidate",
+      "name": "Поле Северное",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[39.1, 45.7], [39.18, 45.7], [39.18, 45.76], [39.1, 45.76], [39.1, 45.7]]]
+      },
+      "source": {
+        "kind": "contour",
+        "label": "Контур OpenStreetMap",
+        "external_id": "way/234567"
+      },
+      "created_at": "2026-09-04T08:10:00Z",
+      "last_result": {
+        "result_version": "v-candidate-1",
+        "period": {
+          "from": "2024-03-01",
+          "to": "2024-11-03"
+        },
+        "computed_at": "2026-09-04T08:15:00Z",
+        "verdict": "candidate",
+        "severity": null,
+        "sources": {
+          "sentinel2": {
+            "status": "ok"
+          },
+          "era5": {
+            "status": "partial",
+            "note": "Облачность части сцен"
+          }
+        },
+        "limitations": ["Часть сцен исключена из-за облачности"]
+      },
+      "active_job": {
+        "id": "job-running-stage",
+        "area_id": "area-candidate",
+        "requested_period": {
+          "from": "2024-03-01",
+          "to": "2024-11-03"
+        },
+        "status": "running",
+        "stage": "weather",
+        "message": null,
+        "error_code": null,
+        "error_message": null,
+        "result_version": null,
+        "updated_at": "2026-09-04T08:16:00Z"
+      }
+    },
+    {
+      "id": "area-confirmed",
+      "name": "Поле у Тимашевска",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[38.75, 45.8], [38.85, 45.8], [38.85, 45.88], [38.75, 45.88], [38.75, 45.8]]
+        ]
+      },
+      "source": {
+        "kind": "drawn",
+        "label": "Нарисован вручную"
+      },
+      "created_at": "2026-09-03T09:00:00Z",
+      "last_result": {
+        "result_version": "v-confirmed-1",
+        "period": {
+          "from": "2023-04-01",
+          "to": "2023-10-31"
+        },
+        "computed_at": "2026-09-03T09:10:00Z",
+        "verdict": "confirmed",
+        "severity": "high",
+        "sources": {
+          "sentinel2": {
+            "status": "ok"
+          },
+          "modis": {
+            "status": "ok",
+            "note": "Фон 2017–2023"
+          },
+          "era5": {
+            "status": "ok"
+          }
+        },
+        "limitations": []
+      },
+      "active_job": null
+    },
+    {
+      "id": "area-insufficient",
+      "name": "Поле Новое",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[39.3, 45.4], [39.38, 45.4], [39.38, 45.46], [39.3, 45.46], [39.3, 45.4]]]
+      },
+      "source": {
+        "kind": "contour",
+        "label": "Контур OpenStreetMap",
+        "external_id": "way/345678"
+      },
+      "created_at": "2026-09-04T09:00:00Z",
+      "last_result": {
+        "result_version": "v-insufficient-1",
+        "period": {
+          "from": "2024-03-01",
+          "to": "2024-08-23"
+        },
+        "computed_at": "2026-09-04T09:05:00Z",
+        "verdict": "insufficient_data",
+        "severity": null,
+        "sources": {
+          "sentinel2": {
+            "status": "partial",
+            "note": "Мало пригодных сцен"
+          },
+          "era5": {
+            "status": "unavailable",
+            "note": "Погода не получена"
+          }
+        },
+        "limitations": ["Меньше двух лет истории", "Погода недоступна"]
+      },
+      "active_job": null
+    }
+  ]
+}

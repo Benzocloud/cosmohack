@@ -72,11 +72,14 @@ func NewMuxWithStorage(storage Storage, areas *area.Service, scheduler *analysis
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/areas", h.listAreas)
 	mux.HandleFunc("POST /api/areas", h.createArea)
+	mux.HandleFunc("GET /api/areas/{id}", h.getArea)
 	mux.HandleFunc("DELETE /api/areas/{id}", h.deleteArea)
 	mux.HandleFunc("GET /api/areas/{id}/series", h.getSeries)
 	mux.HandleFunc("GET /api/areas/{id}/events", h.getEvents)
 	mux.HandleFunc("POST /api/areas/{id}/analyses", h.postAnalyses)
 	mux.HandleFunc("GET /api/jobs/{id}", h.getJob)
 	mux.HandleFunc("GET /api/regions/contours", h.getContours)
+	mux.HandleFunc("GET /api/config", h.getConfig)
+
 	return mux
 }

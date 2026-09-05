@@ -53,7 +53,7 @@ func (r *Repository) PutResult(ctx context.Context, generationAtStart int, jobID
 	if err != nil {
 		return fmt.Errorf("begin save result: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var area record.Area
 	if err := tx.GetContext(ctx, &area, queryLockArea, result.AreaID); err != nil {

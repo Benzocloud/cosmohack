@@ -1,0 +1,50 @@
+{
+  "_synthetic": true,
+  "status": "ok",
+  "source": "OSM Overpass",
+  "coverage_note": "Каталог неполный: landuse=farmland — кандидаты, не кадастровые границы",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[38.92, 45.63], [38.99, 45.63], [38.99, 45.68], [38.92, 45.68], [38.92, 45.63]]
+        ]
+      },
+      "properties": {
+        "id": "way/111111",
+        "name": "Контур 1",
+        "external_id": "way/111111"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[39.02, 45.63], [39.09, 45.63], [39.09, 45.68], [39.02, 45.68], [39.02, 45.63]]
+        ]
+      },
+      "properties": {
+        "id": "way/222222",
+        "name": "Контур 2",
+        "external_id": "way/222222"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[39.12, 45.63], [39.19, 45.63], [39.19, 45.68], [39.12, 45.68], [39.12, 45.63]]
+        ]
+      },
+      "properties": {
+        "id": "way/333333",
+        "name": "Контур 3",
+        "external_id": "way/333333"
+      }
+    }
+  ]
+}

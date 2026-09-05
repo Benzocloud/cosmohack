@@ -117,7 +117,8 @@ func (r *Repository) DeleteArea(ctx context.Context, id string) ([]string, error
 	if err != nil {
 		return nil, fmt.Errorf("begin delete area: %w", err)
 	}
-	defer tx.Rollback()
+
+	defer func() { _ = tx.Rollback() }()
 	var area record.Area
 	if err := tx.GetContext(ctx, &area, queryLockArea, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

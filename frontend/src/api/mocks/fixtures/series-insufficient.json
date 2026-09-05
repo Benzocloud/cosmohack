@@ -1,0 +1,99 @@
+{
+  "_synthetic": true,
+  "series": {
+    "area_id": "area-insufficient",
+    "result_version": "v-insufficient-1",
+    "period": {
+      "from": "2024-03-01",
+      "to": "2024-08-23"
+    },
+    "points": [
+      {
+        "date": "2024-03-01",
+        "ndvi": 0.28,
+        "provenance": "observed",
+        "quality": "good",
+        "background": null,
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-03-26",
+        "ndvi": 0.31,
+        "provenance": "observed",
+        "quality": "good",
+        "background": null,
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-04-20",
+        "ndvi": 0.37,
+        "provenance": "observed",
+        "quality": "good",
+        "background": null,
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-05-15",
+        "ndvi": null,
+        "provenance": "missing",
+        "quality": "cloud",
+        "background": {
+          "mean": 0.47,
+          "low": 0.39,
+          "high": 0.55
+        },
+        "deviation": null,
+        "z": null,
+        "source": null
+      },
+      {
+        "date": "2024-06-09",
+        "ndvi": 0.6,
+        "provenance": "observed",
+        "quality": "good",
+        "background": null,
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-07-04",
+        "ndvi": 0.67,
+        "provenance": "observed",
+        "quality": "good",
+        "background": null,
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-07-29",
+        "ndvi": 0.66,
+        "provenance": "observed",
+        "quality": "good",
+        "background": null,
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      },
+      {
+        "date": "2024-08-23",
+        "ndvi": 0.57,
+        "provenance": "observed",
+        "quality": "good",
+        "background": null,
+        "deviation": null,
+        "z": null,
+        "source": "sentinel2"
+      }
+    ],
+    "background": null,
+    "weather": null
+  }
+}

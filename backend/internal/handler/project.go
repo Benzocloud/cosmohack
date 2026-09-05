@@ -64,9 +64,11 @@ type publicJob struct {
 }
 
 func (h *handler) projectArea(ctx context.Context, a domain.Area) (publicArea, error) {
-	out := publicArea{ID: a.ID, Name: a.Name, Geometry: a.Geometry,
+	out := publicArea{
+		ID: a.ID, Name: a.Name, Geometry: a.Geometry,
 		Source: publicAreaSource{Kind: a.Source.Kind, ContourID: a.Source.ContourID, Provider: a.Source.Provider},
-		Period: a.Period, CreatedAt: formatTime(a.CreatedAt)}
+		Period: a.Period, CreatedAt: formatTime(a.CreatedAt),
+	}
 	if a.ShownResultVersion != "" {
 		res, err := h.storage.GetResult(ctx, a.ID, a.ShownResultVersion)
 		if err != nil && !errors.Is(err, domain.ErrNotFound) {
@@ -74,8 +76,10 @@ func (h *handler) projectArea(ctx context.Context, a domain.Area) (publicArea, e
 		}
 		if err == nil {
 			jobID := a.ShownJobID
-			out.ShownResult = &publicShown{ResultVersion: res.ResultVersion, JobID: jobID, Period: res.Period,
-				ComputedAt: formatTime(res.ComputedAt), Status: string(res.Status), Severity: publicSeverity(res.Status, res.Severity), ModelVersion: res.ModelVersion}
+			out.ShownResult = &publicShown{
+				ResultVersion: res.ResultVersion, JobID: jobID, Period: res.Period,
+				ComputedAt: formatTime(res.ComputedAt), Status: string(res.Status), Severity: publicSeverity(res.Status, res.Severity), ModelVersion: res.ModelVersion,
+			}
 		}
 	}
 	if a.ActiveJobID == "" {
@@ -117,8 +121,11 @@ func projectJob(j domain.Job) publicJob {
 			jobErr.Retryable = *j.ErrorRetryable
 		}
 	}
-	return publicJob{ID: j.ID, AreaID: j.AreaID, Status: string(j.Status), Stage: stage, Period: j.Period, Error: jobErr,
-		ResultVersion: j.ResultVersion, CreatedAt: formatTime(j.CreatedAt), UpdatedAt: formatTime(j.UpdatedAt)}
+
+	return publicJob{
+		ID: j.ID, AreaID: j.AreaID, Status: string(j.Status), Stage: stage, Period: j.Period, Error: jobErr,
+		ResultVersion: j.ResultVersion, CreatedAt: formatTime(j.CreatedAt), UpdatedAt: formatTime(j.UpdatedAt),
+	}
 }
 
 type publicSeries struct {
@@ -183,21 +190,17 @@ func projectSeries(res domain.AnalysisRecord) publicSeries {
 			Interval: point.Interval, ValidFraction: point.ValidFraction,
 		})
 	}
-	weather := make([]publicWeatherPoint, 0, len(res.Weather))
-	for _, point := range res.Weather {
-		weather = append(weather, publicWeatherPoint{
-			Date: point.Date, TemperatureMeanC: point.TemperatureMeanC,
-			PrecipitationSumMM: point.PrecipitationSumMM, SourceID: point.SourceID,
-		})
-	}
 	limitations := res.Limitations
 	if limitations == nil {
 		limitations = []string{}
 	}
-	return publicSeries{AreaID: res.AreaID, ResultVersion: &ver, Period: &period, ComputedAt: &computedAt,
+
+	return publicSeries{
+		AreaID: res.AreaID, ResultVersion: &ver, Period: &period, ComputedAt: &computedAt,
 		SchemaVersion: res.SchemaVersion, FeatureProfile: res.FeatureProfile, ModelVersion: res.ModelVersion, Method: res.Method,
 		Status: &status, Severity: publicSeverity(res.Status, res.Severity), Series: series, Weather: alignWeather(series, res.Weather),
-		Provenance: res.Provenance, Limitations: limitations}
+		Provenance: res.Provenance, Limitations: limitations,
+	}
 }
 
 func publicSeverity(status domain.ResultStatus, stored *domain.Severity) *string {
@@ -207,13 +210,21 @@ func publicSeverity(status domain.ResultStatus, stored *domain.Severity) *string
 		return &value
 	case domain.StatusInsufficientData:
 		return nil
+	case domain.StatusCandidate, domain.StatusConfirmed:
+		return storedSeverity(stored)
 	default:
-		if stored == nil {
-			return nil
-		}
-		value := string(*stored)
-		return &value
+		return storedSeverity(stored)
 	}
+}
+
+func storedSeverity(stored *domain.Severity) *string {
+	if stored == nil {
+		return nil
+	}
+
+	value := string(*stored)
+
+	return &value
 }
 
 func alignWeather(series []publicSeriesPoint, weather []domain.WeatherPoint) []publicWeatherPoint {

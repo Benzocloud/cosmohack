@@ -52,13 +52,14 @@ func (c *Client) Ready(ctx context.Context) (domain.ReadyInfo, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.cfg.ReadyTimeout)
 	defer cancel()
 
-	resp, body, err := c.do(ctx, http.MethodGet, pathReady, nil)
+	meta, body, err := c.do(ctx, http.MethodGet, pathReady, nil)
 	if err != nil {
 		return domain.ReadyInfo{}, err
 	}
-	switch resp.StatusCode {
+
+	switch meta.statusCode {
 	case http.StatusOK, http.StatusServiceUnavailable:
-		if err := checkJSONContentType(resp.Header.Get("Content-Type")); err != nil {
+		if err := checkJSONContentType(meta.contentType); err != nil {
 			return domain.ReadyInfo{}, err
 		}
 		var info domain.ReadyInfo
@@ -66,21 +67,27 @@ func (c *Client) Ready(ctx context.Context) (domain.ReadyInfo, error) {
 			return domain.ReadyInfo{}, wrapError(domain.MLErrorInvalidResponse,
 				"ml returned a malformed readiness body", err)
 		}
-		if resp.StatusCode == http.StatusOK {
+
+		switch meta.statusCode {
+		case http.StatusOK:
 			if err := validateReadyBody(info, c.cfg.ExpectedModelVersion); err != nil {
 				return domain.ReadyInfo{}, err
 			}
-		} else if info.Status != domain.MLNotReadyStatus {
-			return domain.ReadyInfo{}, newError(domain.MLErrorInvalidResponse,
-				"ml returned an unexpected readiness status with 503")
-		} else if !nonEmptyPtr(info.Reason) {
-			return domain.ReadyInfo{}, newError(domain.MLErrorInvalidResponse,
-				"ml returned 503 readiness without a reason")
+		case http.StatusServiceUnavailable:
+			if info.Status != domain.MLNotReadyStatus {
+				return domain.ReadyInfo{}, newError(domain.MLErrorInvalidResponse,
+					"ml returned an unexpected readiness status with 503")
+			}
+
+			if !nonEmptyPtr(info.Reason) {
+				return domain.ReadyInfo{}, newError(domain.MLErrorInvalidResponse,
+					"ml returned 503 readiness without a reason")
+			}
 		}
 		return info, nil
 	default:
 		return domain.ReadyInfo{}, newError(domain.MLErrorInvalidResponse,
-			fmt.Sprintf("ml readiness returned unexpected status %d", resp.StatusCode))
+			fmt.Sprintf("ml readiness returned unexpected status %d", meta.statusCode))
 	}
 }
 
@@ -102,18 +109,21 @@ func (c *Client) Analyze(ctx context.Context, req *domain.AnalysisRequest) (*dom
 	ctx, cancel := context.WithTimeout(ctx, c.cfg.AnalyzeTimeout)
 	defer cancel()
 
-	resp, body, err := c.do(ctx, http.MethodPost, pathAnalyze, payload)
+	meta, body, err := c.do(ctx, http.MethodPost, pathAnalyze, payload)
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != http.StatusOK {
+
+	if meta.statusCode != http.StatusOK {
 		// Контракт требует JSON и для ответов с ошибкой.
-		if err := checkJSONContentType(resp.Header.Get("Content-Type")); err != nil {
+		if err := checkJSONContentType(meta.contentType); err != nil {
 			return nil, err
 		}
-		return nil, mapHTTPError(resp.StatusCode, req.RequestID, body)
+
+		return nil, mapHTTPError(meta.statusCode, req.RequestID, body)
 	}
-	if err := checkJSONContentType(resp.Header.Get("Content-Type")); err != nil {
+
+	if err := checkJSONContentType(meta.contentType); err != nil {
 		return nil, err
 	}
 
@@ -127,26 +137,32 @@ func (c *Client) Analyze(ctx context.Context, req *domain.AnalysisRequest) (*dom
 	return &result, nil
 }
 
+type responseMeta struct {
+	statusCode  int
+	contentType string
+}
+
 // do выполняет один HTTP-вызов и читает тело с ограничением размера.
-func (c *Client) do(ctx context.Context, method, path string, payload []byte) (*http.Response, []byte, error) {
+func (c *Client) do(ctx context.Context, method, path string, payload []byte) (responseMeta, []byte, error) {
 	httpReq, err := http.NewRequestWithContext(ctx, method, joinURL(c.cfg.BaseURL, path), bytes.NewReader(payload))
 	if err != nil {
-		return nil, nil, wrapError(domain.MLErrorInvalidRequest, "request to ml could not be created", err)
+		return responseMeta{}, nil, wrapError(domain.MLErrorInvalidRequest, "request to ml could not be created", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "application/json")
 
 	resp, err := c.http.Do(httpReq)
 	if err != nil {
-		return nil, nil, classifyTransportError(err)
+		return responseMeta{}, nil, classifyTransportError(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := readLimited(resp.Body, c.cfg.MaxResponseBodyBytes)
 	if err != nil {
-		return nil, nil, err
+		return responseMeta{}, nil, err
 	}
-	return resp, body, nil
+
+	return responseMeta{statusCode: resp.StatusCode, contentType: resp.Header.Get("Content-Type")}, body, nil
 }
 
 // readLimited читает тело ответа и запрещает превышение лимита контракта.

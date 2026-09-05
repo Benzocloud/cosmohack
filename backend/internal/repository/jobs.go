@@ -44,7 +44,7 @@ func (r *Repository) putJobQueued(ctx context.Context, job domain.Job, areaPerio
 	if err != nil {
 		return fmt.Errorf("begin queue job: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var area record.Area
 	if err := tx.GetContext(ctx, &area, queryLockArea, job.AreaID); err != nil {
@@ -108,7 +108,8 @@ func (r *Repository) DeleteJob(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("begin delete job: %w", err)
 	}
-	defer tx.Rollback()
+
+	defer func() { _ = tx.Rollback() }()
 	var key struct {
 		AreaID string `db:"area_id"`
 	}
@@ -219,7 +220,8 @@ func (r *Repository) RecoverInterrupted(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("begin recovery: %w", err)
 	}
-	defer tx.Rollback()
+
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.ExecContext(ctx, queryRecoverJobs, time.Now().UTC()); err != nil {
 		return fmt.Errorf("recover jobs: %w", err)
 	}
@@ -242,7 +244,8 @@ func (r *Repository) transitionJob(ctx context.Context, id string, allowed func(
 	if err != nil {
 		return fmt.Errorf("begin job transition: %w", err)
 	}
-	defer tx.Rollback()
+
+	defer func() { _ = tx.Rollback() }()
 	if release {
 		var key struct {
 			AreaID string `db:"area_id"`
