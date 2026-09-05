@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/handler"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
 func TestContoursTable(t *testing.T) {
 	found := handler.StubContours{Items: []handler.Contour{{
 		ID: "osm-way-123",
-		Geometry: store.Polygon{
+		Geometry: domain.Polygon{
 			Type: "Polygon",
 			Coordinates: [][][]float64{
 				{{37.5, 55.7}, {37.6, 55.7}, {37.6, 55.8}, {37.5, 55.8}, {37.5, 55.7}},

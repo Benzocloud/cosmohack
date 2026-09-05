@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/handler"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
 func TestAnalyses202And409(t *testing.T) {
@@ -164,7 +164,7 @@ func TestEnqueueFailAfterPut(t *testing.T) {
 	if len(jobs) != 0 {
 		t.Fatalf("orphan=%d", len(jobs))
 	}
-	a, err := st.GetArea(id)
+	a, err := st.getArea(id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,13 +184,12 @@ func TestInsufficientCompleted(t *testing.T) {
 	if err := st.SetJobRunning(body.JobID, "analyze"); err != nil {
 		t.Fatal(err)
 	}
-	a, err := st.GetArea(id)
+	a, err := st.getArea(id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	res := store.Result{
+	res := domain.AnalysisRecord{
 		ResultVersion:  newTestID(),
-		JobID:          body.JobID,
 		AreaID:         id,
 		Period:         a.Period,
 		ComputedAt:     time.Now().UTC(),
@@ -199,10 +198,10 @@ func TestInsufficientCompleted(t *testing.T) {
 		ModelVersion:   "baseline-example-1",
 		Method:         "no_estimate",
 		Status:         "insufficient_data",
-		Series:         []store.SeriesPoint{},
-		Weather:        []store.WeatherPoint{},
+		Series:         []domain.SeriesPoint{},
+		Weather:        []domain.WeatherPoint{},
 		Limitations:    []string{"Нет наблюдений"},
-		Events:         []store.Event{},
+		Events:         []domain.AnomalyEvent{},
 	}
 	if err := st.PutResult(id, a.Generation, body.JobID, res); err != nil {
 		t.Fatal(err)
@@ -235,7 +234,7 @@ func TestMLBusyThenRetry(t *testing.T) {
 		JobID string `json:"job_id"`
 	}
 	decode(t, w, &body)
-	if err := st.SetJobFailed(body.JobID, store.JobError{Code: "ml_busy", Message: "busy", Retryable: true}); err != nil {
+	if err := st.SetJobFailed(body.JobID, "ml_busy", "busy", true); err != nil {
 		t.Fatal(err)
 	}
 	w = doJSON(t, h, http.MethodGet, "/api/jobs/"+body.JobID, nil)
@@ -269,11 +268,10 @@ func TestDeleteCancels(t *testing.T) {
 	if job["status"] != "cancelled" {
 		t.Fatalf("%s", w.Body.String())
 	}
-	a, _ := st.GetArea(id)
-	if a != nil {
+	if _, err := st.getArea(id); err == nil {
 		t.Fatal("area still there")
 	}
-	err := st.PutResult(id, 1, body.JobID, store.Result{ResultVersion: newTestID(), JobID: body.JobID, AreaID: id})
+	err := st.PutResult(id, 1, body.JobID, domain.AnalysisRecord{ResultVersion: newTestID(), AreaID: id})
 	if err == nil {
 		t.Fatal("late result accepted")
 	}
@@ -295,25 +293,24 @@ func TestTwoVersions(t *testing.T) {
 		if err := st.SetJobRunning(body.JobID, "analyze"); err != nil {
 			t.Fatal(err)
 		}
-		a, err := st.GetArea(id)
+		a, err := st.getArea(id)
 		if err != nil {
 			t.Fatal(err)
 		}
 		ver := newTestID()
-		res := store.Result{
+		res := domain.AnalysisRecord{
 			ResultVersion:  ver,
-			JobID:          body.JobID,
 			AreaID:         id,
 			Period:         a.Period,
 			ComputedAt:     time.Now().UTC(),
-			Status:         status,
+			Status:         domain.ResultStatus(status),
 			SchemaVersion:  "1.0",
 			FeatureProfile: "ndvi-weather-v1",
 			ModelVersion:   "m-" + status,
 			Method:         "nearest_mean",
-			Series:         []store.SeriesPoint{},
-			Weather:        []store.WeatherPoint{},
-			Events:         []store.Event{},
+			Series:         []domain.SeriesPoint{},
+			Weather:        []domain.WeatherPoint{},
+			Events:         []domain.AnomalyEvent{},
 			Limitations:    []string{},
 		}
 		if err := st.PutResult(id, a.Generation, body.JobID, res); err != nil {
@@ -358,15 +355,15 @@ func TestAnalysesStaleActive(t *testing.T) {
 		JobID string `json:"job_id"`
 	}
 	decode(t, w, &body)
-	if err := st.SetJobFailed(body.JobID, store.JobError{Code: "ml_busy", Message: "busy", Retryable: true}); err != nil {
+	if err := st.SetJobFailed(body.JobID, "ml_busy", "busy", true); err != nil {
 		t.Fatal(err)
 	}
-	a, err := st.GetArea(id)
+	a, err := st.getArea(id)
 	if err != nil {
 		t.Fatal(err)
 	}
 	a.ActiveJobID = body.JobID
-	if err := st.PutArea(*a); err != nil {
+	if err := st.updateArea(a); err != nil {
 		t.Fatal(err)
 	}
 	w = doJSON(t, h, http.MethodPost, "/api/areas/"+id+"/analyses", nil)
@@ -376,12 +373,12 @@ func TestAnalysesStaleActive(t *testing.T) {
 
 	h2, st2 := newEnv(t, nil, nil)
 	id2 := createArea(t, h2)
-	a2, err := st2.GetArea(id2)
+	a2, err := st2.getArea(id2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	a2.ActiveJobID = "missing-job-id"
-	if err := st2.PutArea(*a2); err != nil {
+	if err := st2.updateArea(a2); err != nil {
 		t.Fatal(err)
 	}
 	w = doJSON(t, h2, http.MethodPost, "/api/areas/"+id2+"/analyses", nil)
@@ -421,8 +418,7 @@ func TestAnalysesPeriodUpdate(t *testing.T) {
 }
 
 func TestRestartInterruptedHTTP(t *testing.T) {
-	dir := t.TempDir()
-	h, st := newEnvDir(t, dir, nil, nil)
+	h, st := newEnv(t, nil, nil)
 	id := createArea(t, h)
 	w := doJSON(t, h, http.MethodPost, "/api/areas/"+id+"/analyses", nil)
 	var body struct {
@@ -432,14 +428,13 @@ func TestRestartInterruptedHTTP(t *testing.T) {
 	if err := st.SetJobRunning(body.JobID, "analyze"); err != nil {
 		t.Fatal(err)
 	}
-	a, err := st.GetArea(id)
+	a, err := st.getArea(id)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ver := newTestID()
-	res := store.Result{
+	res := domain.AnalysisRecord{
 		ResultVersion:  ver,
-		JobID:          body.JobID,
 		AreaID:         id,
 		Period:         a.Period,
 		ComputedAt:     time.Now().UTC(),
@@ -448,9 +443,9 @@ func TestRestartInterruptedHTTP(t *testing.T) {
 		FeatureProfile: "ndvi-weather-v1",
 		ModelVersion:   "m1",
 		Method:         "nearest_mean",
-		Series:         []store.SeriesPoint{},
-		Weather:        []store.WeatherPoint{},
-		Events:         []store.Event{},
+		Series:         []domain.SeriesPoint{},
+		Weather:        []domain.WeatherPoint{},
+		Events:         []domain.AnomalyEvent{},
 		Limitations:    []string{},
 	}
 	if err := st.PutResult(id, a.Generation, body.JobID, res); err != nil {
@@ -458,7 +453,8 @@ func TestRestartInterruptedHTTP(t *testing.T) {
 	}
 	w = doJSON(t, h, http.MethodPost, "/api/areas/"+id+"/analyses", nil)
 	decode(t, w, &body)
-	h2, _ := newEnvDir(t, dir, nil, nil)
+	st.FailInterrupted()
+	h2 := newEnvWithStore(t, st, nil, nil)
 	w = doJSON(t, h2, http.MethodGet, "/api/jobs/"+body.JobID, nil)
 	var job map[string]any
 	decode(t, w, &job)
@@ -481,63 +477,6 @@ func TestRestartInterruptedHTTP(t *testing.T) {
 	w = doJSON(t, h2, http.MethodPost, "/api/areas/"+id+"/analyses", nil)
 	if w.Code != http.StatusAccepted {
 		t.Fatalf("retry after interrupt %d %s", w.Code, w.Body.String())
-	}
-}
-
-func TestHealPutResultHTTP(t *testing.T) {
-	dir := t.TempDir()
-	h, st := newEnvDir(t, dir, nil, nil)
-	id := createArea(t, h)
-	w := doJSON(t, h, http.MethodPost, "/api/areas/"+id+"/analyses", nil)
-	var body struct {
-		JobID string `json:"job_id"`
-	}
-	decode(t, w, &body)
-	if err := st.SetJobRunning(body.JobID, "analyze"); err != nil {
-		t.Fatal(err)
-	}
-	a, err := st.GetArea(id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ver := newTestID()
-	res := store.Result{
-		ResultVersion:  ver,
-		JobID:          body.JobID,
-		AreaID:         id,
-		Period:         a.Period,
-		ComputedAt:     time.Now().UTC(),
-		Status:         "candidate",
-		SchemaVersion:  "1.0",
-		FeatureProfile: "ndvi-weather-v1",
-		ModelVersion:   "m1",
-		Method:         "nearest_mean",
-		Series:         []store.SeriesPoint{},
-		Weather:        []store.WeatherPoint{},
-		Events:         []store.Event{},
-		Limitations:    []string{},
-	}
-	if err := st.PutResult(id, a.Generation, body.JobID, res); err != nil {
-		t.Fatal(err)
-	}
-	a, err = st.GetArea(id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	a.ShownResultVersion = ""
-	a.ActiveJobID = body.JobID
-	if err := st.PutArea(*a); err != nil {
-		t.Fatal(err)
-	}
-	h2, _ := newEnvDir(t, dir, nil, nil)
-	w = doJSON(t, h2, http.MethodGet, "/api/areas/"+id+"/series", nil)
-	if w.Code != 200 {
-		t.Fatal(w.Body.String())
-	}
-	var series map[string]any
-	decode(t, w, &series)
-	if series["result_version"] != ver {
-		t.Fatalf("heal %s", w.Body.String())
 	}
 }
 

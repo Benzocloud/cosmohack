@@ -9,13 +9,12 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	analysisusecase "github.com/Benzocloud/cosmohack/backend/internal/service/analysis"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/area"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
 // ErrQueueFull — Enqueue отклонил постановку (8 чужих ожидающих).
 var ErrQueueFull = errors.New("queue full")
 
-// Queue ставит job в очередь B4. Не ходит в store.
+// Queue ставит job в очередь B4. Не ходит в persistence.
 type Queue interface {
 	Enqueue(ctx context.Context, jobID string) error
 }
@@ -27,9 +26,9 @@ type Canceller interface {
 
 // Contour — элемент каталога поиска.
 type Contour struct {
-	ID       string        `json:"id"`
-	Geometry store.Polygon `json:"geometry"`
-	Source   ContourSource `json:"source"`
+	ID       string         `json:"id"`
+	Geometry domain.Polygon `json:"geometry"`
+	Source   ContourSource  `json:"source"`
 }
 
 type ContourSource struct {
@@ -43,7 +42,7 @@ type ContourFinder interface {
 }
 
 // Storage is the handler's domain persistence port. Implementations own the
-// database or legacy storage mapping; HTTP handlers only exchange domain values.
+// database mapping; HTTP handlers only exchange domain values.
 type Storage interface {
 	CreateArea(context.Context, domain.Area) error
 	UpdateArea(context.Context, domain.Area) error
@@ -65,14 +64,6 @@ type handler struct {
 	queue     Queue
 	limits    Limits
 	gate      sync.Mutex
-}
-
-// NewMux собирает публичные маршруты без Listen. Возвращает *http.ServeMux,
-// чтобы app добавлял /readyz тем же mux. Лимиты площади/вершин: ноль значит
-// «не проверять».
-func NewMux(st *store.Store, contours ContourFinder, queue Queue, lim Limits) *http.ServeMux {
-	storage := NewLegacyStorage(st)
-	return NewMuxWithStorage(storage, area.New(storage), analysisusecase.NewScheduler(storage, queue), contours, queue, lim)
 }
 
 // NewMuxWithStorage builds routes over a domain persistence implementation.

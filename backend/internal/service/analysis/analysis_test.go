@@ -13,7 +13,6 @@ import (
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/ml"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
 const (
@@ -36,38 +35,35 @@ func waitFor(t *testing.T, cond func() bool) {
 	t.Fatal("condition not reached in time")
 }
 
-// newTestStore открывает хранилище во временном каталоге и кладёт участок.
-func newTestStore(t *testing.T) *store.Store {
+// newExecutorPersistence creates an in-memory persistence fake and seeds an area.
+func newExecutorPersistence(t *testing.T) *testPersistence {
 	t.Helper()
-	st, err := store.Open(t.TempDir())
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
-	if err := st.PutArea(testArea(testAreaID)); err != nil {
+	st := newTestPersistence()
+	if err := st.CreateArea(testArea(testAreaID)); err != nil {
 		t.Fatalf("put area: %v", err)
 	}
 	return st
 }
 
-func testArea(id string) store.Area {
-	return store.Area{
+func testArea(id string) domain.Area {
+	return domain.Area{
 		ID:        id,
 		Name:      "test area",
-		Geometry:  store.Polygon{Type: "Polygon", Coordinates: [][][]float64{{{30, 50}, {31, 50}, {31, 51}, {30, 50}}}},
-		Period:    store.Period{From: "2026-05-01", To: "2026-05-01"},
+		Geometry:  domain.Polygon{Type: "Polygon", Coordinates: [][][]float64{{{30, 50}, {31, 50}, {31, 51}, {30, 50}}}},
+		Period:    domain.Period{From: "2026-05-01", To: "2026-05-01"},
 		CreatedAt: time.Now().UTC(),
 	}
 }
 
 // enqueueJob создаёт queued-задачу через публичные операции хранилища.
-func enqueueJob(t *testing.T, st *store.Store, areaID, jobID string) {
+func enqueueJob(t *testing.T, st *testPersistence, areaID, jobID string) {
 	t.Helper()
-	area, err := st.GetArea(areaID)
+	area, err := st.getArea(areaID)
 	if err != nil {
 		t.Fatalf("get area: %v", err)
 	}
 	now := time.Now().UTC()
-	job := store.Job{
+	job := domain.Job{
 		ID:             jobID,
 		AreaID:         areaID,
 		Period:         area.Period,
@@ -75,7 +71,7 @@ func enqueueJob(t *testing.T, st *store.Store, areaID, jobID string) {
 		UpdatedAt:      now,
 		AreaGeneration: area.Generation,
 	}
-	if err := st.PutJobQueued(job); err != nil {
+	if err := st.putJobQueued(job); err != nil {
 		t.Fatalf("put job queued: %v", err)
 	}
 }
@@ -233,23 +229,23 @@ func (b *blockingAnalyzer) Analyze(ctx context.Context, req *domain.AnalysisRequ
 }
 
 func TestExecutor_SuccessPath(t *testing.T) {
-	st := newTestStore(t)
+	st := newExecutorPersistence(t)
 
 	collector := &stubCollector{}
-	exec := NewLegacy(st, collector, okAnalyzer{})
+	exec := New(st, collector, okAnalyzer{})
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
 		t.Fatalf("enqueue: %v", err)
 	}
 
-	var completed *store.Job
+	var completed domain.Job
 	waitFor(t, func() bool {
-		job, err := st.GetJob(testJobID)
+		job, err := st.getJob(testJobID)
 		if err != nil {
 			return false
 		}
-		if job.Status == store.JobCompleted {
+		if job.Status == domain.JobCompleted {
 			completed = job
 			return true
 		}
@@ -258,11 +254,11 @@ func TestExecutor_SuccessPath(t *testing.T) {
 	if completed.ResultVersion == nil {
 		t.Fatal("completed job must carry result_version")
 	}
-	result, err := st.GetResult(testAreaID, *completed.ResultVersion)
+	result, err := st.getResult(testAreaID, *completed.ResultVersion)
 	if err != nil {
 		t.Fatalf("get result: %v", err)
 	}
-	if result.Status != string(domain.StatusNormal) || result.ModelVersion != "model-fixture-1" {
+	if result.Status != domain.StatusNormal || result.ModelVersion != "model-fixture-1" {
 		t.Fatalf("unexpected result: %s/%s", result.Status, result.ModelVersion)
 	}
 	if len(result.Series) != 1 || result.Series[0].Interval == nil || result.Series[0].ValidFraction == nil {
@@ -271,11 +267,11 @@ func TestExecutor_SuccessPath(t *testing.T) {
 	if len(result.Weather) != 1 || result.Weather[0].TemperatureMeanC == nil {
 		t.Fatalf("weather mapping lost: %+v", result.Weather)
 	}
-	if got := result.Provenance["sources"]; got != float64(3) {
+	if got, ok := result.Provenance["sources"].(int); !ok || got != 3 {
 		t.Fatalf("provenance lost: %v", result.Provenance)
 	}
-	if result.JobID != testJobID || result.AreaID != testAreaID {
-		t.Fatalf("result correlation fields lost: %s/%s", result.JobID, result.AreaID)
+	if result.AreaID != testAreaID {
+		t.Fatalf("result area correlation lost: %s", result.AreaID)
 	}
 
 	stages := collector.reportedStages()
@@ -291,8 +287,8 @@ func TestExecutor_SuccessPath(t *testing.T) {
 }
 
 func TestExecutor_QueueFull(t *testing.T) {
-	st := newTestStore(t)
-	exec := NewLegacy(st, &stubCollector{}, okAnalyzer{})
+	st := newExecutorPersistence(t)
+	exec := New(st, &stubCollector{}, okAnalyzer{})
 
 	for range queueWaitingLimit {
 		if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -305,30 +301,30 @@ func TestExecutor_QueueFull(t *testing.T) {
 }
 
 func TestExecutor_SourceError(t *testing.T) {
-	st := newTestStore(t)
+	st := newExecutorPersistence(t)
 
 	collector := &stubCollector{err: errors.New("provider unavailable")}
-	exec := NewLegacy(st, collector, okAnalyzer{})
+	exec := New(st, collector, okAnalyzer{})
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
 		t.Fatalf("enqueue: %v", err)
 	}
 
-	var failed *store.Job
+	var failed domain.Job
 	waitFor(t, func() bool {
-		job, err := st.GetJob(testJobID)
+		job, err := st.getJob(testJobID)
 		if err != nil {
 			return false
 		}
-		if job.Status == store.JobFailed {
+		if job.Status == domain.JobFailed {
 			failed = job
 			return true
 		}
 		return false
 	})
-	if failed.Error == nil || failed.Error.Code != "source_failed" || failed.Error.Message != "provider unavailable" {
-		t.Fatalf("unexpected job error: %+v", failed.Error)
+	if failed.ErrorCode == nil || *failed.ErrorCode != "source_failed" || failed.ErrorMessage == nil || *failed.ErrorMessage != "provider unavailable" {
+		t.Fatalf("unexpected job error: %s/%s", valueOrEmpty(failed.ErrorCode), valueOrEmpty(failed.ErrorMessage))
 	}
 	if jobStillActive(st, testAreaID, testJobID) {
 		t.Fatal("failed job must clear active_job_id")
@@ -336,61 +332,61 @@ func TestExecutor_SourceError(t *testing.T) {
 }
 
 func TestExecutor_BusyML(t *testing.T) {
-	st := newTestStore(t)
+	st := newExecutorPersistence(t)
 
 	analyzeErr := analyzeErrorAgainstServer(t, http.StatusTooManyRequests,
 		`{"schema_version":"1.0","request_id":"`+testJobID+`","error":{"code":"busy","message":"ML busy","retryable":true}}`)
-	exec := NewLegacy(st, &stubCollector{}, mlErrorAnalyzer{err: analyzeErr})
+	exec := New(st, &stubCollector{}, mlErrorAnalyzer{err: analyzeErr})
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
 		t.Fatalf("enqueue: %v", err)
 	}
 
-	var failed *store.Job
+	var failed domain.Job
 	waitFor(t, func() bool {
-		job, err := st.GetJob(testJobID)
+		job, err := st.getJob(testJobID)
 		if err != nil {
 			return false
 		}
-		if job.Status == store.JobFailed {
+		if job.Status == domain.JobFailed {
 			failed = job
 			return true
 		}
 		return false
 	})
-	if failed.Error == nil || failed.Error.Code != string(domain.MLErrorBusy) || !failed.Error.Retryable {
-		t.Fatalf("want ml_busy retryable, got %+v", failed.Error)
+	if failed.ErrorCode == nil || *failed.ErrorCode != string(domain.MLErrorBusy) || failed.ErrorRetryable == nil || !*failed.ErrorRetryable {
+		t.Fatalf("want ml_busy retryable, got %s", valueOrEmpty(failed.ErrorCode))
 	}
-	if failed.Error.Message != "ML busy" {
-		t.Fatalf("ml message lost: %+v", failed.Error)
+	if failed.ErrorMessage == nil || *failed.ErrorMessage != "ML busy" {
+		t.Fatalf("ml message lost: %s", valueOrEmpty(failed.ErrorMessage))
 	}
 }
 
 func TestExecutor_CancelDuringAnalyze(t *testing.T) {
-	st := newTestStore(t)
+	st := newExecutorPersistence(t)
 
 	blocker := &blockingAnalyzer{entered: make(chan struct{}), release: make(chan struct{})}
-	exec := NewLegacy(st, &stubCollector{}, blocker)
+	exec := New(st, &stubCollector{}, blocker)
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
 		t.Fatalf("enqueue: %v", err)
 	}
 	waitFor(t, func() bool {
-		job, err := st.GetJob(testJobID)
-		return err == nil && job.Status == store.JobRunning && job.Stage != nil && *job.Stage == domain.StageAnalyze
+		job, err := st.getJob(testJobID)
+		return err == nil && job.Status == domain.JobRunning && job.Stage != nil && *job.Stage == domain.StageAnalyze
 	})
 
 	exec.Cancel(testJobID)
 
-	var cancelled *store.Job
+	var cancelled domain.Job
 	waitFor(t, func() bool {
-		job, err := st.GetJob(testJobID)
+		job, err := st.getJob(testJobID)
 		if err != nil {
 			return false
 		}
-		if job.Status == store.JobCancelled {
+		if job.Status == domain.JobCancelled {
 			cancelled = job
 			return true
 		}
@@ -403,22 +399,22 @@ func TestExecutor_CancelDuringAnalyze(t *testing.T) {
 	// Поздний ответ ML не сохраняется.
 	close(blocker.release)
 	time.Sleep(100 * time.Millisecond)
-	job, err := st.GetJob(testJobID)
-	if err != nil || job.Status != store.JobCancelled || job.ResultVersion != nil {
+	job, err := st.getJob(testJobID)
+	if err != nil || job.Status != domain.JobCancelled || job.ResultVersion != nil {
 		t.Fatalf("late save must not happen: %+v/%v", job, err)
 	}
 }
 
 func TestExecutor_CancelPending(t *testing.T) {
-	st := newTestStore(t)
-	if err := st.PutArea(testArea(testArea2ID)); err != nil {
+	st := newExecutorPersistence(t)
+	if err := st.CreateArea(testArea(testArea2ID)); err != nil {
 		t.Fatalf("put second area: %v", err)
 	}
 	enqueueJob(t, st, testAreaID, testJobID)
 	enqueueJob(t, st, testArea2ID, testJob2ID)
 
 	blocker := &blockingAnalyzer{entered: make(chan struct{}), release: make(chan struct{})}
-	exec := NewLegacy(st, &stubCollector{}, blocker)
+	exec := New(st, &stubCollector{}, blocker)
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -426,8 +422,8 @@ func TestExecutor_CancelPending(t *testing.T) {
 	}
 	// Воркер занят первой задачей: вторая ждёт в очереди.
 	waitFor(t, func() bool {
-		job, err := st.GetJob(testJobID)
-		return err == nil && job.Status == store.JobRunning && job.Stage != nil && *job.Stage == domain.StageAnalyze
+		job, err := st.getJob(testJobID)
+		return err == nil && job.Status == domain.JobRunning && job.Stage != nil && *job.Stage == domain.StageAnalyze
 	})
 	enqueueJob(t, st, testArea2ID, testJob2ID)
 	if err := exec.Enqueue(context.Background(), testJob2ID); err != nil {
@@ -436,37 +432,37 @@ func TestExecutor_CancelPending(t *testing.T) {
 	exec.Cancel(testJob2ID)
 
 	waitFor(t, func() bool {
-		job, err := st.GetJob(testJob2ID)
-		return err == nil && job.Status == store.JobCancelled
+		job, err := st.getJob(testJob2ID)
+		return err == nil && job.Status == domain.JobCancelled
 	})
 	close(blocker.release)
 	waitFor(t, func() bool {
-		job, err := st.GetJob(testJobID)
-		return err == nil && job.Status == store.JobCompleted
+		job, err := st.getJob(testJobID)
+		return err == nil && job.Status == domain.JobCompleted
 	})
 }
 
 func TestExecutor_RestartMarksInterrupted(t *testing.T) {
-	st := newTestStore(t)
+	st := newExecutorPersistence(t)
 	enqueueJob(t, st, testAreaID, testJobID)
 
-	// Новый процесс: Start вызывает FailInterrupted хранилища.
-	NewLegacy(st, &stubCollector{}, okAnalyzer{}).Start(context.Background())
+	// A fresh executor recovers unfinished jobs through its persistence port.
+	New(st, &stubCollector{}, okAnalyzer{}).Start(context.Background())
 
-	var failed *store.Job
+	var failed domain.Job
 	waitFor(t, func() bool {
-		job, err := st.GetJob(testJobID)
+		job, err := st.getJob(testJobID)
 		if err != nil {
 			return false
 		}
-		if job.Status == store.JobFailed {
+		if job.Status == domain.JobFailed {
 			failed = job
 			return true
 		}
 		return false
 	})
-	if failed.Error == nil || failed.Error.Code != "interrupted" {
-		t.Fatalf("want interrupted code, got %+v", failed.Error)
+	if failed.ErrorCode == nil || *failed.ErrorCode != "interrupted" {
+		t.Fatalf("want interrupted code, got %s", valueOrEmpty(failed.ErrorCode))
 	}
 }
 
@@ -483,10 +479,17 @@ func TestExecutor_ResultVersionDeterministic(t *testing.T) {
 	}
 }
 
-func jobStillActive(st *store.Store, areaID, jobID string) bool {
-	area, err := st.GetArea(areaID)
+func jobStillActive(st *testPersistence, areaID, jobID string) bool {
+	area, err := st.getArea(areaID)
 	if err != nil {
 		return false
 	}
 	return area.ActiveJobID == jobID
+}
+
+func valueOrEmpty(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

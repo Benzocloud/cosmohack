@@ -9,14 +9,14 @@ import (
 func (h *handler) listAreas(w http.ResponseWriter, r *http.Request) {
 	areas, err := h.areas.ListAreas(r.Context())
 	if err != nil {
-		writeStoreErr(w, err)
+		writePersistenceErr(w, err)
 		return
 	}
 	out := make([]publicArea, 0, len(areas))
 	for _, a := range areas {
 		p, err := h.projectArea(r.Context(), a)
 		if err != nil {
-			writeStoreErr(w, err)
+			writePersistenceErr(w, err)
 			return
 		}
 		out = append(out, p)
@@ -52,7 +52,7 @@ func (h *handler) createArea(w http.ResponseWriter, r *http.Request) {
 	}
 	p, err := h.projectArea(r.Context(), domainArea)
 	if err != nil {
-		writeStoreErr(w, err)
+		writePersistenceErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, p)
@@ -68,7 +68,7 @@ func (h *handler) deleteArea(w http.ResponseWriter, r *http.Request) {
 	}
 	cancelIDs, err := h.areas.DeleteArea(r.Context(), id)
 	if err != nil {
-		writeStoreErr(w, err)
+		writePersistenceErr(w, err)
 		return
 	}
 	if c, ok := h.queue.(Canceller); ok {

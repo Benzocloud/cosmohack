@@ -45,7 +45,7 @@ func (h *handler) postAnalyses(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusTooManyRequests, "queue_full", "Очередь анализа заполнена, повторите позже", true)
 			return
 		}
-		writeStoreErr(w, err)
+		writePersistenceErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusAccepted, map[string]string{"job_id": job.ID})

@@ -34,7 +34,7 @@ func (h *handler) getJob(w http.ResponseWriter, r *http.Request) {
 	}
 	j, err := h.storage.GetJob(r.Context(), id)
 	if err != nil {
-		writeStoreErr(w, err)
+		writePersistenceErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, projectJob(j))

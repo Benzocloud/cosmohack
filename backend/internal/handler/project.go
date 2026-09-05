@@ -69,7 +69,7 @@ func (h *handler) projectArea(ctx context.Context, a domain.Area) (publicArea, e
 		Period: a.Period, CreatedAt: formatTime(a.CreatedAt)}
 	if a.ShownResultVersion != "" {
 		res, err := h.storage.GetResult(ctx, a.ID, a.ShownResultVersion)
-		if err != nil && !errors.Is(err, errStorageNotFound) {
+		if err != nil && !errors.Is(err, domain.ErrNotFound) {
 			return out, err
 		}
 		if err == nil {
@@ -82,7 +82,7 @@ func (h *handler) projectArea(ctx context.Context, a domain.Area) (publicArea, e
 		return out, nil
 	}
 	j, err := h.storage.GetJob(ctx, a.ActiveJobID)
-	if errors.Is(err, errStorageNotFound) {
+	if errors.Is(err, domain.ErrNotFound) {
 		return out, nil
 	}
 	if err != nil {

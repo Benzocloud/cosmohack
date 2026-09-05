@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
 type errorEnvelope struct {
@@ -44,19 +46,19 @@ func writeValidation(w http.ResponseWriter, err error) {
 	writeError(w, status, code, msg, retry)
 }
 
-func writeStoreErr(w http.ResponseWriter, err error) {
+func writePersistenceErr(w http.ResponseWriter, err error) {
 	if err == nil {
 		return
 	}
-	if errors.Is(err, errStorageNotFound) {
+	if errors.Is(err, domain.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "not_found", "Объект не найден", false)
 		return
 	}
-	if errors.Is(err, errStorageConflict) {
+	if errors.Is(err, domain.ErrConflict) {
 		writeError(w, http.StatusConflict, "conflict", "Операция конфликтует с текущим состоянием", false)
 		return
 	}
-	if errors.Is(err, errStorageBadState) {
+	if errors.Is(err, domain.ErrBadState) {
 		writeError(w, http.StatusConflict, "conflict", "Операция недоступна в текущем состоянии", false)
 		return
 	}

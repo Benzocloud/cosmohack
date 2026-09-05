@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-// StubQueue — заглушка очереди из 8 ожидающих; не читает store.
+// StubQueue — заглушка очереди из 8 ожидающих; не читает persistence.
 type StubQueue struct {
 	Limit int
 	Fail  error

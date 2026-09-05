@@ -11,7 +11,8 @@ import (
 	"testing"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/handler"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
+	"github.com/Benzocloud/cosmohack/backend/internal/service/analysis"
+	"github.com/Benzocloud/cosmohack/backend/internal/service/area"
 )
 
 func testdata(t *testing.T, name string) []byte {
@@ -23,24 +24,22 @@ func testdata(t *testing.T, name string) []byte {
 	return b
 }
 
-func newEnv(t *testing.T, contours handler.ContourFinder, q *handler.StubQueue) (http.Handler, *store.Store) {
+func newEnv(t *testing.T, contours handler.ContourFinder, q *handler.StubQueue) (http.Handler, *testStorage) {
 	t.Helper()
-	return newEnvDir(t, t.TempDir(), contours, q)
+	st := newTestStorage()
+	return newEnvWithStore(t, st, contours, q), st
 }
 
-func newEnvDir(t *testing.T, dir string, contours handler.ContourFinder, q *handler.StubQueue) (http.Handler, *store.Store) {
+func newEnvWithStore(t *testing.T, st *testStorage, contours handler.ContourFinder, q *handler.StubQueue) http.Handler {
 	t.Helper()
-	st, err := store.Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	storage := st
 	if contours == nil {
 		contours = handler.StubContours{}
 	}
 	if q == nil {
 		q = handler.NewStubQueue(8)
 	}
-	return handler.NewMux(st, contours, q, handler.Limits{}), st
+	return handler.NewMuxWithStorage(storage, area.New(storage), analysis.NewScheduler(storage, q), contours, q, handler.Limits{})
 }
 
 func doReq(t *testing.T, h http.Handler, method, path string, body []byte, ct string) *httptest.ResponseRecorder {

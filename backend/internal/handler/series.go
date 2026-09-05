@@ -3,6 +3,8 @@ package handler
 import (
 	"errors"
 	"net/http"
+
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
 func (h *handler) getSeries(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +23,7 @@ func (h *handler) writeResultView(w http.ResponseWriter, r *http.Request, series
 	}
 	a, err := h.storage.GetArea(r.Context(), id)
 	if err != nil {
-		writeStoreErr(w, err)
+		writePersistenceErr(w, err)
 		return
 	}
 	if a.ShownResultVersion == "" {
@@ -34,11 +36,11 @@ func (h *handler) writeResultView(w http.ResponseWriter, r *http.Request, series
 	}
 	res, err := h.storage.GetResult(r.Context(), a.ID, a.ShownResultVersion)
 	if err != nil {
-		if errors.Is(err, errStorageNotFound) {
+		if errors.Is(err, domain.ErrNotFound) {
 			writeError(w, http.StatusInternalServerError, "internal_error", "Не удалось прочитать или записать снимок", true)
 			return
 		}
-		writeStoreErr(w, err)
+		writePersistenceErr(w, err)
 		return
 	}
 	if series {
