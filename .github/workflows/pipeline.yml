@@ -86,8 +86,8 @@ jobs:
         if: ${{ hashFiles('backend/ml/requirements.txt') != '' }}
         working-directory: backend/ml
         run: |
-          pip install --no-cache-dir -r requirements.txt
-          pip install --no-cache-dir ruff pytest
+          pip install --no-cache-dir -r requirements-dev.txt
+          pip install --no-cache-dir ruff
           ruff check .
           python -m pytest tests -q
 
