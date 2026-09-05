@@ -51,7 +51,7 @@ jobs:
           docker run --rm --network host -v "$GITHUB_WORKSPACE/backend/migrations:/migrations:ro" migrate/migrate:v4.18.3 \
             -path=/migrations -database "$DATABASE_URL" up
           migration_state=$(docker run --rm --network host postgres:16-alpine \
-            psql "$DATABASE_URL" -Atc "SELECT version || ':' || dirty FROM schema_migrations ORDER BY version DESC LIMIT 1")
+            psql "$DATABASE_URL" -Atc "SELECT version || ':' || CASE WHEN dirty THEN 't' ELSE 'f' END FROM schema_migrations ORDER BY version DESC LIMIT 1")
           migration_version=${migration_state%%:*}
           migration_dirty=${migration_state##*:}
           test "$migration_version" -ge 1
