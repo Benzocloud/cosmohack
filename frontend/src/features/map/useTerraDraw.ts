@@ -157,14 +157,23 @@ export function useTerraDraw({
         finishRef.current?.(ring);
       });
 
-      // При отпускании свободной линии без возврата к началу Terra Draw оставляет
-      // черновик открытым. Сообщаем UI об ошибке, не изменяя траекторию пользователя.
+      // При отпускании свободной линии без возврата к началу Terra Draw может
+      // оставить черновик открытым. Ждём завершения нативного dragend и не
+      // показываем ошибку для случайного касания с одной-двумя вершинами.
       onPointerUp = () => {
-        window.setTimeout(() => {
-          if (draw?.getMode() === 'freehand' && draftFeature(draw)) {
+        queueMicrotask(() => {
+          if (draw?.getMode() !== 'freehand') return;
+          const draft = draftFeature(draw);
+          if (!draft) return;
+          if (draftVertices(draw).length >= 3) {
             incompleteRef.current?.();
+            return;
           }
-        }, 0);
+          // Короткое касание не образует полигона. Убираем такой черновик,
+          // чтобы следующий жест мог начать рисование заново.
+          draw.clear();
+          verticesRef.current?.([]);
+        });
       };
       map.getCanvas().addEventListener('pointerup', onPointerUp);
     };
@@ -223,7 +232,7 @@ export function useTerraDraw({
     finishDrawing(): void {
       const currentMap = mapLatest.current;
       const draw = drawRef.current;
-      if (!draw || !currentMap || draw.getMode() !== 'freehand') return;
+      if (!draw || !currentMap || draw.getMode() !== 'polygon') return;
       const ring = draftVertices(draw);
       if (ring.length < 3) return;
       const draft = draftFeature(draw);
@@ -249,7 +258,7 @@ export function useTerraDraw({
     undoVertex(): void {
       const draw = drawRef.current;
       const currentMap = mapLatest.current;
-      if (!draw || !currentMap || draw.getMode() !== 'polygon') return;
+      if (!draw || !currentMap || draw.getMode() !== 'freehand') return;
       const remaining = draftVertices(draw).slice(0, -1);
       draw.clear();
       draw.setMode('freehand');

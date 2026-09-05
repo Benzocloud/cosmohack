@@ -231,6 +231,18 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
     [validationVertices, limits],
   );
 
+  // В рисовании жест принадлежит TerraDraw, в обычном режиме карта сохраняет
+  // панорамирование одним пальцем и нативный pinch-to-zoom.
+  useEffect(() => {
+    if (!mapInstance) return undefined;
+    const canvasContainer = mapInstance.getCanvasContainer();
+    if (drawing) canvasContainer.style.touchAction = 'none';
+    else canvasContainer.style.removeProperty('touch-action');
+    return () => {
+      canvasContainer.style.removeProperty('touch-action');
+    };
+  }, [drawing, mapInstance]);
+
   const areasFC = useMemo(
     () => ({
       type: 'FeatureCollection' as const,
@@ -272,6 +284,12 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
         mapStyle={mapStyle}
         initialViewState={initialView}
         style={{ width: '100%', height: '100%' }}
+        // Во время рисования жест карты отключён, чтобы палец не двигал карту
+        // вместо построения полигона.
+        dragPan={!drawing}
+        touchZoomRotate={!drawing}
+        scrollZoom={!drawing}
+        doubleClickZoom={!drawing}
         attributionControl={false}
         onLoad={(event) => {
           if (import.meta.env.DEV) {
