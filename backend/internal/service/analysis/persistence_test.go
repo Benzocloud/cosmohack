@@ -2,7 +2,6 @@ package analysis
 
 import (
 	"context"
-	"sort"
 	"sync"
 	"time"
 
@@ -216,19 +215,6 @@ func (p *testPersistence) clearActiveLocked(areaID, jobID string) {
 		area.ActiveJobID = ""
 		p.areas[areaID] = area
 	}
-}
-
-func (p *testPersistence) jobsByArea(areaID string) []domain.Job {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	jobs := make([]domain.Job, 0)
-	for _, job := range p.jobs {
-		if job.AreaID == areaID {
-			jobs = append(jobs, job)
-		}
-	}
-	sort.Slice(jobs, func(i, j int) bool { return jobs[i].CreatedAt.Before(jobs[j].CreatedAt) })
-	return jobs
 }
 
 func resultKey(areaID, version string) string { return areaID + "\x00" + version }

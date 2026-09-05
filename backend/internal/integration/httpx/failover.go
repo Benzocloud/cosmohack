@@ -81,7 +81,7 @@ func (f *Failover) attempt(ctx context.Context, provider, endpoint string, facto
 func validateEndpoint(label, value string) error {
 	parsed, err := url.Parse(value)
 	if err != nil {
-		return fmt.Errorf("%s не разбирается: %v", label, err)
+		return fmt.Errorf("%s не разбирается: %w", label, err)
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return fmt.Errorf("%s должен использовать http или https", label)

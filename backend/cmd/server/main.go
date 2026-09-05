@@ -14,9 +14,11 @@ import (
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	err := app.Run(ctx)
 
-	if err := app.Run(ctx); err != nil {
+	stop()
+
+	if err != nil {
 		slog.Error("server stopped", "error", err)
 		os.Exit(1)
 	}

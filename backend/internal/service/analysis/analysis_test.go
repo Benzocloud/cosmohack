@@ -469,7 +469,9 @@ func TestExecutor_RestartMarksInterrupted(t *testing.T) {
 func TestExecutor_ResultVersionDeterministic(t *testing.T) {
 	req := fixtureRequest(testJobID)
 	res := fixtureResponse(&req)
-	if resultVersion(&req, &res) != resultVersion(&req, &res) {
+
+	version := resultVersion(&req, &res)
+	if version != resultVersion(&req, &res) {
 		t.Fatal("same input and model must produce the same result version")
 	}
 	other := res

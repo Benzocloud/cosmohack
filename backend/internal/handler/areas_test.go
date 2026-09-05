@@ -17,43 +17,55 @@ import (
 
 func testdata(t *testing.T, name string) []byte {
 	t.Helper()
+
 	b, err := os.ReadFile(filepath.Join("testdata", name))
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return b
 }
 
 func newEnv(t *testing.T, contours handler.ContourFinder, q *handler.StubQueue) (http.Handler, *testStorage) {
 	t.Helper()
+
 	st := newTestStorage()
+
 	return newEnvWithStore(t, st, contours, q), st
 }
 
 func newEnvWithStore(t *testing.T, st *testStorage, contours handler.ContourFinder, q *handler.StubQueue) http.Handler {
 	t.Helper()
+
 	storage := st
+
 	if contours == nil {
 		contours = handler.StubContours{}
 	}
+
 	if q == nil {
 		q = handler.NewStubQueue(8)
 	}
+
 	return handler.NewMuxWithStorage(storage, area.New(storage), analysis.NewScheduler(storage, q), contours, q, handler.Limits{})
 }
 
 func doReq(t *testing.T, h http.Handler, method, path string, body []byte, ct string) *httptest.ResponseRecorder {
 	t.Helper()
+
 	var rdr io.Reader
 	if body != nil {
 		rdr = bytes.NewReader(body)
 	}
+
 	req := httptest.NewRequest(method, path, rdr)
 	if ct != "" {
 		req.Header.Set("Content-Type", ct)
 	}
+
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
+
 	return w
 }
 
@@ -64,6 +76,7 @@ func doJSON(t *testing.T, h http.Handler, method, path string, body []byte) *htt
 
 func decode(t *testing.T, w *httptest.ResponseRecorder, v any) {
 	t.Helper()
+
 	if err := json.Unmarshal(w.Body.Bytes(), v); err != nil {
 		t.Fatalf("json %s: %v", w.Body.String(), err)
 	}
@@ -71,33 +84,41 @@ func decode(t *testing.T, w *httptest.ResponseRecorder, v any) {
 
 func createArea(t *testing.T, h http.Handler) string {
 	t.Helper()
+
 	w := doJSON(t, h, http.MethodPost, "/api/areas", testdata(t, "area-create-valid.json"))
 	if w.Code != http.StatusCreated {
 		t.Fatalf("create %d %s", w.Code, w.Body.String())
 	}
+
 	var a map[string]any
 	decode(t, w, &a)
+
 	id, _ := a["id"].(string)
 	if id == "" {
 		t.Fatal("no id")
 	}
+
 	return id
 }
 
 func TestTestdataFilesAreJSON(t *testing.T) {
 	t.Parallel()
+
 	matches, err := filepath.Glob("testdata/*.json")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if len(matches) < 11 {
 		t.Fatalf("testdata count=%d", len(matches))
 	}
+
 	for _, f := range matches {
 		b, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if !json.Valid(b) {
 			t.Errorf("invalid json %s", f)
 		}
@@ -111,21 +132,37 @@ func TestCRUDChain(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("list %d %s", w.Code, w.Body.String())
 	}
+
 	var wrap struct {
 		Areas []any `json:"areas"`
 	}
 	decode(t, w, &wrap)
+
 	if len(wrap.Areas) != 0 {
 		t.Fatalf("empty list: %s", w.Body.String())
 	}
 
 	id := createArea(t, h)
 
+	w = doJSON(t, h, http.MethodGet, "/api/areas/"+id, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("get area %d %s", w.Code, w.Body.String())
+	}
+
+	var gotArea map[string]any
+	decode(t, w, &gotArea)
+
+	if gotArea["id"] != id {
+		t.Fatalf("get area=%s", w.Body.String())
+	}
+
 	w = doJSON(t, h, http.MethodGet, "/api/areas", nil)
+
 	var list struct {
 		Areas []map[string]any `json:"areas"`
 	}
 	decode(t, w, &list)
+
 	if len(list.Areas) != 1 || list.Areas[0]["id"] != id {
 		t.Fatalf("list=%s", w.Body.String())
 	}
@@ -134,21 +171,27 @@ func TestCRUDChain(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("series %d %s", w.Code, w.Body.String())
 	}
+
 	var series map[string]any
 	decode(t, w, &series)
+
 	if series["result_version"] != nil {
 		t.Fatalf("series=%s", w.Body.String())
 	}
+
 	if s, ok := series["series"].([]any); !ok || len(s) != 0 {
 		t.Fatalf("series rows=%s", w.Body.String())
 	}
+
 	if s, ok := series["weather"].([]any); !ok || len(s) != 0 {
 		t.Fatalf("weather=%s", w.Body.String())
 	}
 
 	w = doJSON(t, h, http.MethodGet, "/api/areas/"+id+"/events", nil)
+
 	var events map[string]any
 	decode(t, w, &events)
+
 	if _, ok := events["events"].([]any); !ok {
 		t.Fatalf("events=%s", w.Body.String())
 	}
@@ -160,6 +203,7 @@ func TestCRUDChain(t *testing.T) {
 
 	w = doJSON(t, h, http.MethodGet, "/api/areas", nil)
 	decode(t, w, &list)
+
 	if len(list.Areas) != 0 {
 		t.Fatalf("after delete %s", w.Body.String())
 	}
@@ -178,6 +222,67 @@ func TestCRUDChain(t *testing.T) {
 	if id2 == id {
 		t.Fatal("same id")
 	}
+}
+
+func TestPublicConfig(t *testing.T) {
+	t.Parallel()
+
+	st := newTestStorage()
+	q := handler.NewStubQueue(8)
+	h := handler.NewMuxWithStorage(st, area.New(st), analysis.NewScheduler(st, q), handler.StubContours{}, q,
+		handler.Limits{AreaHaMax: 12.5, VerticesMax: 99, PeriodDaysMax: 30, MinDate: "2024-01-01"})
+
+	w := doJSON(t, h, http.MethodGet, "/api/config", nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("config %d %s", w.Code, w.Body.String())
+	}
+
+	var got struct {
+		AreaHaMax     float64 `json:"area_ha_max"`
+		VerticesMax   int     `json:"vertices_max"`
+		PeriodDaysMax int     `json:"period_days_max"`
+		MinDate       string  `json:"min_date"`
+	}
+	decode(t, w, &got)
+
+	if got.AreaHaMax != 12.5 || got.VerticesMax != 99 || got.PeriodDaysMax != 30 || got.MinDate != "2024-01-01" {
+		t.Fatalf("config=%s", w.Body.String())
+	}
+}
+
+func assertAreaCreationRejected(t *testing.T, limits handler.Limits) {
+	t.Helper()
+
+	st := newTestStorage()
+	q := handler.NewStubQueue(8)
+	h := handler.NewMuxWithStorage(st, area.New(st), analysis.NewScheduler(st, q), handler.StubContours{}, q,
+		limits)
+
+	w := doJSON(t, h, http.MethodPost, "/api/areas", testdata(t, "area-create-valid.json"))
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+
+	var env struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	decode(t, w, &env)
+
+	if env.Error.Code != "limit_exceeded" {
+		t.Fatalf("error=%s", w.Body.String())
+	}
+}
+
+func TestPeriodLimitAppliedToAreaCreation(t *testing.T) {
+	t.Parallel()
+	assertAreaCreationRejected(t, handler.Limits{PeriodDaysMax: 2})
+}
+
+func TestMinDateAppliedToAreaCreation(t *testing.T) {
+	t.Parallel()
+	assertAreaCreationRejected(t, handler.Limits{MinDate: "2024-06-15"})
 }
 
 func TestCreateValidation(t *testing.T) {
@@ -211,6 +316,7 @@ func TestCreateValidation(t *testing.T) {
 			if w.Code != tt.code {
 				t.Fatalf("code=%d body=%s", w.Code, w.Body.String())
 			}
+
 			if tt.errCode != "" {
 				var env struct {
 					Error struct {
@@ -218,6 +324,7 @@ func TestCreateValidation(t *testing.T) {
 					} `json:"error"`
 				}
 				decode(t, w, &env)
+
 				if env.Error.Code != tt.errCode {
 					t.Fatalf("err=%s", w.Body.String())
 				}
@@ -234,6 +341,7 @@ func TestIDTraversal(t *testing.T) {
 		w.Code != http.StatusMovedPermanently && w.Code != http.StatusTemporaryRedirect {
 		t.Fatalf("code=%d", w.Code)
 	}
+
 	w = doJSON(t, h, http.MethodGet, "/api/areas/not.a.valid/series", nil)
 	if w.Code != http.StatusNotFound && w.Code != http.StatusBadRequest {
 		t.Fatalf("dot id code=%d body=%s", w.Code, w.Body.String())
@@ -242,6 +350,7 @@ func TestIDTraversal(t *testing.T) {
 
 func TestEmptyBodyCreate(t *testing.T) {
 	h, _ := newEnv(t, nil, nil)
+
 	w := doReq(t, h, http.MethodPost, "/api/areas", nil, "")
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("code=%d", w.Code)
@@ -250,23 +359,28 @@ func TestEmptyBodyCreate(t *testing.T) {
 
 func TestCreateBodyLimits(t *testing.T) {
 	h, _ := newEnv(t, nil, nil)
+
 	w := doReq(t, h, http.MethodPost, "/api/areas", []byte(`{"name":"x"}`), "text/plain")
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("ct %d %s", w.Code, w.Body.String())
 	}
+
 	var env struct {
 		Error struct {
 			Code string `json:"code"`
 		} `json:"error"`
 	}
 	decode(t, w, &env)
+
 	if env.Error.Code != "invalid_json" {
 		t.Fatalf("%s", w.Body.String())
 	}
+
 	big := make([]byte, (1<<20)+2)
 	for i := range big {
 		big[i] = 'a'
 	}
+
 	w = doReq(t, h, http.MethodPost, "/api/areas", big, "application/json")
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("oversize %d %s", w.Code, w.Body.String())

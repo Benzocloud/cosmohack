@@ -1,0 +1,73 @@
+{
+  "_synthetic": true,
+  "events": [
+    {
+      "id": "ev-confirmed-1",
+      "period": {
+        "from": "2024-06-10",
+        "to": "2024-07-05"
+      },
+      "verdict": "confirmed",
+      "severity": "high",
+      "detected": {
+        "magnitude": -0.21,
+        "unit": "ndvi",
+        "base": "сезонный фон 2017–2023, MODIS",
+        "text": "−0.21 NDVI к сезонному фону"
+      },
+      "basis": {
+        "observed_count": 14,
+        "imputed_count": 5,
+        "background_comparable": true,
+        "gaps_note": "2 пропуска по облачности",
+        "criteria": "z < −2 в течение 20+ дней"
+      },
+      "weather": {
+        "facts": [
+          {
+            "label": "Осадки за 30 дней до события",
+            "value": "12 мм"
+          },
+          {
+            "label": "Средняя температура за событие",
+            "value": "+28,4 °C"
+          }
+        ],
+        "hypothesis": "Засушливый период: осадки значительно ниже фоновой суммы"
+      },
+      "limitations": []
+    },
+    {
+      "id": "ev-candidate-1",
+      "period": {
+        "from": "2024-08-09",
+        "to": "2024-08-25"
+      },
+      "verdict": "candidate",
+      "severity": null,
+      "detected": {
+        "magnitude": -0.12,
+        "unit": "ndvi",
+        "base": "сезонный фон 2017–2023, MODIS",
+        "text": "−0.12 NDVI к сезонному фону"
+      },
+      "basis": {
+        "observed_count": 3,
+        "imputed_count": 2,
+        "background_comparable": true,
+        "gaps_note": "Конец периода восстановлен",
+        "criteria": "z < −1.5"
+      },
+      "weather": {
+        "facts": [
+          {
+            "label": "Осадки за 30 дней",
+            "value": "31 мм"
+          }
+        ],
+        "hypothesis": null
+      },
+      "limitations": ["Короткая история наблюдений после пропуска"]
+    }
+  ]
+}

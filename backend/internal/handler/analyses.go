@@ -10,16 +10,19 @@ import (
 func (h *handler) postAnalyses(w http.ResponseWriter, r *http.Request) {
 	h.gate.Lock()
 	defer h.gate.Unlock()
+
 	id := r.PathValue("id")
 	if err := validateID(id); err != nil {
 		writeValidation(w, err)
 		return
 	}
+
 	body, empty, err := readBody(w, r)
 	if err != nil {
 		writeValidation(w, err)
 		return
 	}
+
 	var req createAnalysisRequest
 	if !empty {
 		req, err = decodeCreateAnalysis(body)
@@ -27,8 +30,9 @@ func (h *handler) postAnalyses(w http.ResponseWriter, r *http.Request) {
 			writeValidation(w, err)
 			return
 		}
+
 		if req.Period != nil {
-			if err := validatePeriod(*req.Period); err != nil {
+			if err := validatePeriod(*req.Period, h.limits); err != nil {
 				writeValidation(w, err)
 				return
 			}
@@ -38,15 +42,19 @@ func (h *handler) postAnalyses(w http.ResponseWriter, r *http.Request) {
 	job, err := h.scheduler.Start(r.Context(), id, req.Period)
 	if err != nil {
 		if errors.Is(err, analysisusecase.ErrConflict) {
-			writeError(w, http.StatusConflict, "conflict", "Анализ по этому участку уже выполняется", false)
+			writePublicError(w, http.StatusConflict, errorCodeConflict, false)
 			return
 		}
+
 		if errors.Is(err, ErrQueueFull) {
-			writeError(w, http.StatusTooManyRequests, "queue_full", "Очередь анализа заполнена, повторите позже", true)
+			writePublicError(w, http.StatusTooManyRequests, errorCodeQueueFull, true)
 			return
 		}
+
 		writePersistenceErr(w, err)
+
 		return
 	}
+
 	writeJSON(w, http.StatusAccepted, map[string]string{"job_id": job.ID})
 }

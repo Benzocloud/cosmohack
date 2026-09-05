@@ -1,0 +1,75 @@
+:root {
+  /* Поверхности */
+  --bg-app: #F5F7FA;        /* фон приложения вокруг панелей */
+  --bg-surface: #FFFFFF;    /* панели, карточки */
+  --bg-muted: #EEF1F5;      /* вторичные области, заголовки таблиц */
+  --bg-hover: #F1F4F8;
+  --border: #E2E7EE;
+  --border-strong: #C6CFDA;
+
+  /* Текст */
+  --fg: #151A21;
+  --fg-secondary: #4A5563;
+  --fg-tertiary: #7B8794;
+  --fg-on-accent: #FFFFFF;
+
+  /* Действие (кнопки, ссылки, фокус, выбранный элемент списка) */
+  --action: #2D5BE3;
+  --action-hover: #244BC0;
+  --action-soft: #E8EEFC;
+  --focus-ring: #2D5BE3;
+
+  /* Происхождение значения (график, легенда, подсказка) */
+  --observed: #0E7C6B;      /* «Наблюдения» — тёмно-бирюзовый, закрашенный круг */
+  --imputed: #7A3FE0;       /* «Восстановлено» — фиолетовый, полый ромб, пунктир */
+  --missing: #9AA5B1;       /* «Нет данных» — только в подписи/подсказке */
+  --background-band: rgba(100,116,139,.16);  /* сезонный фон p10–p90 */
+  --background-mean: #64748B;                /* линия среднего фона, штрих */
+
+  /* Вывод анализа (карточка, список, полигон на карте) */
+  --verdict-normal: #1B7F3B;        /* «Негативных отклонений не выявлено» */
+  --verdict-candidate: #C77700;     /* «Возможное изменение» */
+  --verdict-confirmed: #C8102E;     /* «Подтверждённое изменение» */
+  --verdict-insufficient: #6B7785;  /* «Недостаточно данных» — нейтральный, НЕ зелёный */
+  --verdict-none: #A8B3C0;          /* участок не анализировался — пунктирная обводка */
+
+  /* Состояние задачи */
+  --job-queued: #6B7785;  --job-running: #2D5BE3;  --job-failed: #C8102E;  --job-cancelled: #6B7785;
+
+  /* Погода */
+  --temp: #D9531E;          /* линия температуры, °C */
+  --precip: #1477B8;        /* столбцы осадков, мм */
+
+  /* Карта */
+  --contour-found: #2D5BE3;       /* найденные контуры OSM — тонкий штрих */
+  --contour-found-fill: rgba(45,91,227,.08);
+  --area-fill-alpha: .22;
+  --area-selected-outline: #151A21;  /* выбранный — тёмная обводка 3px с белым гало, независимо от статуса */
+
+  /* Геометрия */
+  --radius-sm: 6px; --radius: 10px; --radius-lg: 14px;
+  --shadow-1: 0 1px 2px rgba(21,26,33,.06), 0 1px 3px rgba(21,26,33,.08);
+  --shadow-2: 0 4px 16px rgba(21,26,33,.10);
+  --tap-min: 44px;   /* минимальная область нажатия — правило проекта */
+
+  /* Псевдонимы shadcn/ui — ТОЛЬКО ссылки на токены выше, новых значений нет.
+     Позволяют каноничным shadcn-компонентам работать на дизайн-системе §2.2. */
+  --background: var(--bg-surface);
+  --foreground: var(--fg);
+  --card: var(--bg-surface);
+  --card-foreground: var(--fg);
+  --popover: var(--bg-surface);
+  --popover-foreground: var(--fg);
+  --primary: var(--action);
+  --primary-foreground: var(--fg-on-accent);
+  --secondary: var(--bg-muted);
+  --secondary-foreground: var(--fg-secondary);
+  --muted: var(--bg-muted);
+  --muted-foreground: var(--fg-tertiary);
+  --accent: var(--bg-hover);
+  --accent-foreground: var(--fg);
+  --destructive: var(--verdict-confirmed);
+  --destructive-foreground: var(--fg-on-accent);
+  --ring: var(--focus-ring);
+  --input: var(--border);
+}

@@ -23,6 +23,7 @@ var (
 	errInvalidName     = errors.New("invalid_name")
 	errInvalidSource   = errors.New("invalid_source")
 	errLimitExceeded   = errors.New("limit_exceeded")
+	errInvalidVersion  = errors.New("invalid_version")
 	errInvalidID       = errors.New("invalid_id")
 	idPattern          = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 )
@@ -32,17 +33,41 @@ type bbox struct {
 }
 
 type Limits struct {
+	// Canonical public limits mirror the source assembly configuration.
+	AreaHaMax     float64
+	VerticesMax   int
+	PeriodDaysMax int
+	MinDate       string
+
+	// Deprecated compatibility fields are kept for callers that have not yet
+	// switched their composition root to the canonical names.
 	MaxAreaKm2  float64
 	MaxVertices int
 }
 
-func validatePeriod(p domain.Period) error {
+func validatePeriod(p domain.Period, lim Limits) error {
 	if !validDate(p.From) || !validDate(p.To) {
 		return errInvalidPeriod
 	}
+
 	if p.From > p.To {
 		return errInvalidPeriod
 	}
+
+	if lim.MinDate != "" && validDate(lim.MinDate) && p.From < lim.MinDate {
+		return errLimitExceeded
+	}
+
+	if lim.PeriodDaysMax > 0 {
+		from, _ := time.Parse("2006-01-02", p.From)
+		to, _ := time.Parse("2006-01-02", p.To)
+
+		days := int(to.Sub(from).Hours()/24) + 1
+		if days > lim.PeriodDaysMax {
+			return errLimitExceeded
+		}
+	}
+
 	return nil
 }
 
@@ -51,6 +76,7 @@ func validDate(s string) bool {
 	if err != nil {
 		return false
 	}
+
 	return t.Format("2006-01-02") == s
 }
 
@@ -59,9 +85,11 @@ func validateName(name string) error {
 	if n == "" || utf8.RuneCountInString(n) > maxNameRunes {
 		return errInvalidName
 	}
+
 	if n != name {
 		return errInvalidName
 	}
+
 	return nil
 }
 
@@ -69,7 +97,12 @@ func validateID(id string) error {
 	if !idPattern.MatchString(id) {
 		return errInvalidID
 	}
+
 	return nil
+}
+
+func validateVersion(version string) error {
+	return validateID(version)
 }
 
 func validateSource(src domain.AreaSource) error {
@@ -78,11 +111,13 @@ func validateSource(src domain.AreaSource) error {
 		if src.ContourID != nil && *src.ContourID != "" {
 			return errInvalidSource
 		}
+
 		return nil
 	case "contour":
 		if src.ContourID == nil || *src.ContourID == "" {
 			return errInvalidSource
 		}
+
 		return nil
 	default:
 		return errInvalidSource
@@ -93,37 +128,43 @@ func validateCreate(req createAreaRequest, lim Limits) error {
 	if req.Source == nil {
 		return errInvalidSource
 	}
+
 	if err := validateName(req.Name); err != nil {
 		return err
 	}
-	if err := validatePeriod(req.Period); err != nil {
+
+	if err := validatePeriod(req.Period, lim); err != nil {
 		return err
 	}
+
 	if err := validateGeometry(req.Geometry, lim); err != nil {
 		return err
 	}
+
 	return validateSource(*req.Source)
 }
 
 func validationMessage(err error) (code, message string, retryable bool) {
 	switch {
 	case errors.Is(err, errInvalidJSON):
-		return "invalid_json", "Тело запроса должно быть JSON-объектом", false
+		return errorCodeInvalidJSON, publicErrorMessage(errorCodeInvalidJSON), false
 	case errors.Is(err, errInvalidGeometry):
-		return "invalid_geometry", "Полигон должен быть замкнут", false
+		return errorCodeInvalidGeometry, publicErrorMessage(errorCodeInvalidGeometry), false
 	case errors.Is(err, errInvalidBBox):
-		return "invalid_bbox", "Параметр bbox задан неверно", false
+		return errorCodeInvalidBBox, publicErrorMessage(errorCodeInvalidBBox), false
 	case errors.Is(err, errInvalidPeriod):
-		return "invalid_period", "Период from/to задан неверно", false
+		return errorCodeInvalidPeriod, publicErrorMessage(errorCodeInvalidPeriod), false
 	case errors.Is(err, errInvalidName):
-		return "invalid_name", "Имя участка задано неверно", false
+		return errorCodeInvalidName, publicErrorMessage(errorCodeInvalidName), false
 	case errors.Is(err, errInvalidSource):
-		return "invalid_source", "Источник геометрии задан неверно", false
+		return errorCodeInvalidSource, publicErrorMessage(errorCodeInvalidSource), false
 	case errors.Is(err, errLimitExceeded):
-		return "limit_exceeded", "Полигон превышает допустимый размер", false
+		return errorCodeLimitExceeded, publicErrorMessage(errorCodeLimitExceeded), false
 	case errors.Is(err, errInvalidID):
-		return "not_found", "Объект не найден", false
+		return errorCodeNotFound, publicErrorMessage(errorCodeNotFound), false
+	case errors.Is(err, errInvalidVersion):
+		return errorCodeInvalidVersion, publicErrorMessage(errorCodeInvalidVersion), false
 	default:
-		return "internal_error", "Внутренняя ошибка сервера", true
+		return errorCodeInternal, publicErrorMessage(errorCodeInternal), true
 	}
 }

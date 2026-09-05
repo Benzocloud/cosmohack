@@ -103,7 +103,7 @@ func (c *Client) Do(ctx context.Context, provider string, request *http.Request)
 	if err != nil {
 		return nil, transportError(requestContext, provider, err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 
 	body, err := io.ReadAll(io.LimitReader(response.Body, c.maxResponseBytes+1))
 	if err != nil {

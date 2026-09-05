@@ -1,6 +1,6 @@
 # Интеграция frontend с актуальным backend
 
-**Статус:** planned
+**Статус:** in_progress
 **Backend baseline:** `main` / `da9063c`
 **Frontend baseline:** `origin/frontend` / `6daeadf`
 **Ответственные:** frontend — `Prosteyshiyyy`; публичный API — `tsuckermandev`; источники — `semennejo`; composition root и поставка — `globalarray`; ML — `xsqclown`.
@@ -9,8 +9,19 @@
 
 ## Текущее состояние
 
+На текущей интеграционной ветке выполнены FI-01–FI-03 в объёме контракта и composition root:
+
+- frontend materialized in the monorepo, adapters/mocks aligned with canonical backend JSON;
+- backend routes `GET /api/areas/{id}`, `GET /api/config` and `?version=` for series/events added;
+- B1 source factory, collector, contour finder and queue wiring connected in `internal/app`;
+- placeholders removed from the Go application composition root;
+- frontend checks (typecheck, lint, Vitest, production build) and backend compile/focused tests pass.
+
+FI-04 remains blocked on the real `backend/ml` service: the repository currently contains only its Dockerfile.
+Для промежуточной проверки добавлен `deploy/ml-stub` и Compose-профиль `dev-ml-stub`; он проверяет полный Go/PG/B1/frontend-контур по ML HTTP-контракту, не подменяя production-сервис.
+
 - Ветка `origin/frontend` отстаёт от `origin/main`, но пробный трёхсторонний merge не показывает текстовых конфликтов.
-- Frontend на Node `22.23.2` проходит typecheck, lint, 61 Vitest-тест и production build.
+- Frontend на Node из `frontend/.nvmrc` проходит typecheck, lint, 41 Vitest-тест и production build.
 - Mock-режим frontend внутренне согласован, но живой API не подключается из-за различий JSON-контрактов.
 - Production использует same-origin: корневой Dockerfile собирает `frontend/dist`, Go отдаёт его из `/app/public`, а браузер обращается только к `/api/*`.
 - В локальном Vite-режиме proxy на Go отсутствует.
@@ -149,6 +160,8 @@ FI-06: общий E2E, CI и deploy после FI-01…FI-05
 3. Обеспечить сохранение `AnalysisRecord` в PostgreSQL и публикацию `result_version` только после успешной проверки ответа ML.
 4. Обновить Compose и release manifest так, чтобы Go запускался с совместимой версией ML и модели.
 5. Проверить ошибку источника, ML unavailable/timeout/busy, insufficient data и успешный результат без автоматического повторения POST.
+
+До поставки настоящего Python-сервиса этот этап можно принимать через `dev-ml-stub`: stub эхо-возвращает идентификаторы запроса и строит минимальный валидный ряд, а режимы `busy`, `timeout` и `invalid` покрывают ошибки ML-клиента.
 
 **Готово, если:** новый полигон проходит `frontend → Go → B1 → ML → PostgreSQL → Go → frontend`, а job и пользовательский интерфейс показывают фактические стадии и результат.
 
