@@ -51,8 +51,11 @@ jobs:
           docker run --rm --network host -v "$GITHUB_WORKSPACE/backend/migrations:/migrations:ro" migrate/migrate:v4.18.3 \
             -path=/migrations -database "$DATABASE_URL" up
           migration_state=$(docker run --rm --network host postgres:16-alpine \
-            psql "$DATABASE_URL" -Atc "SELECT version || ':' || dirty FROM schema_migrations")
-          test "$migration_state" = "1:f"
+            psql "$DATABASE_URL" -Atc "SELECT version || ':' || dirty FROM schema_migrations ORDER BY version DESC LIMIT 1")
+          migration_version=${migration_state%%:*}
+          migration_dirty=${migration_state##*:}
+          test "$migration_version" -ge 1
+          test "$migration_dirty" = "f"
           go vet ./...
           go test -race -count=1 ./...
       - name: lint
@@ -199,10 +202,10 @@ jobs:
           release_env=$(mktemp)
           trap 'rm -f "$release_env"' EXIT
           umask 077
-          printf 'GHCR_USER=%s\nGHCR_TOKEN=%s\n' "$GHCR_USER" "$GHCR_TOKEN" > "$release_env"
+          printf 'GHCR_USER=%s\nGHCR_TOKEN=%s\nDATABASE_URL=%s\n' "$GHCR_USER" "$GHCR_TOKEN" "$DATABASE_URL" > "$release_env"
           sudo -n install -m 0600 "$release_env" "$DEPLOY_DIR/release-ghcr.env"
           cd "$DEPLOY_DIR"
           export GO_IMAGE="ghcr.io/${IMAGE_REPO}/go@${GO_DIGEST}"
           export ML_IMAGE="ghcr.io/${IMAGE_REPO}/ml@${ML_DIGEST}"
           export MIGRATIONS_DIR_HOST=./migrations
-          sudo -n --preserve-env=GO_IMAGE,ML_IMAGE,MODEL_VERSION,DATABASE_URL,MIGRATIONS_DIR_HOST ./deploy.sh
+          sudo -n --preserve-env=GO_IMAGE,ML_IMAGE,MODEL_VERSION,MIGRATIONS_DIR_HOST ./deploy.sh

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Развёртывание одного выпуска из двух immutable digest с проверкой
 # готовности обеих служб и откатом предыдущей совместимой пары с моделью.
-# Порядок по .agent/plan.md (CI/CD): остановить приём анализов (Go) →
-# применить миграции → обновить ML и проверить /readyz с версиями →
+# Порядок по .agent/plan.md (CI/CD): применить миграции, пока текущий Go
+# остаётся доступен → остановить приём анализов → обновить ML и проверить
+# /readyz с версиями →
 # запустить Go и проверить API.
 #
 # Использование:
@@ -15,6 +16,13 @@
 set -euo pipefail
 
 cd "$(dirname "$0")"
+
+# CI places registry and database credentials in this 0600 file. Loading it
+# before validation avoids passing DATABASE_URL through sudo's environment.
+if [[ -f release-ghcr.env ]]; then
+  # shellcheck disable=SC1091
+  source release-ghcr.env
+fi
 
 GO_IMAGE=${GO_IMAGE:?set GO_IMAGE to the go image digest}
 ML_IMAGE=${ML_IMAGE:?set ML_IMAGE to the ml image digest}
@@ -29,12 +37,6 @@ MIGRATIONS_DIR_HOST=${MIGRATIONS_DIR_HOST:-../backend/migrations}
 CURRENT_MANIFEST=current-manifest.json
 PREVIOUS_MANIFEST=previous-manifest.json
 COMPOSE=(docker compose --env-file release.env -f compose.yaml)
-
-# Приватный GHCR: CI кладёт release-ghcr.env (0600) рядом со скриптом.
-if [[ -f release-ghcr.env ]]; then
-  # shellcheck disable=SC1091
-  source release-ghcr.env
-fi
 
 # Приватный GHCR: для pull пакетов серверу нужен токен с read:packages.
 # GHCR_USER — имя владельца или machine user, GHCR_TOKEN — read-only токен.
@@ -95,10 +97,12 @@ assert body.get('model_version') == '${MODEL_VERSION}', body"
 }
 
 check_migration_state() {
-  local state
+  local state version dirty
   state=$(docker run --rm --network host postgres:16-alpine \
-    psql "$DATABASE_URL" -Atc 'SELECT dirty FROM schema_migrations ORDER BY version DESC LIMIT 1')
-  [[ "$state" == "f" ]]
+    psql "$DATABASE_URL" -Atc "SELECT version || ':' || dirty FROM schema_migrations ORDER BY version DESC LIMIT 1")
+  version=${state%%:*}
+  dirty=${state##*:}
+  [[ "$version" =~ ^[1-9][0-9]*$ && "$dirty" == "f" ]]
 }
 
 rollback() {
@@ -146,6 +150,16 @@ main() {
   install -d -m 0750 "$ML_ARTIFACTS_DIR_HOST"
   install -d -m 0755 "$MIGRATIONS_DIR_HOST"
 
+  log "applying database migrations"
+  if ! "${COMPOSE[@]}" run --rm migrate; then
+    log "database migration failed; current release remains running"
+    exit 1
+  fi
+  if ! check_migration_state; then
+    log "database migration state is dirty or unavailable; current release remains running"
+    exit 1
+  fi
+
   log "stopping go (analysis intake paused)"
   "${COMPOSE[@]}" stop go || true
 
@@ -156,16 +170,6 @@ main() {
   if ! check_ml_versions; then
     log "ml readiness/versions check failed"
     rollback
-  fi
-
-  log "applying database migrations"
-  if ! "${COMPOSE[@]}" run --rm migrate; then
-    log "database migration failed; release is not started"
-    exit 1
-  fi
-  if ! check_migration_state; then
-    log "database migration state is dirty or unavailable; release is not started"
-    exit 1
   fi
 
   log "starting go"

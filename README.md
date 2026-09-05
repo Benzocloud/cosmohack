@@ -9,7 +9,8 @@ HTTP-контракт Go ↔ ML v1 — [.agent/contracts/go-ml-http.md](.agent/c
 ```bash
 cd backend
 go test -race ./...          # проверки
-go run ./cmd/server          # DATABASE_URL=..., HTTP_ADDR=:8080, ML_BASE_URL=http://127.0.0.1:8000
+DATABASE_URL='postgres://cosmohack:cosmohack@127.0.0.1:5432/cosmohack?sslmode=disable' \
+  go run ./cmd/server       # HTTP_ADDR=:8080, ML_BASE_URL=http://127.0.0.1:8000
 ```
 
 Переменные окружения Go-сервера:
@@ -69,8 +70,9 @@ DATABASE_URL='postgres://user:password@postgres-host:5432/cosmohack?sslmode=disa
 ```
 
 Порядок: логин в приватный GHCR (на сервере нужен токен `read:packages`:
-`GHCR_USER`/`GHCR_TOKEN`) → pull двух digest → пауза приёма анализов (stop go) →
-применить forward-миграции PostgreSQL → обновить ML и проверить его `/readyz` (status/schema/profile/model_version) →
+`GHCR_USER`/`GHCR_TOKEN`) → pull двух digest → применить forward-миграции
+PostgreSQL, пока текущий Go остаётся доступен →
+остановить приём анализов → обновить ML и проверить его `/readyz` (status/schema/profile/model_version) →
 запустить Go и проверить `/readyz` + API. `current-manifest.json` хранит пару
 digest и версии; при провале возвращается предыдущая совместимая пара
 (`previous-manifest.json`). Первая неудачная установка без предыдущей версии
