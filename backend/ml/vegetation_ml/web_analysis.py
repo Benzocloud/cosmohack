@@ -17,11 +17,12 @@ from datetime import date, timedelta
 import numpy as np
 import pandas as pd
 
-from . import __version__, anomalies
-from .contracts import AnalyzeRequest, FEATURE_PROFILE, SCHEMA_VERSION
+from . import __version__, anomalies, web_features
+from .contracts import AnalyzeRequest, PROFILE_MULTISENSOR
 from .features import _gauss_at
 
-MODEL_VERSION = f"web-fallback-{__version__}"
+MODEL_VERSION = f"ndvi-gapfill-{__version__}+fallback"
+MODEL_VERSION_TRAINED = f"ndvi-gapfill-{__version__}+hgb"
 METHOD_SMOOTH = "gaussian_smoothing_h8"
 METHOD_NEIGHBOURS = "nearest_neighbour_mean"
 METHOD_NONE = "no_estimate"
@@ -147,7 +148,50 @@ def _weather_windows(dates, temps, precips):
     return t30, p30
 
 
-def analyse(request: AnalyzeRequest) -> dict:
+def model_version(model) -> str:
+    """Версия набора методов процесса. Постоянна между запросами, чтобы Go мог
+    сверить её с манифестом выпуска; что применялось в конкретном запросе,
+    сообщает поле `method`."""
+    return MODEL_VERSION_TRAINED if model is not None else MODEL_VERSION
+
+
+def _choose_restoration(request: AnalyzeRequest, model, epochs, values, reliable):
+    """Выбирает путь восстановления и объясняет выбор.
+
+    Обученная модель применяется только на расширенном профиле, при загруженном
+    артефакте и достаточной истории участка. Во всех остальных случаях работает
+    резервный метод, а причина попадает в limitations: выдавать результат
+    резервного метода за результат модели нельзя.
+    """
+    notes: list[str] = []
+    if not request.is_multisensor:
+        notes.append(
+            f"Профиль {request.feature_profile} не содержит признаков по отдельным "
+            f"сенсорам: применён резервный метод восстановления. Обученная модель "
+            f"доступна в профиле {PROFILE_MULTISENSOR}")
+        return (*_restore(epochs, values, reliable), notes)
+    if model is None:
+        notes.append("Артефакт модели не загружен, применён резервный метод")
+        return (*_restore(epochs, values, reliable), notes)
+
+    applicable, reason = web_features.is_model_applicable(request)
+    if not applicable:
+        notes.append(f"Контекста недостаточно для обученной модели ({reason}), "
+                     "применён резервный метод")
+        return (*_restore(epochs, values, reliable), notes)
+
+    restored, methods, model_notes = web_features.restore_with_model(request, model)
+    fallback, fallback_methods = _restore(epochs, values, reliable)
+    gap = ~np.isfinite(restored) & np.isfinite(fallback)
+    if gap.any():
+        restored = np.where(gap, fallback, restored)
+        methods = [fallback_methods[i] if gap[i] else m for i, m in enumerate(methods)]
+        model_notes.append(f"Точек, восстановленных резервным методом вместо модели: "
+                           f"{int(gap.sum())}")
+    return restored, methods, notes + model_notes
+
+
+def analyse(request: AnalyzeRequest, model=None) -> dict:
     """Строит ответ контракта по проверенному запросу."""
     obs = request.observations
     dates = [o.date for o in obs]
@@ -155,8 +199,8 @@ def analyse(request: AnalyzeRequest) -> dict:
     values = np.array([np.nan if o.primary_ndvi is None else float(o.primary_ndvi) for o in obs])
     reliable = _reliable(obs)
 
-    restored, methods = _restore(epochs, values, reliable)
-    limitations: list[str] = []
+    restored, methods, limitations = _choose_restoration(
+        request, model, epochs, values, reliable)
 
     ref_mean = np.full(len(obs), np.nan)
     ref_std = np.full(len(obs), np.nan)
@@ -254,9 +298,6 @@ def analyse(request: AnalyzeRequest) -> dict:
     if not np.isfinite(z[inside]).any():
         limitations.append("Сезонный фон неизвестен или имеет нулевую дисперсию, "
                            "z-score не определён")
-    limitations.append(
-        "Профиль ndvi-weather-v1 не содержит признаков по отдельным сенсорам, "
-        "поэтому применён резервный метод восстановления, а не обученная на CSV модель")
 
     if not np.isfinite(z[inside]).any():
         status, severity = "insufficient_data", None
@@ -267,17 +308,21 @@ def analyse(request: AnalyzeRequest) -> dict:
         status, severity = "normal", "none"
 
     used = [m for m in methods if m]
-    method_used = METHOD_SMOOTH if METHOD_SMOOTH in used else (
-        METHOD_NEIGHBOURS if used else METHOD_NONE)
+    for candidate in (web_features.METHOD_MODEL, METHOD_SMOOTH, METHOD_NEIGHBOURS):
+        if candidate in used:
+            method_used = candidate
+            break
+    else:
+        method_used = METHOD_NONE
 
     return {
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": request.schema_version,
         "request_id": request.request_id,
         "area_id": request.area_id,
         "input_revision": request.input_revision,
         "mode": request.mode,
-        "feature_profile": FEATURE_PROFILE,
-        "model_version": MODEL_VERSION,
+        "feature_profile": request.feature_profile,
+        "model_version": model_version(model),
         "method": method_used,
         "status": status,
         "severity": severity,
