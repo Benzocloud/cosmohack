@@ -5,6 +5,7 @@ go 1.27.0
 require (
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/jmoiron/sqlx v1.4.0
+	github.com/lmittmann/tint v1.1.3
 )
 
 require (

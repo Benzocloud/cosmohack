@@ -32,13 +32,17 @@ type readyResponse struct {
 type ReadinessCheck func(context.Context) error
 
 // Register подключает публичные маршруты к mux.
-func Register(mux *http.ServeMux, check ReadinessCheck) {
+func Register(mux *http.ServeMux, check ReadinessCheck, logger *slog.Logger) {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
-		handleReady(w, r, check)
+		handleReady(w, r, check, logger)
 	})
 }
 
-func handleReady(w http.ResponseWriter, r *http.Request, check ReadinessCheck) {
+func handleReady(w http.ResponseWriter, r *http.Request, check ReadinessCheck, logger *slog.Logger) {
 	if check != nil {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
@@ -54,6 +58,6 @@ func handleReady(w http.ResponseWriter, r *http.Request, check ReadinessCheck) {
 		SchemaVersion:   domain.SchemaVersionV1,
 		FeatureProfiles: []string{domain.FeatureProfileNDVIWeatherV1},
 	}); err != nil {
-		slog.Error("readyz response encode failed", "error", err)
+		logger.Error("readyz response encode failed", "error", err)
 	}
 }

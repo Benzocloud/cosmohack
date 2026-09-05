@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -112,6 +113,10 @@ func fixtureRequest(jobID string) domain.AnalysisRequest {
 }
 
 func ptrFloat(v float64) *float64 { return &v }
+
+func testLogger() *slog.Logger {
+	return slog.New(slog.DiscardHandler)
+}
 
 // fixtureResponse — валидный успешный ответ на fixtureRequest: эхо полей
 // запроса, одна observed-точка, статус normal.
@@ -232,7 +237,7 @@ func TestExecutor_SuccessPath(t *testing.T) {
 	st := newExecutorPersistence(t)
 
 	collector := &stubCollector{}
-	exec := New(st, collector, okAnalyzer{}, 8)
+	exec := New(st, collector, okAnalyzer{}, 8, testLogger())
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -288,7 +293,7 @@ func TestExecutor_SuccessPath(t *testing.T) {
 
 func TestExecutor_QueueUsesConfiguredCapacity(t *testing.T) {
 	st := newExecutorPersistence(t)
-	exec := New(st, &stubCollector{}, okAnalyzer{}, 2)
+	exec := New(st, &stubCollector{}, okAnalyzer{}, 2, testLogger())
 
 	for range 2 {
 		if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -304,7 +309,7 @@ func TestExecutor_SourceError(t *testing.T) {
 	st := newExecutorPersistence(t)
 
 	collector := &stubCollector{err: errors.New("provider unavailable")}
-	exec := New(st, collector, okAnalyzer{}, 8)
+	exec := New(st, collector, okAnalyzer{}, 8, testLogger())
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -336,7 +341,7 @@ func TestExecutor_BusyML(t *testing.T) {
 
 	analyzeErr := analyzeErrorAgainstServer(t, http.StatusTooManyRequests,
 		`{"schema_version":"1.0","request_id":"`+testJobID+`","error":{"code":"busy","message":"ML busy","retryable":true}}`)
-	exec := New(st, &stubCollector{}, mlErrorAnalyzer{err: analyzeErr}, 8)
+	exec := New(st, &stubCollector{}, mlErrorAnalyzer{err: analyzeErr}, 8, testLogger())
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -367,7 +372,7 @@ func TestExecutor_CancelDuringAnalyze(t *testing.T) {
 	st := newExecutorPersistence(t)
 
 	blocker := &blockingAnalyzer{entered: make(chan struct{}), release: make(chan struct{})}
-	exec := New(st, &stubCollector{}, blocker, 8)
+	exec := New(st, &stubCollector{}, blocker, 8, testLogger())
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -414,7 +419,7 @@ func TestExecutor_CancelPending(t *testing.T) {
 	enqueueJob(t, st, testArea2ID, testJob2ID)
 
 	blocker := &blockingAnalyzer{entered: make(chan struct{}), release: make(chan struct{})}
-	exec := New(st, &stubCollector{}, blocker, 8)
+	exec := New(st, &stubCollector{}, blocker, 8, testLogger())
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -447,7 +452,7 @@ func TestExecutor_RestartMarksInterrupted(t *testing.T) {
 	enqueueJob(t, st, testAreaID, testJobID)
 
 	// A fresh executor recovers unfinished jobs through its persistence port.
-	New(st, &stubCollector{}, okAnalyzer{}, 8).Start(context.Background())
+	New(st, &stubCollector{}, okAnalyzer{}, 8, testLogger()).Start(context.Background())
 
 	var failed domain.Job
 	waitFor(t, func() bool {

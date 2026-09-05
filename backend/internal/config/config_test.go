@@ -5,6 +5,7 @@ import "testing"
 func TestLoadFrom(t *testing.T) {
 	values := map[string]string{
 		EnvDBURL:                     "postgres://localhost/cosmohack",
+		EnvLogLevel:                  "debug",
 		EnvDBTimeout:                 "2s",
 		EnvSatelliteAggregationDays:  "7",
 		EnvSatelliteMinValidFraction: "0.4",
@@ -26,8 +27,19 @@ func TestLoadFrom(t *testing.T) {
 	if c.Source.CDSEStatisticsURL != DefaultCDSEStatisticsURL || c.Source.WeatherURL != DefaultWeatherURL {
 		t.Fatalf("source defaults = %+v", c.Source)
 	}
-	if c.HTTP.Addr != defaultHTTPAddr || c.Analysis.QueueSize != 12 {
+	if c.HTTP.Addr != defaultHTTPAddr || c.LogLevel != "debug" || c.Analysis.QueueSize != 12 {
 		t.Fatalf("defaults = %+v %+v", c.HTTP, c.Analysis)
+	}
+}
+
+func TestLoadFromUsesDefaultLogLevel(t *testing.T) {
+	values := map[string]string{EnvDBURL: "postgres://localhost/cosmohack"}
+	c, err := LoadFrom(func(key string) (string, bool) { value, ok := values[key]; return value, ok })
+	if err != nil {
+		t.Fatalf("LoadFrom() error = %v", err)
+	}
+	if c.LogLevel != defaultLogLevel {
+		t.Fatalf("log level = %q, want %q", c.LogLevel, defaultLogLevel)
 	}
 }
 

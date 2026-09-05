@@ -77,6 +77,7 @@ type Executor struct {
 	persistence Persistence
 	collector   Collector
 	analyzer    Analyzer
+	logger      *slog.Logger
 	queue       chan string
 
 	mu     sync.Mutex
@@ -85,11 +86,16 @@ type Executor struct {
 }
 
 // New собирает исполнитель с заданным лимитом очереди.
-func New(persistence Persistence, collector Collector, analyzer Analyzer, queueSize int) *Executor {
+func New(persistence Persistence, collector Collector, analyzer Analyzer, queueSize int, logger *slog.Logger) *Executor {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+
 	return &Executor{
 		persistence: persistence,
 		collector:   collector,
 		analyzer:    analyzer,
+		logger:      logger,
 		queue:       make(chan string, queueSize),
 		active:      map[string]context.CancelFunc{},
 		queued:      map[string]bool{},
@@ -140,7 +146,7 @@ func (e *Executor) Cancel(jobID string) {
 		return
 	}
 	if err := e.persistence.SetJobCancelled(context.Background(), jobID); err != nil && !errors.Is(err, ErrBadState) {
-		slog.Error("cancel job failed", "job_id", jobID, "error", err)
+		e.logger.Error("cancel job failed", "job_id", jobID, "error", err)
 	}
 }
 
@@ -179,7 +185,7 @@ func (e *Executor) setStage(ctx context.Context, jobID, stage string) bool {
 		if errors.Is(err, ErrBadState) {
 			return false
 		}
-		slog.Error("set stage failed", "job_id", jobID, "stage", stage, "error", err)
+		e.logger.Error("set stage failed", "job_id", jobID, "stage", stage, "error", err)
 	}
 	return true
 }
@@ -195,7 +201,7 @@ func (e *Executor) runJob(base context.Context, jobID string) {
 	// Отмена до старта или удаление участка: воркер пропускает запись.
 	job, err := e.persistence.GetJob(jobCtx, jobID)
 	if err != nil {
-		slog.Error("job snapshot unavailable, skipping", "job_id", jobID, "error", err)
+		e.logger.Error("job snapshot unavailable, skipping", "job_id", jobID, "error", err)
 		return
 	}
 	if job.Status != domain.JobQueued {
@@ -205,7 +211,7 @@ func (e *Executor) runJob(base context.Context, jobID string) {
 		if errors.Is(err, ErrBadState) {
 			return
 		}
-		slog.Error("mark running failed", "job_id", jobID, "error", err)
+		e.logger.Error("mark running failed", "job_id", jobID, "error", err)
 		return
 	}
 	area, err := e.persistence.GetArea(jobCtx, job.AreaID)
@@ -220,7 +226,7 @@ func (e *Executor) runJob(base context.Context, jobID string) {
 		return
 	}
 	if err := e.persistence.SetJobInputRevision(jobCtx, jobID, collected.Request.InputRevision); err != nil && !errors.Is(err, ErrBadState) {
-		slog.Error("set input revision failed", "job_id", jobID, "error", err)
+		e.logger.Error("set input revision failed", "job_id", jobID, "error", err)
 	}
 	if !e.setStage(jobCtx, jobID, domain.StageAnalyze) {
 		return
@@ -245,9 +251,9 @@ func (e *Executor) runJob(base context.Context, jobID string) {
 	if err := e.persistence.PutResult(jobCtx, job.AreaGeneration, jobID, domainResult); err != nil {
 		switch {
 		case errors.Is(err, ErrGeneration), errors.Is(err, ErrBadState), errors.Is(err, ErrNotFound):
-			slog.Info("late result discarded", "job_id", jobID, "error", err)
+			e.logger.Info("late result discarded", "job_id", jobID, "error", err)
 		default:
-			slog.Error("save result failed", "job_id", jobID, "error", err)
+			e.logger.Error("save result failed", "job_id", jobID, "error", err)
 		}
 	}
 }
@@ -267,7 +273,7 @@ func (e *Executor) failSource(ctx context.Context, jobID, message string) {
 		return
 	}
 	if err := e.persistence.SetJobFailed(ctx, jobID, "source_failed", message, false); err != nil && !errors.Is(err, ErrBadState) {
-		slog.Error("mark source failure failed", "job_id", jobID, "error", err)
+		e.logger.Error("mark source failure failed", "job_id", jobID, "error", err)
 	}
 }
 
@@ -287,12 +293,12 @@ func (e *Executor) failAnalyze(ctx context.Context, jobID string, err error) {
 		retryable = mlErr.Retryable
 	}
 	if serr := e.persistence.SetJobFailed(ctx, jobID, code, message, retryable); serr != nil && !errors.Is(serr, ErrBadState) {
-		slog.Error("mark analyze failure failed", "job_id", jobID, "error", serr)
+		e.logger.Error("mark analyze failure failed", "job_id", jobID, "error", serr)
 	}
 }
 
 func (e *Executor) markCancelled(ctx context.Context, jobID string) {
 	if err := e.persistence.SetJobCancelled(ctx, jobID); err != nil && !errors.Is(err, ErrBadState) {
-		slog.Error("mark cancelled failed", "job_id", jobID, "error", err)
+		e.logger.Error("mark cancelled failed", "job_id", jobID, "error", err)
 	}
 }

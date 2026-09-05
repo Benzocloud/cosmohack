@@ -32,13 +32,13 @@ const (
 // Run поднимает HTTP-сервер и блокируется до ошибки запуска или отмены ctx.
 // Некорректная конфигурация ML и недоступная PostgreSQL возвращают ошибку до
 // открытия слушателя.
-func Run(ctx context.Context) error {
-	cfg, err := config.Load()
-	if err != nil {
-		return err
+func Run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	if logger == nil {
+		return errors.New("logger is nil")
 	}
 
 	mlCfg := mlservice.DefaultConfig(cfg.ML.BaseURL)
+	var err error
 	mlCfg.ExpectedModelVersion = cfg.ML.ExpectedModelVersion
 	client, err := mlservice.New(mlCfg)
 	if err != nil {
@@ -51,7 +51,7 @@ func Run(ctx context.Context) error {
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
-			slog.Error("close database", "error", err)
+			logger.Error("close database", "error", err)
 		}
 	}()
 
@@ -68,7 +68,7 @@ func Run(ctx context.Context) error {
 	}
 
 	// Один воркер-исполнитель: сбор → ML → PostgreSQL.
-	executor := analysis.New(storage, newB1Collector(sources.Collector()), client, cfg.Analysis.QueueSize)
+	executor := analysis.New(storage, newB1Collector(sources.Collector()), client, cfg.Analysis.QueueSize, logger)
 	if err := executor.Start(ctx); err != nil {
 		return err
 	}
@@ -79,13 +79,13 @@ func Run(ctx context.Context) error {
 		VerticesMax:   sources.Limits().MaxPolygonVertices(),
 		PeriodDaysMax: sources.Limits().MaxPeriodDays(),
 	})
-	handler.Register(mux, db.PingContext)
-	serveStaticAt(mux, cfg.HTTP.PublicDir)
+	handler.Register(mux, db.PingContext, logger)
+	serveStaticAt(mux, cfg.HTTP.PublicDir, logger)
 
-	return serve(ctx, mux, cfg.HTTP.Addr)
+	return serve(ctx, mux, cfg.HTTP.Addr, logger)
 }
 
-func serve(ctx context.Context, mux *http.ServeMux, addr string) error {
+func serve(ctx context.Context, mux *http.ServeMux, addr string, logger *slog.Logger) error {
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           mux,
@@ -97,7 +97,7 @@ func serve(ctx context.Context, mux *http.ServeMux, addr string) error {
 		serveErr <- srv.ListenAndServe()
 	}()
 
-	slog.Info("server started", "addr", addr)
+	logger.Info("server started", "addr", addr)
 
 	select {
 	case err := <-serveErr:
@@ -121,15 +121,15 @@ func serve(ctx context.Context, mux *http.ServeMux, addr string) error {
 		return err
 	}
 
-	slog.Info("server stopped gracefully")
+	logger.Info("server stopped gracefully")
 
 	return nil
 }
 
-func serveStaticAt(mux *http.ServeMux, publicDir string) {
+func serveStaticAt(mux *http.ServeMux, publicDir string, logger *slog.Logger) {
 	fsys := os.DirFS(publicDir)
 	if _, err := fs.Stat(fsys, "."); err != nil {
-		slog.Info("static public dir not found, serving api only", "dir", publicDir)
+		logger.Info("static public dir not found, serving api only", "dir", publicDir)
 		return
 	}
 

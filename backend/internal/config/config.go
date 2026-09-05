@@ -12,6 +12,7 @@ import (
 const (
 	EnvHTTPAddr                  = "HTTP_ADDR"
 	EnvPublicDir                 = "PUBLIC_DIR"
+	EnvLogLevel                  = "LOG_LEVEL"
 	EnvMLBaseURL                 = "ML_BASE_URL"
 	EnvMLModelVersion            = "ML_MODEL_VERSION"
 	EnvCDSEClientID              = "CDSE_CLIENT_ID"
@@ -39,6 +40,7 @@ const (
 
 	defaultHTTPAddr          = ":8080"
 	defaultPublicDir         = "/app/public"
+	defaultLogLevel          = "info"
 	defaultMLBaseURL         = "http://127.0.0.1:8000"
 	defaultDBTimeout         = 5 * time.Second
 	defaultAnalysisQueueSize = 8
@@ -48,6 +50,7 @@ const (
 
 type Config struct {
 	HTTP     HTTPConfig
+	LogLevel string
 	ML       MLConfig
 	Source   SourceConfig
 	Postgres PostgresConfig
@@ -103,6 +106,7 @@ func LoadFrom(lookup Lookup) (cfg Config, err error) {
 			Addr:      value(lookup, EnvHTTPAddr, defaultHTTPAddr),
 			PublicDir: value(lookup, EnvPublicDir, defaultPublicDir),
 		},
+		LogLevel: value(lookup, EnvLogLevel, defaultLogLevel),
 		ML: MLConfig{
 			BaseURL:              value(lookup, EnvMLBaseURL, defaultMLBaseURL),
 			ExpectedModelVersion: value(lookup, EnvMLModelVersion, ""),

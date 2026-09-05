@@ -10,16 +10,25 @@ import (
 	"syscall"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/app"
+	"github.com/Benzocloud/cosmohack/backend/internal/config"
+	applog "github.com/Benzocloud/cosmohack/backend/pkg/log"
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	err := app.Run(ctx)
+	cfg, err := config.Load()
+	var logger *slog.Logger
+	if err != nil {
+		logger = applog.New("info", applog.DefaultTimeFormat)
+	} else {
+		logger = applog.New(cfg.LogLevel, applog.DefaultTimeFormat)
+		err = app.Run(ctx, cfg, logger)
+	}
 
 	stop()
 
 	if err != nil {
-		slog.Error("server stopped", "error", err)
+		logger.Error("server stopped", "error", err)
 		os.Exit(1)
 	}
 }

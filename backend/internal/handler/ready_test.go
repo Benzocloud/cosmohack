@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +14,7 @@ func TestRegister_Ready(t *testing.T) {
 	t.Parallel()
 
 	mux := http.NewServeMux()
-	Register(mux, nil)
+	Register(mux, nil, testLogger())
 
 	getReq := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 	getRec := httptest.NewRecorder()
@@ -46,11 +47,15 @@ func TestRegister_Ready(t *testing.T) {
 
 func TestRegister_ReadyDependencyFailure(t *testing.T) {
 	mux := http.NewServeMux()
-	Register(mux, func(context.Context) error { return errors.New("database unavailable") })
+	Register(mux, func(context.Context) error { return errors.New("database unavailable") }, testLogger())
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
 	}
+}
+
+func testLogger() *slog.Logger {
+	return slog.New(slog.DiscardHandler)
 }
