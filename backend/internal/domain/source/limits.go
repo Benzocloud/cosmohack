@@ -9,6 +9,8 @@ import (
 
 const LimitsProvider = "collector"
 
+const defaultMaxPeriodDays = 1461
+
 type LimitsSpec struct {
 	MinAreaHectares     float64
 	MaxAreaHectares     float64
@@ -32,7 +34,7 @@ func DefaultLimits() Limits {
 		MinAreaHectares:     0.5,
 		MaxAreaHectares:     25000,
 		MaxPolygonVertices:  512,
-		MaxPeriodDays:       732,
+		MaxPeriodDays:       defaultMaxPeriodDays,
 		MaxObservations:     4096,
 		MaxSearchAreaSquare: 250000,
 	})

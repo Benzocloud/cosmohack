@@ -236,10 +236,29 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
   useEffect(() => {
     if (!mapInstance) return undefined;
     const canvasContainer = mapInstance.getCanvasContainer();
-    if (drawing) canvasContainer.style.touchAction = 'none';
-    else canvasContainer.style.removeProperty('touch-action');
-    return () => {
+    const canvas = mapInstance.getCanvas();
+    const preventNativeDrag = (event: Event) => event.preventDefault();
+
+    if (drawing) {
+      canvasContainer.style.touchAction = 'none';
+      canvas.style.touchAction = 'none';
+      canvas.style.userSelect = 'none';
+      canvas.style.setProperty('-webkit-user-select', 'none');
+      canvas.style.setProperty('-webkit-user-drag', 'none');
+      canvas.addEventListener('dragstart', preventNativeDrag);
+      canvas.addEventListener('selectstart', preventNativeDrag);
+    } else {
       canvasContainer.style.removeProperty('touch-action');
+    }
+
+    return () => {
+      canvas.removeEventListener('dragstart', preventNativeDrag);
+      canvas.removeEventListener('selectstart', preventNativeDrag);
+      canvasContainer.style.removeProperty('touch-action');
+      canvas.style.removeProperty('touch-action');
+      canvas.style.removeProperty('user-select');
+      canvas.style.removeProperty('-webkit-user-select');
+      canvas.style.removeProperty('-webkit-user-drag');
     };
   }, [drawing, mapInstance]);
 
