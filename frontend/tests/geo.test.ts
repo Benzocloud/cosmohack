@@ -53,7 +53,14 @@ describe('closePolygonGeometry', () => {
   it('closes an open outer ring before submission', () => {
     const geometry = closePolygonGeometry({
       type: 'Polygon',
-      coordinates: [[[39, 45], [39.01, 45], [39.01, 45.01], [39, 45.01]]],
+      coordinates: [
+        [
+          [39, 45],
+          [39.01, 45],
+          [39.01, 45.01],
+          [39, 45.01],
+        ],
+      ],
     });
 
     expect(geometry.coordinates[0]).toEqual([
@@ -80,9 +87,15 @@ describe('isSelfIntersecting', () => {
   });
 
   it('игнорирует повторные точки свободного рисования', () => {
-    expect(isSelfIntersecting([[0, 0], [0.001, 0], [0.001, 0], [0.001, 0.001], [0, 0.001]])).toBe(
-      false,
-    );
+    expect(
+      isSelfIntersecting([
+        [0, 0],
+        [0.001, 0],
+        [0.001, 0],
+        [0.001, 0.001],
+        [0, 0.001],
+      ]),
+    ).toBe(false);
   });
 });
 

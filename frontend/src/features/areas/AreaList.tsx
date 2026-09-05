@@ -66,9 +66,9 @@ export function AreaList() {
                 <span className={cn('text-2xs', VERDICT_COLOR[area.lastResult.verdict])}>
                   {VERDICT_LABEL[area.lastResult.verdict]}
                 </span>
-              ) : (
+              ) : !area.activeJob ? (
                 <span className="text-2xs text-ink-tertiary">{AREA_LIST_LABELS.notAnalyzed}</span>
-              )}
+              ) : null}
               {area.activeJob && (
                 <span className={cn('text-2xs', status.className)}>{status.text}</span>
               )}

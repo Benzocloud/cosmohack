@@ -27,7 +27,9 @@ export function MapLegend() {
         aria-expanded={expanded}
         onClick={() => setExpanded((value) => !value)}
       >
-        <span className="text-2xs font-semibold text-slate-900">{MAP_LABELS.legend}</span>
+        <span className={cn('text-2xs font-semibold text-slate-900', !expanded && 'sr-only')}>
+          {MAP_LABELS.legend}
+        </span>
         {expanded ? (
           <ChevronLeft className="size-4 shrink-0" aria-hidden />
         ) : (
