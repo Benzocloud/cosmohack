@@ -4,6 +4,5 @@ __pycache__/
 .pytest_cache/
 .idea/
 data/
-artifacts/
 awesome-llm-apps/
 criterias.pdf
