@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { polygonAreaHa, validatePeriod } from '@/lib/geo';
+import { polygonAreaHa, validatePeriod, validatePolygon } from '@/lib/geo';
 import { DIALOG_LABELS, MAP_LABELS } from '@/lib/labels';
 import { useEffect, useState } from 'react';
 
@@ -77,10 +77,16 @@ export function AddAreaDialog({
 
   const pending = createMutation.isPending || startMutation.isPending;
   const areaHa = source ? polygonAreaHa(toRing(source.geometry)) : 0;
+  const geometryCheck = source ? validatePolygon(toRing(source.geometry), limits) : null;
 
   async function submit(andAnalyze: boolean) {
     if (!source) return;
     setServerError(null);
+
+    if (geometryCheck && !geometryCheck.ok) {
+      setServerError(geometryCheck.error ?? 'Полигон невалиден');
+      return;
+    }
 
     if (!name.trim()) {
       setNameError(DIALOG_LABELS.nameRequired);

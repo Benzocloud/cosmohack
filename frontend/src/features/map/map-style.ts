@@ -26,8 +26,8 @@ export const SATELLITE_STYLE: StyleSpecification = {
   layers: [{ id: 'esri-imagery', type: 'raster', source: 'esri' }],
 };
 
-/** Начальный вид: центр РФ (frontend-plan §8). */
-export const DEFAULT_MAP_VIEW = { longitude: 60, latitude: 57, zoom: 4 };
+/** Начальный вид: центр РФ в масштабе, подходящем для поиска контуров. */
+export const DEFAULT_MAP_VIEW = { longitude: 60, latitude: 57, zoom: 9 };
 
 /** В mock-режиме стартуем над фикстурными контурами (Краснодарский край). */
 export const MOCK_MAP_VIEW = { longitude: 39.0, latitude: 45.65, zoom: 11.3 };
