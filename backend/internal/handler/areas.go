@@ -66,6 +66,8 @@ func (h *handler) createArea(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) deleteArea(w http.ResponseWriter, r *http.Request) {
+	h.gate.Lock()
+	defer h.gate.Unlock()
 	id := r.PathValue("id")
 	if err := validateID(id); err != nil {
 		writeValidation(w, err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
@@ -43,6 +44,7 @@ type handler struct {
 	contours ContourFinder
 	queue    Queue
 	limits   Limits
+	gate     sync.Mutex
 }
 
 // NewMux собирает публичные маршруты без Listen. Возвращает *http.ServeMux,
