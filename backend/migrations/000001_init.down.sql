@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS analysis_results;
+DROP TABLE IF EXISTS jobs;
+DROP TABLE IF EXISTS areas;
