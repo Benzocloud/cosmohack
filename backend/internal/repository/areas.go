@@ -20,7 +20,7 @@ type Repository struct {
 // New constructs a repository over an already configured sqlx pool.
 func New(db *sqlx.DB) (*Repository, error) {
 	if db == nil {
-		return nil, errors.New("area repository database is nil")
+		return nil, errors.New("repository database is nil")
 	}
 	return &Repository{db: db}, nil
 }
@@ -89,7 +89,7 @@ func (r *Repository) ListAreas(ctx context.Context) ([]domain.Area, error) {
 
 func (r *Repository) check() error {
 	if r == nil || r.db == nil {
-		return errors.New("area repository is not configured")
+		return errors.New("repository is not configured")
 	}
 	return nil
 }
