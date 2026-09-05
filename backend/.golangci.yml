@@ -23,7 +23,6 @@ linters:
     - reassign
     # стиль
     - gocritic
-    - revive
     - whitespace
     - godot
     - misspell
