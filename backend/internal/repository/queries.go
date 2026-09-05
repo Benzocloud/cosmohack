@@ -26,6 +26,9 @@ var queryLockJob string
 //go:embed sql/job_area.sql
 var queryJobArea string
 
+//go:embed sql/job_active_area.sql
+var queryActiveJobsByArea string
+
 //go:embed sql/job_running.sql
 var querySetJobRunning string
 
@@ -37,6 +40,9 @@ var querySetJobFailed string
 
 //go:embed sql/job_cancelled.sql
 var querySetJobCancelled string
+
+//go:embed sql/job_cancel_area.sql
+var queryCancelAreaJobs string
 
 //go:embed sql/job_input_revision.sql
 var querySetJobInputRevision string
@@ -56,6 +62,9 @@ var queryClearActiveJob string
 //go:embed sql/area_set_active.sql
 var querySetActiveJob string
 
+//go:embed sql/area_delete.sql
+var queryDeleteArea string
+
 //go:embed sql/area_recover.sql
 var queryRecoverAreas string
 
@@ -64,6 +73,9 @@ var queryGetResult string
 
 //go:embed sql/result_lock.sql
 var queryLockResult string
+
+//go:embed sql/result_delete_area.sql
+var queryDeleteAreaResults string
 
 //go:embed sql/result_insert.sql
 var queryInsertResult string

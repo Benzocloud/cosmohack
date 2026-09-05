@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/repository/record"
@@ -85,6 +86,53 @@ func (r *Repository) ListAreas(ctx context.Context) ([]domain.Area, error) {
 		out = append(out, area)
 	}
 	return out, nil
+}
+
+// DeleteArea cancels active jobs, removes immutable results and deletes the
+// area in one transaction. Job history intentionally remains queryable.
+func (r *Repository) DeleteArea(ctx context.Context, id string) ([]string, error) {
+	if err := r.check(); err != nil {
+		return nil, err
+	}
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin delete area: %w", err)
+	}
+	defer tx.Rollback()
+	var area record.Area
+	if err := tx.GetContext(ctx, &area, queryLockArea, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("lock area for delete: %w", err)
+	}
+	var active []struct {
+		ID string `db:"id"`
+	}
+	if err := tx.SelectContext(ctx, &active, queryActiveJobsByArea, id); err != nil {
+		return nil, fmt.Errorf("list active area jobs: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, queryCancelAreaJobs, id, time.Now().UTC()); err != nil {
+		return nil, fmt.Errorf("cancel area jobs: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, queryDeleteAreaResults, id); err != nil {
+		return nil, fmt.Errorf("delete area results: %w", err)
+	}
+	deleted, err := tx.ExecContext(ctx, queryDeleteArea, id)
+	if err != nil {
+		return nil, fmt.Errorf("delete area: %w", err)
+	}
+	if err := affected(deleted); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit delete area: %w", err)
+	}
+	ids := make([]string, 0, len(active))
+	for _, job := range active {
+		ids = append(ids, job.ID)
+	}
+	return ids, nil
 }
 
 func (r *Repository) check() error {
