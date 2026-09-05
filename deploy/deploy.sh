@@ -175,7 +175,7 @@ main() {
   "${COMPOSE[@]}" stop go || true
 
   log "updating ml"
-  "${COMPOSE[@]}" up -d ml || rollback
+  "${COMPOSE[@]}" up -d --wait --wait-timeout 60 ml || rollback
 
   log "checking ml readiness and versions"
   if ! check_ml_versions; then
