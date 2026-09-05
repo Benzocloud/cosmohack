@@ -16,12 +16,24 @@ def cmd_predict(args) -> int:
     sub, mdl = pipeline.predict_private(
         args.train, args.private, model_path=args.model, out_path=args.out,
         seeds=tuple(range(11, 11 + args.mask_seeds)),
-        model_seeds=tuple(range(args.model_seeds)))
+        model_seeds=tuple(range(args.model_seeds)),
+        extra_context=_existing(args.context))
     print(f"строк в ответе: {len(sub)}")
     print(f"диапазон предсказаний: {sub.primary_ndvi_pred.min():.4f} .. "
           f"{sub.primary_ndvi_pred.max():.4f}")
     print(f"записано: {args.out}")
     return 0
+
+
+def _existing(candidates) -> list:
+    """Оставляет только те файлы контекста, которые действительно есть."""
+    present = []
+    for path in candidates or ():
+        if Path(path).exists():
+            present.append(path)
+        else:
+            print(f"контекст пропущен, файла нет: {path}", file=sys.stderr)
+    return present
 
 
 def cmd_train(args) -> int:
@@ -95,6 +107,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("predict", help="построить submission.csv")
     p.add_argument("--out", default=paths.SUBMISSION_CSV)
+    p.add_argument("--context", nargs="*", default=[paths.TEST_CSV],
+                   help="дополнительные файлы того же формата для контекста")
     p.add_argument("--model", default=paths.MODEL_ARTIFACT)
     p.add_argument("--mask-seeds", type=int, default=8)
     p.add_argument("--model-seeds", type=int, default=3)

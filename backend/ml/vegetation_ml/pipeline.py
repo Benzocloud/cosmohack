@@ -29,6 +29,13 @@ def train_on_simulated(train_df: pd.DataFrame, grids: panel_mod.OverpassGrids,
                        seeds=(11, 12, 13), fraction: float = masking.MASK_FRACTION,
                        polygons: set | None = None, seasons: set | None = None,
                        model_seeds=(0, 1, 2), params: dict | None = None):
+    """Обучает модель на искусственно скрытых наблюдениях переданного контекста.
+
+    Контекстом может быть не только train: во всех файлах организаторов строки
+    вне контрольных содержат открытые значения primary_ndvi, и они пригодны для
+    обучения. Контрольные строки в обучение попасть не могут — их значение
+    отсутствует, а маскируются только известные наблюдения.
+    """
     train_df = sort_context(train_df)
     parts_X, parts_y = [], []
     for s in seeds:
@@ -56,23 +63,34 @@ def evaluate(train_df: pd.DataFrame, grids: panel_mod.OverpassGrids,
 
 
 def predict_private(train_path, private_path, model_path=None, out_path="submission.csv",
-                    seeds=(11, 12, 13), model_seeds=(0, 1, 2)):
+                    seeds=(11, 12, 13), model_seeds=(0, 1, 2), extra_context=()):
+    """Строит ответ по контрольным строкам целевого файла.
+
+    extra_context — дополнительные файлы организаторов того же формата. Они не
+    содержат целей этого запуска, но дают контекст: сезонную норму, оценку
+    сенсорных смещений и эффект даты по соседним полигонам.
+    """
     train_df = panel_mod.load_train(train_path)
     priv = panel_mod.load_private(private_path)
-    grids = fit_grids([train_df, priv])
+    extras = [panel_mod.load_private(p) for p in extra_context]
+    frames = [train_df, priv, *extras]
+    grids = fit_grids(frames)
+    context = sort_context(panel_mod.concat_context(*frames))
 
     if model_path and Path(model_path).exists():
         mdl = model_mod.RestorationModel.load(model_path)
     else:
-        mdl = train_on_simulated(train_df, grids, seeds=seeds, model_seeds=model_seeds)
+        mdl = train_on_simulated(context, grids, seeds=seeds, model_seeds=model_seeds)
         if model_path:
             mdl.save(model_path)
-
-    context = sort_context(panel_mod.concat_context(train_df, priv))
     key = pd.MultiIndex.from_arrays([context["anon_polygon_id"], context["date"]])
     gap_key = pd.MultiIndex.from_arrays([
         priv.loc[priv[S.GAP_FLAG], "anon_polygon_id"], priv.loc[priv[S.GAP_FLAG], "date"]])
     mask = key.isin(gap_key)
+    if int(mask.sum()) != int(priv[S.GAP_FLAG].sum()):
+        raise ValueError(
+            f"контрольных строк в файле {int(priv[S.GAP_FLAG].sum())}, "
+            f"а в собранном контексте найдено {int(mask.sum())}")
 
     _, X, offsets, probs = build_matrices(context, mask, grids)
     pred = mdl.predict(X)

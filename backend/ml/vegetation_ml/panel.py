@@ -105,13 +105,38 @@ def build_panel(df: pd.DataFrame, target_mask: np.ndarray) -> pd.DataFrame:
     p = p[PANEL_COLUMNS].sort_values(["anon_polygon_id", "epoch"]).reset_index(drop=True)
     return p
 
-def concat_context(train: pd.DataFrame, private: pd.DataFrame) -> pd.DataFrame:
-    """Объединяет train и private в один контекст по полигонам.
+CONTEXT_COLUMNS = (
+    ["anon_polygon_id", "date", "epoch", "year_", "doy_", "season", "crop_type"]
+    + S.SPECTRAL_COLUMNS + S.WEATHER_COLUMNS + [S.TARGET]
+)
 
-    39 полигонов private совпадают по идентификатору с train, но их строки не
-    пересекаются по датам: там только сезон 2025, а история 2010–2024 лежит в
-    train. Без склейки эти полигоны теряют климатологию и оценку смещений."""
-    keep = [c for c in private.columns if c not in (S.GAP_FLAG,)]
-    a = train[[c for c in keep if c in train.columns]].copy()
-    b = private[keep].copy()
-    return pd.concat([a, b], ignore_index=True)
+
+def concat_context(*frames: pd.DataFrame) -> pd.DataFrame:
+    """Объединяет выданные организаторами файлы в один контекст по полигонам.
+
+    Файлы дополняют друг друга, а не дублируются: один и тот же полигон может
+    иметь историю в одном файле и отдельный сезон в другом, и без склейки
+    теряются сезонная норма, сенсорные смещения и эффект даты.
+
+    Совпадение ключа (полигон, дата) между файлами означало бы либо дубль, либо
+    раскрытие скрытого значения, поэтому оно не игнорируется, а прерывает
+    работу: молча взять одну из двух версий строки хуже, чем остановиться.
+    """
+    parts = []
+    for frame in frames:
+        if frame is None or not len(frame):
+            continue
+        missing = [c for c in CONTEXT_COLUMNS if c not in frame.columns]
+        if missing:
+            raise ValueError(f"в источнике контекста нет колонок: {missing}")
+        parts.append(frame[CONTEXT_COLUMNS].copy())
+    if not parts:
+        raise ValueError("не передано ни одного источника контекста")
+    merged = pd.concat(parts, ignore_index=True)
+    duplicated = merged.duplicated(["anon_polygon_id", "date"])
+    if duplicated.any():
+        example = merged.loc[duplicated, ["anon_polygon_id", "date"]].iloc[0]
+        raise ValueError(
+            f"источники контекста пересекаются по ключу: повторов {int(duplicated.sum())}, "
+            f"например {example.anon_polygon_id} {example.date.date()}")
+    return merged
