@@ -11,7 +11,9 @@ from vegetation_ml import contracts, service, web_analysis
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch, tmp_path):
+    """Сервис без артефакта модели: доступен только базовый профиль."""
+    monkeypatch.setenv(service.MODEL_PATH_ENV, str(tmp_path / "absent.pkl"))
     with TestClient(service.app) as c:
         yield c
 
@@ -79,7 +81,8 @@ def test_readyz_reports_contract_and_model(client):
     assert body["status"] == "ready"
     assert body["schema_version"] == "1.0"
     assert body["feature_profiles"] == ["ndvi-weather-v1"]
-    assert body["model_version"] == web_analysis.MODEL_VERSION
+    assert body["model_version"] == web_analysis.model_version(None)
+    assert body["schema_versions"] == ["1.0", "1.1"]
 
 
 def test_analyze_echoes_request_and_restores_gaps(client):
