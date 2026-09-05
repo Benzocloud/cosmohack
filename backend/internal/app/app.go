@@ -73,7 +73,7 @@ func Run(ctx context.Context) error {
 	}
 
 	mux := handler.NewMux(st, placeholderContours{}, &executorQueue{executor}, handler.Limits{})
-	handler.Register(mux)
+	handler.Register(mux, nil)
 	serveStatic(mux)
 
 	srv := &http.Server{

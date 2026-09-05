@@ -13,7 +13,7 @@ func TestRegister_Ready(t *testing.T) {
 	t.Parallel()
 
 	mux := http.NewServeMux()
-	Register(mux)
+	Register(mux, nil)
 
 	getReq := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 	getRec := httptest.NewRecorder()

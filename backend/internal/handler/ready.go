@@ -32,11 +32,7 @@ type readyResponse struct {
 type ReadinessCheck func(context.Context) error
 
 // Register подключает публичные маршруты к mux.
-func Register(mux *http.ServeMux, checks ...ReadinessCheck) {
-	var check ReadinessCheck
-	if len(checks) > 0 {
-		check = checks[0]
-	}
+func Register(mux *http.ServeMux, check ReadinessCheck) {
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
 		handleReady(w, r, check)
 	})
