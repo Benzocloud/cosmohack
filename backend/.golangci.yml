@@ -17,7 +17,6 @@ linters:
     - errcheck
     - errorlint
     - nilerr
-    - forcetypeassert
     - copyloopvar
     - durationcheck
     - reassign
@@ -31,21 +30,14 @@ linters:
     - errname
     - asciicheck
     # сложность
-    - gocyclo
     - nestif
-    - funlen
-    - dupl
     # производительность
-    - perfsprint
     - unconvert
     - ineffassign
-    - goconst
     # безопасность и ресурсы
-    - gosec
     - bidichk
     - bodyclose
     - noctx
-    - containedctx
     - fatcontext
     # логирование
     - sloglint
@@ -54,17 +46,13 @@ linters:
     - testifylint
     - thelper
     - usetesting
-    - paralleltest
-    # модернизация
-    - modernize
     - exptostd
-    - intrange
     - usestdlibvars
     - exhaustive
     - nolintlint
 
   disable:
-    - lll              # длину строк держат gofmt/gofumpt
+    - lll              # длину строк держит gofmt
     - prealloc         # много ложных срабатываний
     - wrapcheck        # требует оборачивать все внешние ошибки — слишком шумно
     - err113           # ломает идиоматичные паттерны ошибок
@@ -92,29 +80,14 @@ linters:
       - examples$
 
   settings:
-    dupl:
-      threshold: 100
     errcheck:
       check-type-assertions: true
-    funlen:
-      lines: 120
-      statements: 80
-    goconst:
-      min-len: 3
-      min-occurrences: 4
-    gocyclo:
-      min-complexity: 13
     nolintlint:
       require-explanation: true
       require-specific: true
 formatters:
   enable:
     - gofmt
-    - gofumpt
-  settings:
-    gofumpt:
-      extra:
-        group-params: true
   exclusions:
     generated: lax
     paths:

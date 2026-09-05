@@ -632,9 +632,9 @@ func TestClient_Ready(t *testing.T) {
 }
 
 // replaceInBody возвращает мутатор фикстуры ответа простой заменой подстроки.
-func replaceInBody(old, new string) func([]byte) []byte {
+func replaceInBody(old, replacement string) func([]byte) []byte {
 	return func(body []byte) []byte {
-		replaced := strings.ReplaceAll(string(body), old, new)
+		replaced := strings.ReplaceAll(string(body), old, replacement)
 		return []byte(replaced)
 	}
 }
