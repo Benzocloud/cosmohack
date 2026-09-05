@@ -136,6 +136,11 @@ func mapResultRow(row record.AnalysisResult) (domain.AnalysisRecord, error) {
 	var severity *domain.Severity
 	if row.Severity.Valid {
 		value := domain.Severity(row.Severity.String)
+		switch value {
+		case domain.SeverityNone, domain.SeverityModerate, domain.SeverityHigh:
+		default:
+			return domain.AnalysisRecord{}, fmt.Errorf("decode result severity: %q", row.Severity.String)
+		}
 		severity = &value
 	}
 	return domain.AnalysisRecord{
