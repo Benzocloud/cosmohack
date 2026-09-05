@@ -15,11 +15,23 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION_EXTENDED = "1.1"
+SUPPORTED_SCHEMA_VERSIONS = (SCHEMA_VERSION, SCHEMA_VERSION_EXTENDED)
+
 FEATURE_PROFILE = "ndvi-weather-v1"
+PROFILE_MULTISENSOR = "ndvi-multisensor-v1"
 MODE = "retrospective"
 
 MAX_OBSERVATIONS = 4096
+MAX_PEERS = 8
+MAX_TOTAL_POINTS = 32768
 MAX_ID_LENGTH = 128
+
+SENSOR_INDEX_FIELDS = ("s2_ndvi", "s2_evi", "s2_ndwi",
+                       "landsat_ndvi", "landsat_evi", "landsat_ndwi",
+                       "modis_ndvi", "modis_evi")
+NDVI_PRIORITY = ("s2_ndvi", "landsat_ndvi", "modis_ndvi")
+NDVI_MATCH_TOLERANCE = 1e-9
 
 Id = Annotated[str, Field(min_length=1, max_length=MAX_ID_LENGTH)]
 
@@ -45,6 +57,79 @@ class Period(Strict):
     def check_order(self):
         if self.from_ > self.to:
             raise ValueError("начало периода позже конца")
+        return self
+
+
+class Indices(Strict):
+    """Значения отдельных сенсоров за один день.
+
+    Профиль ndvi-multisensor-v1 передаёт их, потому что primary_ndvi собран из
+    трёх сенсоров с разной калибровкой, и без знания источника снять эту разницу
+    нельзя. Все ключи обязательны, отсутствие значения кодируется null.
+    """
+
+    s2_ndvi: float | None
+    s2_evi: float | None
+    s2_ndwi: float | None
+    landsat_ndvi: float | None
+    landsat_evi: float | None
+    landsat_ndwi: float | None
+    modis_ndvi: float | None
+    modis_evi: float | None
+
+    @model_validator(mode="after")
+    def check_finite(self):
+        for name in SENSOR_INDEX_FIELDS:
+            _finite(getattr(self, name), f"indices.{name}")
+        return self
+
+    def primary(self) -> float | None:
+        """Значение по приоритету s2 → landsat → modis."""
+        for name in NDVI_PRIORITY:
+            value = getattr(self, name)
+            if value is not None:
+                return value
+        return None
+
+
+class AreaContext(Strict):
+    """Свойства участка, не меняющиеся по датам."""
+
+    crop_type: str | None
+
+
+class PeerObservation(Strict):
+    """Точка соседнего участка, нужная только для оценки эффекта даты."""
+
+    date: date
+    primary_ndvi: float | None
+    quality: Literal["usable", "unusable", "missing"] | None
+    indices: Indices | None
+
+    @field_validator("primary_ndvi")
+    @classmethod
+    def finite(cls, v, info):
+        return _finite(v, info.field_name)
+
+
+class PeerSeries(Strict):
+    """Ряд соседнего участка.
+
+    Эффект даты — общий сдвиг наблюдений всех участков в день съёмки — по
+    абляции самый весомый признак после опорной оценки. Он вычисляется только
+    по соседям, сам участок в него не входит.
+    """
+
+    area_id: Id
+    observations: list[PeerObservation] = Field(max_length=MAX_OBSERVATIONS)
+
+    @model_validator(mode="after")
+    def check_dates(self):
+        dates = [o.date for o in self.observations]
+        if len(dates) != len(set(dates)):
+            raise ValueError(f"даты соседнего участка {self.area_id} должны быть уникальны")
+        if any(b <= a for a, b in zip(dates, dates[1:])):
+            raise ValueError(f"даты соседнего участка {self.area_id} должны строго возрастать")
         return self
 
 
@@ -103,6 +188,7 @@ class Observation(Strict):
     missing_reason: str | None
     weather: Weather | None
     reference: Reference | None
+    indices: Indices | None = None
 
     @field_validator("primary_ndvi", "valid_fraction")
     @classmethod
@@ -128,6 +214,19 @@ class Observation(Strict):
                 raise ValueError(f"точка {self.date} с quality=missing требует missing_reason")
             if self.primary_ndvi is not None:
                 raise ValueError(f"точка {self.date} с quality=missing не может иметь primary_ndvi")
+        if self.indices is not None:
+            expected = self.indices.primary()
+            if self.primary_ndvi is None and expected is not None:
+                raise ValueError(
+                    f"точка {self.date}: indices содержат наблюдение, а primary_ndvi пуст")
+            if self.primary_ndvi is not None and expected is None:
+                raise ValueError(
+                    f"точка {self.date}: primary_ndvi задан, а все indices пусты")
+            if (self.primary_ndvi is not None and expected is not None
+                    and abs(self.primary_ndvi - expected) > NDVI_MATCH_TOLERANCE):
+                raise ValueError(
+                    f"точка {self.date}: primary_ndvi не совпадает с первым доступным "
+                    "индексом в порядке s2 → landsat → modis")
         return self
 
     @property
@@ -145,6 +244,12 @@ class AnalyzeRequest(Strict):
     analysis_period: Period
     sources: list[Source]
     observations: list[Observation] = Field(max_length=MAX_OBSERVATIONS)
+    area_context: AreaContext | None = None
+    peers: list[PeerSeries] | None = Field(default=None, max_length=MAX_PEERS)
+
+    @property
+    def is_multisensor(self) -> bool:
+        return self.feature_profile == PROFILE_MULTISENSOR
 
     @model_validator(mode="after")
     def check_consistency(self):
@@ -170,6 +275,26 @@ class AnalyzeRequest(Strict):
         inside = [d for d in dates if self.analysis_period.from_ <= d <= self.analysis_period.to]
         if not inside:
             raise ValueError("в analysis_period не попадает ни одна переданная точка")
+
+        if not self.is_multisensor:
+            if any(o.indices is not None for o in self.observations):
+                raise ValueError(
+                    f"поле indices доступно только в профиле {PROFILE_MULTISENSOR}")
+            if self.area_context is not None or self.peers is not None:
+                raise ValueError(
+                    f"поля area_context и peers доступны только в профиле {PROFILE_MULTISENSOR}")
+
+        if self.peers is not None:
+            peer_ids = [p.area_id for p in self.peers]
+            if len(peer_ids) != len(set(peer_ids)):
+                raise ValueError("идентификаторы соседних участков должны быть уникальны")
+            if self.area_id in peer_ids:
+                raise ValueError("сам участок не может быть в списке соседей")
+
+        total = len(self.observations) + sum(len(p.observations) for p in (self.peers or []))
+        if total > MAX_TOTAL_POINTS:
+            raise ValueError(
+                f"суммарное число точек {total} превышает предел {MAX_TOTAL_POINTS}")
         return self
 
 
@@ -177,13 +302,26 @@ class UnsupportedContract(ValueError):
     """Версия схемы, режим или профиль признаков не поддерживаются."""
 
 
-def check_contract(payload: dict) -> None:
-    """Проверяет поля, несовпадение которых даёт unsupported_contract, а не invalid_input."""
-    if payload.get("schema_version") != SCHEMA_VERSION:
+def check_contract(payload: dict, available_profiles=(FEATURE_PROFILE,)) -> None:
+    """Проверяет поля, несовпадение которых даёт unsupported_contract.
+
+    available_profiles — то, что процесс реально может обслужить: расширенный
+    профиль требует загруженного артефакта модели. Список совпадает с тем, что
+    объявляет GET /readyz, поэтому клиент не может запросить профиль, о котором
+    ему не сообщили.
+    """
+    version = payload.get("schema_version")
+    if version not in SUPPORTED_SCHEMA_VERSIONS:
         raise UnsupportedContract(
-            f"поддерживается только schema_version={SCHEMA_VERSION}")
+            "поддерживаются schema_version " + ", ".join(SUPPORTED_SCHEMA_VERSIONS))
     if payload.get("mode") != MODE:
         raise UnsupportedContract(f"поддерживается только mode={MODE}")
-    if payload.get("feature_profile") != FEATURE_PROFILE:
+
+    profile = payload.get("feature_profile")
+    if profile not in available_profiles:
         raise UnsupportedContract(
-            f"поддерживается только feature_profile={FEATURE_PROFILE}")
+            "поддерживаются feature_profile " + ", ".join(available_profiles))
+    if profile == PROFILE_MULTISENSOR and version == SCHEMA_VERSION:
+        raise UnsupportedContract(
+            f"профиль {PROFILE_MULTISENSOR} требует schema_version="
+            f"{SCHEMA_VERSION_EXTENDED}")
