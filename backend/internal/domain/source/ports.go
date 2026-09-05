@@ -77,8 +77,8 @@ func (s SatelliteSample) WithIndices(indices *SatelliteIndices) (SatelliteSample
 	}
 	s.indices = nil
 	if indices != nil {
-		copy := indices.Values()
-		s.indices = &copy
+		cloned := indices.Values()
+		s.indices = &cloned
 	}
 	return s, nil
 }
@@ -103,8 +103,8 @@ func (s SatelliteSample) Indices() *SatelliteIndices {
 	if s.indices == nil {
 		return nil
 	}
-	copy := s.indices.Values()
-	return &copy
+	cloned := s.indices.Values()
+	return &cloned
 }
 
 func (s SatelliteSample) Usable() bool {

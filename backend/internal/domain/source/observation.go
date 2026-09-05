@@ -179,8 +179,8 @@ func (o Observation) Indices() *SatelliteIndices {
 	if o.indices == nil {
 		return nil
 	}
-	copy := o.indices.Values()
-	return &copy
+	cloned := o.indices.Values()
+	return &cloned
 }
 
 type ObservationBuilder struct {
@@ -244,8 +244,8 @@ func (b *ObservationBuilder) WithIndices(indices *SatelliteIndices) *Observation
 	}
 	b.observation.indices = nil
 	if indices != nil {
-		copy := indices.Values()
-		b.observation.indices = &copy
+		cloned := indices.Values()
+		b.observation.indices = &cloned
 	}
 	return b
 }
