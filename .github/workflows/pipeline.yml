@@ -236,11 +236,10 @@ jobs:
           printf 'GHCR_USER=%s\nGHCR_TOKEN=%s\nDATABASE_URL=%s\nCDSE_CLIENT_ID=%s\nCDSE_CLIENT_SECRET=%s\n' \
             "$GHCR_USER" "$GHCR_TOKEN" "$DATABASE_URL" "$CDSE_CLIENT_ID" "$CDSE_CLIENT_SECRET" > "$release_env"
           run_as_root install -m 0600 "$release_env" "$DEPLOY_DIR/release-ghcr.env"
-          cd "$DEPLOY_DIR"
           export GO_IMAGE="ghcr.io/${IMAGE_REPO}/go@${GO_DIGEST}"
           export ML_IMAGE="ghcr.io/${IMAGE_REPO}/ml@${ML_DIGEST}"
           export MIGRATIONS_DIR_HOST=./migrations
-          run_as_root ./deploy.sh
+          run_as_root "$DEPLOY_DIR/deploy.sh"
 
   deploy-stub:
     # До поставки настоящего ML запускаем production Go с образом ML stub на
@@ -287,9 +286,8 @@ jobs:
           printf 'GHCR_USER=%s\nGHCR_TOKEN=%s\nDATABASE_URL=%s\nCDSE_CLIENT_ID=%s\nCDSE_CLIENT_SECRET=%s\n' \
             "$GHCR_USER" "$GHCR_TOKEN" "$DATABASE_URL" "$CDSE_CLIENT_ID" "$CDSE_CLIENT_SECRET" > "$release_env"
           run_as_root install -m 0600 "$release_env" "$DEPLOY_DIR/release-ghcr.env"
-          cd "$DEPLOY_DIR"
           export GO_IMAGE="ghcr.io/${IMAGE_REPO}/go@${GO_DIGEST}"
           export ML_IMAGE="ghcr.io/${IMAGE_REPO}/ml-stub@${ML_STUB_DIGEST}"
           export MODEL_VERSION
           export MIGRATIONS_DIR_HOST=./migrations
-          run_as_root ./deploy.sh
+          run_as_root "$DEPLOY_DIR/deploy.sh"
