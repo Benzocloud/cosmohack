@@ -27,6 +27,7 @@ export default {
       colors: {
         // --- алиасы shadcn/ui поверх токенов ---
         border: 'var(--border)',
+        'border-strong': 'var(--border-strong)',
         input: 'var(--border)',
         ring: 'var(--focus-ring)',
         background: 'var(--bg-surface)',

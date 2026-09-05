@@ -120,4 +120,13 @@ describe('validatePeriod', () => {
     expect(validatePeriod('2024-01-01', '2025-02-04', null).ok).toBe(true);
     expect(validatePeriod('2024-01-01', '2025-02-04', limits).ok).toBe(false);
   });
+
+  it('считает обе границы периода', () => {
+    expect(validatePeriod('2024-01-01', '2024-12-31', { ...limits, periodDaysMax: 366 }).ok).toBe(
+      true,
+    );
+    expect(validatePeriod('2024-01-01', '2024-12-31', { ...limits, periodDaysMax: 365 }).ok).toBe(
+      false,
+    );
+  });
 });

@@ -1,6 +1,7 @@
 import ReactECharts from 'echarts-for-react';
 
 import type { Series } from '@/api/types';
+import { cssVar } from '@/lib/chart-theme';
 import { splitByProvenance } from '@/lib/series';
 
 /**
@@ -8,12 +9,6 @@ import { splitByProvenance } from '@/lib/series';
  * через lib/series.ts. НЕ финальный NdviChart (он на FE-4): без легенды,
  * тултипов, zoom и событий. Цвета — из токенов §2.2 с hex-фоллбеком для SSR/тестов.
  */
-
-function cssVar(name: string, fallback: string): string {
-  if (typeof window === 'undefined') return fallback;
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return value.length > 0 ? value : fallback;
-}
 
 export function PreviewChart({ series }: { series: Series }) {
   const split = splitByProvenance(series.points);

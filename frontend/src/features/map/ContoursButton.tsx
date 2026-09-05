@@ -35,7 +35,7 @@ export function ContoursButton({
       : status === 'empty'
         ? EMPTY.contoursNotFound
         : status === 'failed'
-          ? 'Повторить поиск контуров'
+          ? MAP_LABELS.retrySearch
           : SCAFFOLD.findContours;
 
   return (
@@ -52,7 +52,7 @@ export function ContoursButton({
               {label}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Найти сельхозконтуры в текущей области карты</TooltipContent>
+          <TooltipContent>{MAP_LABELS.searchTooltip}</TooltipContent>
         </Tooltip>
       </div>
 
@@ -88,7 +88,7 @@ export function ContoursButton({
       {/* failed: повтор запроса тем же действием */}
       {status === 'failed' && !stale && (
         <p className="px-1 text-2xs text-verdict-confirmed" role="alert">
-          {EMPTY.contoursFailed}. Проверьте область и повторите запрос.
+          {EMPTY.contoursFailed} {MAP_LABELS.retryHint}
         </p>
       )}
     </div>

@@ -60,7 +60,7 @@ export function adaptSeriesPoint(raw: PointRaw): SeriesPoint {
     date: requireString(raw.date, 'point.date'),
     ndvi,
     provenance,
-    quality: raw.state,
+    quality: raw.method ?? null,
     background: typeof raw.baseline === 'number' ? { mean: raw.baseline } : null,
     deviation: null,
     z: typeof raw.z_score === 'number' ? raw.z_score : null,

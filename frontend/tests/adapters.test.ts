@@ -95,11 +95,23 @@ describe('canonical adapters', () => {
       result_version: 'v1',
       period: { from: '2024-01-01', to: '2024-02-01' },
       series: [
-        { date: '2024-01-01', primary_ndvi: null, value: 0.4, state: 'imputed', z_score: -2 },
+        {
+          date: '2024-01-01',
+          primary_ndvi: null,
+          value: 0.4,
+          state: 'imputed',
+          method: 'linear interpolation',
+          z_score: -2,
+        },
       ],
       weather: [{ date: '2024-01-01', temperature_mean_c: 22, precipitation_sum_mm: 4 }],
     });
-    expect(series.points[0]).toMatchObject({ ndvi: 0.4, provenance: 'imputed', z: -2 });
+    expect(series.points[0]).toMatchObject({
+      ndvi: 0.4,
+      provenance: 'imputed',
+      quality: 'linear interpolation',
+      z: -2,
+    });
     expect(series.weather?.temperature[0].value).toBe(22);
     expect(adaptSeries({ area_id: 'a1', series: [], weather: [] }).points).toEqual([]);
     expect(

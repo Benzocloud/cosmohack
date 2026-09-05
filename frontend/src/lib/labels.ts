@@ -96,9 +96,13 @@ export const DEV_LABELS = {
  */
 export const MAP_LABELS = {
   searching: 'Ищем контуры…',
+  retrySearch: 'Повторить поиск контуров',
+  searchTooltip: 'Найти сельхозконтуры в текущей области карты',
+  retryHint: 'Проверьте область и повторите запрос.',
   stale: 'Область изменилась — искать снова',
   contourSource: 'Контур OpenStreetMap',
   drawHint: 'Обведите нужную область одной непрерывной линией',
+  releaseToClose: 'Отпустите для замыкания',
   undoVertex: 'Отменить точку',
   finishDraw: 'Завершить',
   cancelDraw: 'Отмена',

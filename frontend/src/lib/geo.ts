@@ -66,7 +66,7 @@ export function validatePeriod(from: string, to: string, limits: Limits | null):
     return { ok: false, error: MAP_LABELS.badPeriod };
   }
   if (limits?.periodDaysMax !== undefined) {
-    const days = (Date.parse(to) - Date.parse(from)) / 86_400_000;
+    const days = (Date.parse(to) - Date.parse(from)) / 86_400_000 + 1;
     if (days > limits.periodDaysMax) {
       return { ok: false, error: MAP_LABELS.periodLimit(limits.periodDaysMax) };
     }
