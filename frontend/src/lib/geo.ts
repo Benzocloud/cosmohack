@@ -27,17 +27,26 @@ export function toPolygonGeometry(ring: Ring): GeoJSON.Polygon {
 export function closePolygonGeometry(geometry: GeoJSON.Polygon): GeoJSON.Polygon {
   const rings = geometry.coordinates.map((ring, index) => {
     if (index !== 0 || ring.length === 0) return ring;
-    const first = ring[0];
-    const last = ring[ring.length - 1];
-    if (first[0] === last[0] && first[1] === last[1]) return ring;
-    return [...ring, first];
+    const normalized = removeConsecutiveDuplicates(ring);
+    const first = normalized[0];
+    const last = normalized[normalized.length - 1];
+    if (first[0] === last[0] && first[1] === last[1]) return normalized;
+    return [...normalized, first];
   });
   return { ...geometry, coordinates: rings };
 }
 
 export function isSelfIntersecting(ring: Ring): boolean {
-  if (ring.length < 4) return false;
-  return kinks(toPolygonGeometry(ring)).features.length > 0;
+  const normalized = removeConsecutiveDuplicates(ring);
+  if (normalized.length < 4) return false;
+  return kinks(toPolygonGeometry(normalized)).features.length > 0;
+}
+
+function removeConsecutiveDuplicates<T extends number[]>(ring: T[]): T[] {
+  return ring.filter((point, index) => {
+    const previous = ring[index - 1];
+    return !previous || point[0] !== previous[0] || point[1] !== previous[1];
+  });
 }
 
 export function polygonAreaHa(ring: Ring): number {

@@ -78,6 +78,12 @@ describe('isSelfIntersecting', () => {
   it('менее 4 вершин не проверяется на пересечение', () => {
     expect(isSelfIntersecting(square.slice(0, 3))).toBe(false);
   });
+
+  it('игнорирует повторные точки свободного рисования', () => {
+    expect(isSelfIntersecting([[0, 0], [0.001, 0], [0.001, 0], [0.001, 0.001], [0, 0.001]])).toBe(
+      false,
+    );
+  });
 });
 
 describe('polygonAreaHa', () => {
