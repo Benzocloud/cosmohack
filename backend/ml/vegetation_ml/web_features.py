@@ -27,7 +27,8 @@ MODEL_MIN_SEASONS = 2
 MODEL_MIN_OBSERVATIONS = 60
 
 
-def _row(area_id, obs_date, indices, weather, crop_type, reliable):
+def _row(area_id, obs_date, indices, weather, crop_type, reliable,
+         primary_ndvi=None):
     """Одна строка панели из точки запроса.
 
     Ненадёжная точка (`unusable`/`missing`) попадает в панель как отсутствие
@@ -42,10 +43,18 @@ def _row(area_id, obs_date, indices, weather, crop_type, reliable):
         row[col] = np.nan
     row[S.TARGET] = np.nan
 
-    if reliable and indices is not None:
-        for col in S.SPECTRAL_COLUMNS:
-            row[col] = getattr(indices, col, None)
-        row[S.TARGET] = indices.primary()
+    if reliable:
+        if indices is not None:
+            for col in S.SPECTRAL_COLUMNS:
+                row[col] = getattr(indices, col, None)
+            index_primary = indices.primary()
+            row[S.TARGET] = (index_primary if index_primary is not None
+                             else primary_ndvi)
+        else:
+            # Peer rows may carry only the already fused primary value.  It is
+            # still valid context for the date effect; absent sensor fields
+            # must not make an otherwise usable peer disappear.
+            row[S.TARGET] = primary_ndvi
     if weather is not None:
         row["era5_temp_c"] = weather.temperature_mean_c
         row["era5_precip_mm"] = weather.precipitation_sum_mm
@@ -56,11 +65,11 @@ def build_context(request: AnalyzeRequest) -> pd.DataFrame:
     """Собирает панельный контекст: сам участок и переданные соседи."""
     crop = request.area_context.crop_type if request.area_context else None
     rows = [_row(request.area_id, o.date, o.indices, o.weather, crop,
-                 o.effective_quality == "usable")
+                 o.effective_quality == "usable", o.primary_ndvi)
             for o in request.observations]
     for peer in request.peers or []:
         rows.extend(_row(peer.area_id, o.date, o.indices, None, None,
-                         (o.quality or "missing") == "usable")
+                         (o.quality or "missing") == "usable", o.primary_ndvi)
                     for o in peer.observations)
     return panel_mod._add_time_keys(pd.DataFrame(rows))
 

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
@@ -130,5 +131,51 @@ func TestAnalyzeRequestKeepsObservationOrder(t *testing.T) {
 		if !document.Observations[index-1].Date.Before(document.Observations[index].Date) {
 			t.Fatalf("даты не строго возрастают на позиции %d", index)
 		}
+	}
+}
+
+func TestAnalyzeRequestCarriesMultisensorProfile(t *testing.T) {
+	period := mustRange(t, "2025-06-01", "2025-06-02")
+	sample, err := domainsource.NewSatelliteSample(
+		mustRange(t, "2025-06-01", "2025-06-01"),
+		domainsource.Float(0.71), domainsource.Float(0.95), true, "",
+	)
+	if err != nil {
+		t.Fatalf("спутниковая точка не построена: %v", err)
+	}
+	sample, err = sample.WithIndices(&domainsource.SatelliteIndices{
+		S2NDVI: domainsource.Float(0.71),
+		S2EVI:  domainsource.Float(0.62),
+		S2NDWI: domainsource.Float(0.18),
+	})
+	if err != nil {
+		t.Fatalf("мультисенсорные признаки не добавлены: %v", err)
+	}
+	snapshot, err := newCollector(t, &stubSatellite{series: satelliteSeries(t, sample)},
+		&stubWeather{series: weatherSeries(t, period)}).Collect(context.Background(), collectRequest(t, period))
+	if err != nil {
+		t.Fatalf("снимок не собран: %v", err)
+	}
+	request, err := source.NewAnalyzeRequestBuilder(0, 0).Build(snapshot, "job-multisensor-1")
+	if err != nil {
+		t.Fatalf("мультисенсорный запрос не построен: %v", err)
+	}
+	var document struct {
+		SchemaVersion  string `json:"schema_version"`
+		FeatureProfile string `json:"feature_profile"`
+		Observations   []struct {
+			Indices *struct {
+				S2NDVI *float64 `json:"s2_ndvi"`
+			} `json:"indices"`
+		} `json:"observations"`
+	}
+	if err := json.Unmarshal(request.Body(), &document); err != nil {
+		t.Fatalf("запрос не разобран: %v", err)
+	}
+	if document.SchemaVersion != domain.SchemaVersionV11 || document.FeatureProfile != domain.FeatureProfileMultisensorV1 {
+		t.Fatalf("профиль запроса %s/%s, ожидался 1.1/multisensor", document.SchemaVersion, document.FeatureProfile)
+	}
+	if document.Observations[0].Indices == nil || document.Observations[0].Indices.S2NDVI == nil {
+		t.Fatal("индексы не дошли до ML-запроса")
 	}
 }

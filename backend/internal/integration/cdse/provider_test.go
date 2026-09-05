@@ -184,6 +184,48 @@ func TestProviderMapsStatisticsToSamples(t *testing.T) {
 	}
 }
 
+func TestProviderFetchesS2Indices(t *testing.T) {
+	service := newService(t)
+	service.statisticsFixture = "statistics_indices_synthetic.json"
+
+	series, err := newProvider(t, service, fixedClock()).FetchIndices(
+		context.Background(), satelliteRequest(t, "2025-06-01", "2025-06-15"),
+	)
+	if err != nil {
+		t.Fatalf("индексы не получены: %v", err)
+	}
+	samples := series.Samples()
+	if len(samples) != 3 {
+		t.Fatalf("наблюдений %d, ожидалось 3", len(samples))
+	}
+	first := samples[0]
+	indices := first.Indices()
+	validIndices := indices.NDVI != nil && *indices.NDVI == 0.71 &&
+		indices.EVI != nil && *indices.EVI == 0.62 &&
+		indices.NDWI != nil && *indices.NDWI == 0.18
+	if !first.Usable() || !validIndices {
+		t.Fatalf("первое наблюдение разобрано неверно: %+v", indices)
+	}
+	validFraction := first.ValidFraction()
+	if first.Date().String() != "2025-06-03" || validFraction == nil || *validFraction != 0.95 {
+		t.Fatalf("дата или valid_fraction первого наблюдения неверны: %s/%v", first.Date(), first.ValidFraction())
+	}
+	low := samples[1]
+	if low.Usable() || low.Reason() != source.ReasonLowValidFraction {
+		t.Fatalf("наблюдение с низким качеством разобрано неверно: %+v", low)
+	}
+	empty := samples[2]
+	emptyIndices := empty.Indices()
+	if empty.Usable() || emptyIndices.NDVI != nil || emptyIndices.EVI != nil || emptyIndices.NDWI != nil ||
+		empty.Reason() != source.ReasonNoValidSamples {
+		t.Fatalf("пустое наблюдение разобрано неверно: %+v", empty)
+	}
+	mapping := series.Descriptor().Mapping()
+	if !strings.Contains(mapping, "EVI=") || !strings.Contains(mapping, "NDWI=") {
+		t.Fatalf("описание не содержит формулы индексов: %s", mapping)
+	}
+}
+
 func TestProviderDescribesProcessing(t *testing.T) {
 	service := newService(t)
 	series, err := newProvider(t, service, fixedClock()).FetchNDVI(context.Background(), satelliteRequest(t, "2025-06-01", "2025-06-20"))
@@ -248,6 +290,20 @@ func TestProviderSendsContractRequest(t *testing.T) {
 	evalscript, ok := aggregation["evalscript"].(string)
 	if !ok || !strings.Contains(evalscript, "dataMask") || !strings.Contains(evalscript, "SCL") {
 		t.Fatal("evalscript не содержит маску качества")
+	}
+	for _, fragment := range []string{"B02", "B11", "evi", "ndwi", "7.5", "Gao"} {
+		if !strings.Contains(evalscript, fragment) {
+			t.Fatalf("evalscript не содержит расчёт S2 индексов: %q", fragment)
+		}
+	}
+	calculations, ok := document["calculations"].(map[string]any)
+	if !ok {
+		t.Fatal("в запросе нет блока calculations")
+	}
+	for _, name := range []string{"ndvi", "evi", "ndwi"} {
+		if _, found := calculations[name]; !found {
+			t.Fatalf("в calculations нет индекса %s", name)
+		}
 	}
 	if !strings.Contains(string(service.lastBody), "\"type\":\"Polygon\"") {
 		t.Fatal("геометрия участка не передана")

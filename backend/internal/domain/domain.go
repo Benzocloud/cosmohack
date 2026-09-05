@@ -10,11 +10,17 @@ package domain
 // Версия HTTP-контракта Go ↔ ML. Обе стороны проверяют точное совпадение.
 const SchemaVersionV1 = "1.0"
 
+// SchemaVersionV11 — аддитивное расширение с раздельными сенсорными признаками.
+const SchemaVersionV11 = "1.1"
+
 // Режим анализа MVP: восстановление по известному контексту до и после пропуска.
 const ModeRetrospective = "retrospective"
 
 // Начальный профиль признаков веб-входа: NDVI плюс погода.
 const FeatureProfileNDVIWeatherV1 = "ndvi-weather-v1"
+
+// FeatureProfileMultisensorV1 — профиль с признаками нескольких сенсоров.
+const FeatureProfileMultisensorV1 = "ndvi-multisensor-v1"
 
 // SourceKind — тип источника данных в запросе анализа.
 type SourceKind string
@@ -105,6 +111,12 @@ const (
 	MaxRequestBodyBytes = 1 << 20
 	// MaxResponseBodyBytes — предел тела ответа (4 MiB).
 	MaxResponseBodyBytes = 4 << 20
+	// MaxMultisensorRequestBodyBytes — предел тела для согласованного v1.1.
+	MaxMultisensorRequestBodyBytes = 8 << 20
 	// MaxIDLength — предел длины идентификаторов и версий.
 	MaxIDLength = 128
+	// MaxPeers — максимум соседних участков в v1.1.
+	MaxPeers = 8
+	// MaxTotalPoints — максимум собственных и соседских точек в v1.1.
+	MaxTotalPoints = 32768
 )

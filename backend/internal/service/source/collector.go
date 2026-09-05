@@ -208,7 +208,8 @@ func (c *Collector) buildObservations(period domainsource.DateRange, samples map
 	observations := make([]domainsource.Observation, 0, period.Days())
 	for _, date := range period.Dates() {
 		builder := domainsource.NewObservationBuilder(date)
-		switch sample, found := samples[date.String()]; {
+		sample, found := samples[date.String()]
+		switch {
 		case found && sample.Usable():
 			builder.Measured(*sample.NDVI(), satelliteSourceID, sample.Interval(), sample.ValidFraction())
 		case found && sample.NDVI() != nil:
@@ -219,6 +220,11 @@ func (c *Collector) buildObservations(period domainsource.DateRange, samples map
 			builder.Missing(sample.Reason())
 		default:
 			builder.Missing(domainsource.ReasonNoObservation)
+		}
+		if found && sample.NDVI() != nil {
+			if indices := sample.Indices(); indices != nil {
+				builder.WithIndices(indices)
+			}
 		}
 
 		if day, found := weatherDays[date.String()]; found && weatherSourceID != "" {

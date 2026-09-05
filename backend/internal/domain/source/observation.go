@@ -132,6 +132,7 @@ type Observation struct {
 	missingReason string
 	weather       *Weather
 	reference     *Reference
+	indices       *SatelliteIndices
 }
 
 func (o Observation) Date() Date {
@@ -172,6 +173,14 @@ func (o Observation) Weather() *Weather {
 
 func (o Observation) Reference() *Reference {
 	return o.reference
+}
+
+func (o Observation) Indices() *SatelliteIndices {
+	if o.indices == nil {
+		return nil
+	}
+	copy := o.indices.Values()
+	return &copy
 }
 
 type ObservationBuilder struct {
@@ -227,6 +236,20 @@ func (b *ObservationBuilder) WithReference(reference *Reference) *ObservationBui
 	return b
 }
 
+// WithIndices attaches multisensor values to a satellite observation.
+func (b *ObservationBuilder) WithIndices(indices *SatelliteIndices) *ObservationBuilder {
+	if err := validateSatelliteIndices(indices); err != nil {
+		b.failure = err
+		return b
+	}
+	b.observation.indices = nil
+	if indices != nil {
+		copy := indices.Values()
+		b.observation.indices = &copy
+	}
+	return b
+}
+
 func (b *ObservationBuilder) Build() (Observation, error) {
 	if b.failure != nil {
 		return Observation{}, b.failure
@@ -239,6 +262,9 @@ func (b *ObservationBuilder) Build() (Observation, error) {
 		return Observation{}, err
 	}
 	if err := validateValidFraction(observation.validFraction); err != nil {
+		return Observation{}, err
+	}
+	if err := validateSatelliteIndices(observation.indices); err != nil {
 		return Observation{}, err
 	}
 	switch observation.quality {
@@ -262,6 +288,9 @@ func (b *ObservationBuilder) Build() (Observation, error) {
 		}
 		if observation.ndviSourceID != "" {
 			return Observation{}, fmt.Errorf("observation %s is marked missing with a source reference", observation.date)
+		}
+		if observation.indices != nil {
+			return Observation{}, fmt.Errorf("observation %s is marked missing with satellite indices", observation.date)
 		}
 	}
 	if observation.quality != QualityMissing {

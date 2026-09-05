@@ -124,6 +124,15 @@ func (s *Snapshot) UsableCount() int {
 	return countUsable(s.observations)
 }
 
+func (s *Snapshot) HasMultisensor() bool {
+	for _, observation := range s.observations {
+		if observation.Indices() != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Snapshot) MarshalJSON() ([]byte, error) {
 	geometry, err := geom.NewPolygonCodec(0).Encode(s.polygon)
 	if err != nil {

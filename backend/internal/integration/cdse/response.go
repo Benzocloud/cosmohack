@@ -103,6 +103,59 @@ func (r *statisticsResponse) samples(minValidFraction float64) ([]source.Satelli
 		if err != nil {
 			return nil, nil, err
 		}
+		if indices := item.sourceIndices(); indices != nil {
+			sample, err = sample.WithIndices(indices)
+			if err != nil {
+				return nil, nil, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
+					"multisensor indices for interval %s were rejected", interval)
+			}
+		}
+		samples = append(samples, sample)
+	}
+	if failed > 0 {
+		notes = append(notes, fmt.Sprintf("Интервалов с ошибкой расчёта у провайдера: %d", failed))
+	}
+	return samples, notes, nil
+}
+
+func (i statisticsItem) sourceIndices() *source.SatelliteIndices {
+	stats, found := i.indexStats()
+	if !found {
+		return nil
+	}
+	indices := source.SatelliteIndices{
+		S2NDVI: indexMean(stats, "ndvi"),
+		S2EVI:  indexMean(stats, "evi"),
+		S2NDWI: indexMean(stats, "ndwi"),
+	}
+	if indices.S2NDVI == nil && indices.S2EVI == nil && indices.S2NDWI == nil {
+		return nil
+	}
+	return &indices
+}
+
+func (r *statisticsResponse) indexSamples(minValidFraction float64) ([]IndexSample, []string, error) {
+	samples := make([]IndexSample, 0, len(r.Data))
+	notes := make([]string, 0, 2)
+	failed := 0
+	for _, item := range r.Data {
+		interval, err := item.dateRange()
+		if err != nil {
+			return nil, nil, err
+		}
+		if item.Error != nil {
+			failed++
+			sample, buildErr := newIndexSample(interval, Indices{}, nil, false, source.ReasonProviderEntryFailed)
+			if buildErr != nil {
+				return nil, nil, buildErr
+			}
+			samples = append(samples, sample)
+			continue
+		}
+		sample, err := item.indexSample(interval, minValidFraction)
+		if err != nil {
+			return nil, nil, err
+		}
 		samples = append(samples, sample)
 	}
 	if failed > 0 {
@@ -156,6 +209,34 @@ func (i statisticsItem) sample(interval source.DateRange, minValidFraction float
 	}
 }
 
+func (i statisticsItem) indexSample(interval source.DateRange, minValidFraction float64) (IndexSample, error) {
+	stats, found := i.indexStats()
+	if !found {
+		return newIndexSample(interval, Indices{}, nil, false, source.ReasonProviderInterval)
+	}
+
+	ndviStats, hasNDVI := stats["ndvi"]
+	validFraction := indexValidFraction(ndviStats, hasNDVI)
+	indices := Indices{
+		NDVI: indexMean(stats, "ndvi"),
+		EVI:  indexMean(stats, "evi"),
+		NDWI: indexMean(stats, "ndwi"),
+	}
+	if !hasNDVI || ndviStats.SampleCount <= 0 || ndviStats.SampleCount <= ndviStats.NoDataCount {
+		return newIndexSample(interval, indices, validFraction, false, source.ReasonNoValidSamples)
+	}
+	if indices.NDVI == nil {
+		return newIndexSample(interval, indices, validFraction, false, source.ReasonNoValidSamples)
+	}
+	if *indices.NDVI < -1 || *indices.NDVI > 1 {
+		return newIndexSample(interval, indices, validFraction, false, reasonOutOfRange)
+	}
+	if validFraction == nil || *validFraction < minValidFraction {
+		return newIndexSample(interval, indices, validFraction, false, source.ReasonLowValidFraction)
+	}
+	return newIndexSample(interval, indices, validFraction, true, "")
+}
+
 func (i statisticsItem) stats() (bandStats, bool) {
 	output, found := i.Outputs["ndvi"]
 	if !found {
@@ -168,6 +249,39 @@ func (i statisticsItem) stats() (bandStats, bool) {
 		return band.Stats, true
 	}
 	return bandStats{}, false
+}
+
+func (i statisticsItem) indexStats() (map[string]bandStats, bool) {
+	stats := make(map[string]bandStats, len(i.Outputs))
+	for name, output := range i.Outputs {
+		if band, found := output.Bands["B0"]; found {
+			stats[name] = band.Stats
+			continue
+		}
+		for _, band := range output.Bands {
+			stats[name] = band.Stats
+			break
+		}
+	}
+	return stats, len(stats) > 0
+}
+
+func indexMean(stats map[string]bandStats, name string) *float64 {
+	stat, found := stats[name]
+	if !found || stat.Mean.value == nil || stat.SampleCount <= 0 || stat.SampleCount <= stat.NoDataCount {
+		return nil
+	}
+	value := *stat.Mean.value
+	return &value
+}
+
+func indexValidFraction(stats bandStats, found bool) *float64 {
+	if !found || stats.SampleCount <= 0 {
+		return nil
+	}
+	fraction := float64(stats.SampleCount-stats.NoDataCount) / float64(stats.SampleCount)
+	fraction = math.Min(math.Max(fraction, 0), 1)
+	return &fraction
 }
 
 func newSample(interval source.DateRange, value, validFraction *float64, usable bool, reason string) (source.SatelliteSample, error) {

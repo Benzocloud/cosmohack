@@ -116,17 +116,56 @@ func NewProvider(config Config) (*Provider, error) {
 }
 
 func (p *Provider) FetchNDVI(ctx context.Context, request source.SatelliteRequest) (source.SatelliteSeries, error) {
-	token, err := p.tokens.Token(ctx)
+	document, err := p.fetchStatistics(ctx, request)
 	if err != nil {
 		return source.SatelliteSeries{}, err
+	}
+	samples, notes, err := document.samples(p.minValidFraction)
+	if err != nil {
+		return source.SatelliteSeries{}, err
+	}
+	descriptor, err := p.descriptor()
+	if err != nil {
+		return source.SatelliteSeries{}, err
+	}
+	return source.NewSatelliteSeries(descriptor, samples, notes)
+}
+
+// FetchIndices получает рассчитанные CDSE значения трёх индексов Sentinel-2.
+// Типы здесь локальны интеграции, пока расширение Go ↔ ML v1.1 не согласовано.
+func (p *Provider) FetchIndices(ctx context.Context, request source.SatelliteRequest) (IndexSeries, error) {
+	document, err := p.fetchStatistics(ctx, request)
+	if err != nil {
+		return IndexSeries{}, err
+	}
+	samples, notes, err := document.indexSamples(p.minValidFraction)
+	if err != nil {
+		return IndexSeries{}, err
+	}
+	descriptor, err := p.descriptor()
+	if err != nil {
+		return IndexSeries{}, err
+	}
+	return NewIndexSeries(descriptor, samples, notes), nil
+}
+
+// FetchS2Indices — явное имя для вызова локального S2-мультииндексного пути.
+func (p *Provider) FetchS2Indices(ctx context.Context, request source.SatelliteRequest) (IndexSeries, error) {
+	return p.FetchIndices(ctx, request)
+}
+
+func (p *Provider) fetchStatistics(ctx context.Context, request source.SatelliteRequest) (*statisticsResponse, error) {
+	token, err := p.tokens.Token(ctx)
+	if err != nil {
+		return nil, err
 	}
 	body, err := p.builder.build(request)
 	if err != nil {
-		return source.SatelliteSeries{}, err
+		return nil, err
 	}
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, p.endpoint, bytes.NewReader(body))
 	if err != nil {
-		return source.SatelliteSeries{}, domain.WrapProviderError(domain.FailureInvalidRequest, ProviderName, err,
+		return nil, domain.WrapProviderError(domain.FailureInvalidRequest, ProviderName, err,
 			"statistics request could not be built")
 	}
 	httpRequest.Header.Set("Content-Type", "application/json")
@@ -134,28 +173,28 @@ func (p *Provider) FetchNDVI(ctx context.Context, request source.SatelliteReques
 
 	document := &statisticsResponse{}
 	if err := p.client.DoJSON(ctx, ProviderName, httpRequest, document); err != nil {
-		return source.SatelliteSeries{}, err
+		return nil, err
 	}
-	samples, notes, err := document.samples(p.minValidFraction)
-	if err != nil {
-		return source.SatelliteSeries{}, err
-	}
+	return document, nil
+}
+
+func (p *Provider) descriptor() (source.Descriptor, error) {
 	descriptor, err := source.NewDescriptor(source.DescriptorSpec{
 		ID:       SourceID,
 		Kind:     source.KindSatellite,
 		Provider: ProviderName,
 		Dataset:  fmt.Sprintf("Sentinel-2 L2A (%s), CDSE Statistical API v1", p.collection),
 		Mapping: fmt.Sprintf(
-			"NDVI=(B08-B04)/(B08+B04) как среднее по полигону; исключены классы SCL %v; агрегация P%dD в UTC; разрешение %.0f м; mosaickingOrder=%s; valid_fraction=(sampleCount-noDataCount)/sampleCount; пригодным считается valid_fraction не ниже %.2f",
+			"S2 NDVI=(B08-B04)/(B08+B04), EVI=2.5*(B08-B04)/(B08+6*B04-7.5*B02+1), NDWI=(B08-B11)/(B08+B11) (Gao) как среднее по полигону; исключены классы SCL %v; агрегация P%dD в UTC; разрешение %.0f м; mosaickingOrder=%s; valid_fraction=(sampleCount-noDataCount)/sampleCount; пригодным считается valid_fraction не ниже %.2f",
 			maskedSceneClasses, p.aggregationDays, p.resolutionMeters, p.mosaickingOrder, p.minValidFraction),
 		License:     source.License(License),
 		RetrievedAt: p.clock().UTC(),
 	})
 	if err != nil {
-		return source.SatelliteSeries{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
+		return source.Descriptor{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
 			"satellite source descriptor could not be built")
 	}
-	return source.NewSatelliteSeries(descriptor, samples, notes)
+	return descriptor, nil
 }
 
 type requestBuilder struct {
@@ -204,6 +243,8 @@ func (b *requestBuilder) build(request source.SatelliteRequest) ([]byte, error) 
 		},
 		"calculations": map[string]any{
 			"ndvi": map[string]any{},
+			"evi":  map[string]any{},
+			"ndwi": map[string]any{},
 		},
 	}
 	body, err := json.Marshal(payload)

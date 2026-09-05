@@ -1,0 +1,29 @@
+{
+  "status": "OK",
+  "data": [
+    {
+      "interval": {"from": "2025-06-01T00:00:00Z", "to": "2025-06-06T00:00:00Z"},
+      "outputs": {
+        "ndvi": {"bands": {"B0": {"stats": {"mean": 0.71, "sampleCount": 1000, "noDataCount": 50}}}},
+        "evi": {"bands": {"B0": {"stats": {"mean": 0.62, "sampleCount": 1000, "noDataCount": 50}}}},
+        "ndwi": {"bands": {"B0": {"stats": {"mean": 0.18, "sampleCount": 1000, "noDataCount": 50}}}}
+      }
+    },
+    {
+      "interval": {"from": "2025-06-06T00:00:00Z", "to": "2025-06-11T00:00:00Z"},
+      "outputs": {
+        "ndvi": {"bands": {"B0": {"stats": {"mean": 0.44, "sampleCount": 1000, "noDataCount": 800}}}},
+        "evi": {"bands": {"B0": {"stats": {"mean": 0.31, "sampleCount": 1000, "noDataCount": 800}}}},
+        "ndwi": {"bands": {"B0": {"stats": {"mean": 0.08, "sampleCount": 1000, "noDataCount": 800}}}}
+      }
+    },
+    {
+      "interval": {"from": "2025-06-11T00:00:00Z", "to": "2025-06-16T00:00:00Z"},
+      "outputs": {
+        "ndvi": {"bands": {"B0": {"stats": {"mean": null, "sampleCount": 1000, "noDataCount": 1000}}}},
+        "evi": {"bands": {"B0": {"stats": {"mean": null, "sampleCount": 1000, "noDataCount": 1000}}}},
+        "ndwi": {"bands": {"B0": {"stats": {"mean": null, "sampleCount": 1000, "noDataCount": 1000}}}}
+      }
+    }
+  ]
+}

@@ -43,6 +43,51 @@ type Reference struct {
 	TargetYearExcluded bool    `json:"target_year_excluded"`
 }
 
+// Indices — раздельные значения сенсоров одной даты. Nil означает отсутствие
+// конкретного индекса; primary NDVI выбирается в порядке S2, Landsat, MODIS.
+type Indices struct {
+	S2NDVI      *float64 `json:"s2_ndvi"`
+	S2EVI       *float64 `json:"s2_evi"`
+	S2NDWI      *float64 `json:"s2_ndwi"`
+	LandsatNDVI *float64 `json:"landsat_ndvi"`
+	LandsatEVI  *float64 `json:"landsat_evi"`
+	LandsatNDWI *float64 `json:"landsat_ndwi"`
+	MODISNDVI   *float64 `json:"modis_ndvi"`
+	MODISEVI    *float64 `json:"modis_evi"`
+}
+
+// Primary возвращает первый доступный сенсорный NDVI по приоритету профиля.
+func (i *Indices) Primary() *float64 {
+	if i == nil {
+		return nil
+	}
+	for _, value := range []*float64{i.S2NDVI, i.LandsatNDVI, i.MODISNDVI} {
+		if value != nil {
+			return value
+		}
+	}
+	return nil
+}
+
+// AreaContext — неизменяемый контекст участка для multisensor-профиля.
+type AreaContext struct {
+	CropType *string `json:"crop_type"`
+}
+
+// PeerObservation — минимальная точка соседнего участка.
+type PeerObservation struct {
+	Date        string   `json:"date"`
+	PrimaryNDVI *float64 `json:"primary_ndvi"`
+	Quality     Quality  `json:"quality"`
+	Indices     *Indices `json:"indices"`
+}
+
+// PeerSeries — ряд одного соседнего участка.
+type PeerSeries struct {
+	AreaID       string            `json:"area_id"`
+	Observations []PeerObservation `json:"observations"`
+}
+
 // Observation — точка наблюдения запроса. Все поля обязательны; отсутствие
 // данных кодируется null, не нулём. Go явно создаёт точки с null на датах,
 // которые надо восстановить.
@@ -56,10 +101,12 @@ type Observation struct {
 	MissingReason *string    `json:"missing_reason"`
 	Weather       *Weather   `json:"weather"`
 	Reference     *Reference `json:"reference"`
+	Indices       *Indices   `json:"indices,omitempty"`
 }
 
-// AnalysisRequest — тело POST /v1/analyze по контракту v1. Даты наблюдений
-// уникальны и строго возрастают; ML возвращает точки только внутри периода.
+// AnalysisRequest — тело POST /v1/analyze по контракту v1/v1.1. Даты
+// наблюдений уникальны и строго возрастают; ML возвращает точки только внутри
+// периода.
 type AnalysisRequest struct {
 	SchemaVersion  string        `json:"schema_version"`
 	RequestID      string        `json:"request_id"`
@@ -70,6 +117,8 @@ type AnalysisRequest struct {
 	AnalysisPeriod Period        `json:"analysis_period"`
 	Sources        []Source      `json:"sources"`
 	Observations   []Observation `json:"observations"`
+	AreaContext    *AreaContext  `json:"area_context,omitempty"`
+	Peers          []PeerSeries  `json:"peers,omitempty"`
 }
 
 // SeriesPoint — точка восстановленного ряда результата. PrimaryNDVI повторяет
@@ -124,6 +173,7 @@ type ReadyInfo struct {
 	Status          string   `json:"status"`
 	SchemaVersion   string   `json:"schema_version"`
 	FeatureProfiles []string `json:"feature_profiles"`
+	SchemaVersions  []string `json:"schema_versions,omitempty"`
 	ModelVersion    string   `json:"model_version"`
 	Reason          *string  `json:"reason"`
 }

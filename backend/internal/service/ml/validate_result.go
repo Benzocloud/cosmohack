@@ -6,7 +6,7 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
-// validateResult сверяет ответ ML с запросом и контрактом v1: эхо полей,
+// validateResult сверяет ответ ML с запросом и контрактом v1/v1.1: эхо полей,
 // версия модели, статусы, состав series по датам и согласованность events.
 // Любое несовпадение — ml_invalid_response, результат не сохраняется.
 func validateResult(req *domain.AnalysisRequest, res *domain.AnalysisResult, expectedModelVersion string) error {
@@ -40,7 +40,7 @@ func validateResult(req *domain.AnalysisRequest, res *domain.AnalysisResult, exp
 // validateEcho проверяет неизменность корреляционных полей запроса.
 func validateEcho(req *domain.AnalysisRequest, res *domain.AnalysisResult) error {
 	switch {
-	case res.SchemaVersion != domain.SchemaVersionV1:
+	case res.SchemaVersion != req.SchemaVersion:
 		return newError(domain.MLErrorInvalidResponse, "analyze result has an unexpected schema_version")
 	case res.RequestID != req.RequestID:
 		return newError(domain.MLErrorInvalidResponse, "analyze result request_id does not match the request")

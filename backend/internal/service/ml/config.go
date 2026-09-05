@@ -34,6 +34,8 @@ type Config struct {
 	ReadyTimeout time.Duration
 	// MaxRequestBodyBytes — предел тела запроса.
 	MaxRequestBodyBytes int
+	// MaxMultisensorRequestBodyBytes — предел тела согласованного v1.1.
+	MaxMultisensorRequestBodyBytes int
 	// MaxResponseBodyBytes — предел тела ответа.
 	MaxResponseBodyBytes int
 	// ExpectedModelVersion — ожидаемая версия модели из манифеста выпуска;
@@ -44,12 +46,13 @@ type Config struct {
 // DefaultConfig возвращает настройки по умолчанию для заданного адреса ML.
 func DefaultConfig(baseURL string) Config {
 	return Config{
-		BaseURL:              baseURL,
-		DialTimeout:          3 * time.Second,
-		AnalyzeTimeout:       120 * time.Second,
-		ReadyTimeout:         2 * time.Second,
-		MaxRequestBodyBytes:  domain.MaxRequestBodyBytes,
-		MaxResponseBodyBytes: domain.MaxResponseBodyBytes,
+		BaseURL:                        baseURL,
+		DialTimeout:                    3 * time.Second,
+		AnalyzeTimeout:                 120 * time.Second,
+		ReadyTimeout:                   2 * time.Second,
+		MaxRequestBodyBytes:            domain.MaxRequestBodyBytes,
+		MaxMultisensorRequestBodyBytes: domain.MaxMultisensorRequestBodyBytes,
+		MaxResponseBodyBytes:           domain.MaxResponseBodyBytes,
 	}
 }
 
@@ -60,7 +63,9 @@ func (c Config) validate() error {
 	if c.DialTimeout <= 0 || c.AnalyzeTimeout <= 0 || c.ReadyTimeout <= 0 {
 		return errInvalidTimeouts
 	}
-	if c.MaxRequestBodyBytes <= 0 || c.MaxResponseBodyBytes <= 0 {
+	if c.MaxRequestBodyBytes <= 0 ||
+		c.MaxMultisensorRequestBodyBytes <= 0 ||
+		c.MaxResponseBodyBytes <= 0 {
 		return errInvalidBodyLimits
 	}
 	return nil

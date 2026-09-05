@@ -30,6 +30,13 @@ type observationDTO struct {
 	MissingReason *string              `json:"missing_reason"`
 	Weather       *weatherDTO          `json:"weather"`
 	Reference     *referenceDTO        `json:"reference"`
+	Indices       *indicesDTO          `json:"indices,omitempty"`
+}
+
+type indicesDTO struct {
+	S2NDVI *float64 `json:"s2_ndvi"`
+	S2EVI  *float64 `json:"s2_evi"`
+	S2NDWI *float64 `json:"s2_ndwi"`
 }
 
 type sourceDTO struct {
@@ -83,6 +90,13 @@ func newObservationDTO(observation domainsource.Observation) observationDTO {
 			Std:                reference.Std(),
 			ReferenceYears:     reference.ReferenceYears(),
 			TargetYearExcluded: reference.TargetYearExcluded(),
+		}
+	}
+	if indices := observation.Indices(); indices != nil {
+		dto.Indices = &indicesDTO{
+			S2NDVI: indices.S2NDVI,
+			S2EVI:  indices.S2EVI,
+			S2NDWI: indices.S2NDWI,
 		}
 	}
 	return dto

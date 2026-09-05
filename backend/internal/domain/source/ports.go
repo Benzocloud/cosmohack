@@ -38,6 +38,7 @@ type SatelliteSample struct {
 	date          Date
 	interval      DateRange
 	ndvi          *float64
+	indices       *SatelliteIndices
 	validFraction *float64
 	usable        bool
 	reason        string
@@ -69,6 +70,19 @@ func NewSatelliteSample(interval DateRange, ndvi, validFraction *float64, usable
 	}, nil
 }
 
+// WithIndices attaches provider-computed multisensor values to a sample.
+func (s SatelliteSample) WithIndices(indices *SatelliteIndices) (SatelliteSample, error) {
+	if err := validateSatelliteIndices(indices); err != nil {
+		return SatelliteSample{}, err
+	}
+	s.indices = nil
+	if indices != nil {
+		copy := indices.Values()
+		s.indices = &copy
+	}
+	return s, nil
+}
+
 func (s SatelliteSample) Date() Date {
 	return s.date
 }
@@ -83,6 +97,14 @@ func (s SatelliteSample) NDVI() *float64 {
 
 func (s SatelliteSample) ValidFraction() *float64 {
 	return copyFloat(s.validFraction)
+}
+
+func (s SatelliteSample) Indices() *SatelliteIndices {
+	if s.indices == nil {
+		return nil
+	}
+	copy := s.indices.Values()
+	return &copy
 }
 
 func (s SatelliteSample) Usable() bool {

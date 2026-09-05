@@ -75,14 +75,18 @@ def _clean(value):
     return None if value is None or (isinstance(value, float) and not np.isfinite(value)) else float(value)
 
 
-def _indices(row):
-    return {name: _clean(row.get(name)) for name in contracts.SENSOR_INDEX_FIELDS}
+def _indices(row, s2_only=False):
+    values = {name: _clean(row.get(name)) for name in contracts.SENSOR_INDEX_FIELDS}
+    if s2_only:
+        values.update({name: None for name in contracts.SENSOR_INDEX_FIELDS
+                       if not name.startswith("s2_")})
+    return values
 
 
-def _observation(row, hide: bool):
+def _observation(row, hide: bool, s2_only=False):
     """Точка расширенного профиля. hide превращает наблюдение в пропуск."""
     date_str = pd.Timestamp(row["date"]).date().isoformat()
-    value = _clean(row[S.TARGET])
+    value = _clean(row["s2_ndvi"] if s2_only else row[S.TARGET])
     if hide or value is None:
         return {
             "date": date_str, "primary_ndvi": None, "quality": "missing",
@@ -95,7 +99,8 @@ def _observation(row, hide: bool):
         "ndvi_source_id": "sat-1",
         "interval": {"from": date_str, "to": date_str},
         "valid_fraction": 0.9, "missing_reason": None,
-        "weather": _weather(row), "reference": None, "indices": _indices(row),
+        "weather": _weather(row), "reference": None,
+        "indices": _indices(row, s2_only=s2_only),
     }
 
 
@@ -105,15 +110,15 @@ def _weather(row):
             "precipitation_sum_mm": abs(_clean(row.get("era5_precip_mm")) or 0.0)}
 
 
-def _peer(frame, area_id):
+def _peer(frame, area_id, s2_only=False):
     rows = []
     for _, row in frame.iterrows():
-        value = _clean(row[S.TARGET])
+        value = _clean(row["s2_ndvi"] if s2_only else row[S.TARGET])
         rows.append({
             "date": pd.Timestamp(row["date"]).date().isoformat(),
             "primary_ndvi": value,
             "quality": "usable" if value is not None else "missing",
-            "indices": _indices(row) if value is not None else None,
+            "indices": (_indices(row, s2_only=s2_only) if value is not None else None),
         })
     return {"area_id": area_id, "observations": rows}
 
@@ -129,27 +134,30 @@ def _sources():
     ]
 
 
-def build_multisensor_request(synthetic, with_peers=True, seasons=(2020, 2021, 2022)):
+def build_multisensor_request(synthetic, with_peers=True, seasons=(2020, 2021, 2022),
+                              s2_only=False, area_id="AOI-1"):
     """Запрос расширенного профиля и список скрытых дат с истинными значениями."""
-    own = synthetic[(synthetic.anon_polygon_id == "AOI-1")
+    own = synthetic[(synthetic.anon_polygon_id == area_id)
                     & synthetic.season.isin(seasons)].reset_index(drop=True)
-    observed = own.index[own[S.TARGET].notna() & (own.season == max(seasons))]
+    source = "s2_ndvi" if s2_only else S.TARGET
+    observed = own.index[own[source].notna() & (own.season == max(seasons))]
     hidden = list(observed[10:10 + HIDDEN_ROWS])
-    truth = {pd.Timestamp(own.loc[i, "date"]).date().isoformat(): float(own.loc[i, S.TARGET])
+    truth = {pd.Timestamp(own.loc[i, "date"]).date().isoformat(): float(own.loc[i, source])
              for i in hidden}
 
-    observations = [_observation(row, hide=i in hidden) for i, row in own.iterrows()]
+    observations = [_observation(row, hide=i in hidden, s2_only=s2_only)
+                    for i, row in own.iterrows()]
     peers = None
     if with_peers:
         peers = [_peer(synthetic[(synthetic.anon_polygon_id == pid)
-                                 & synthetic.season.isin(seasons)], pid)
+                                 & synthetic.season.isin(seasons)], pid, s2_only=s2_only)
                  for pid in ("AOI-2", "AOI-3", "AOI-4")]
 
     season_rows = own[own.season == max(seasons)]
     request = {
         "schema_version": "1.1",
         "request_id": "job-ms-1",
-        "area_id": "AOI-1",
+        "area_id": area_id,
         "input_revision": "rev-1",
         "mode": "retrospective",
         "feature_profile": "ndvi-multisensor-v1",
@@ -204,6 +212,33 @@ def test_missing_peers_are_reported_as_limitation(model_client, synthetic):
     body = model_client.post("/v1/analyze", json=req).json()
     assert body["method"] == web_features.METHOD_MODEL
     assert any("Соседние участки не переданы" in x for x in body["limitations"])
+
+
+def test_s2_only_without_optional_context_uses_trained_model(model_client, synthetic):
+    req, truth = build_multisensor_request(synthetic, with_peers=False, s2_only=True,
+                                           area_id="AOI-2")
+    req["area_context"] = None
+    body = model_client.post("/v1/analyze", json=req).json()
+
+    assert body["method"] == web_features.METHOD_MODEL
+    restored = {p["date"]: p for p in body["series"]
+                if p["state"] == "imputed" and p["date"] in truth}
+    assert set(restored) == set(truth)
+    assert all(p["method"] == web_features.METHOD_MODEL for p in restored.values())
+    assert any("Культура участка не передана" in x for x in body["limitations"])
+
+
+def test_primary_only_peers_remain_model_context(model_client, synthetic):
+    req, _ = build_multisensor_request(synthetic)
+    for peer in req["peers"]:
+        for observation in peer["observations"]:
+            observation["indices"] = None
+    body = model_client.post("/v1/analyze", json=req).json()
+
+    assert body["method"] == web_features.METHOD_MODEL
+    context = web_features.build_context(contracts.AnalyzeRequest.model_validate(req))
+    peer_rows = context[context["anon_polygon_id"] == req["peers"][0]["area_id"]]
+    assert peer_rows[S.TARGET].notna().any()
 
 
 def test_short_history_falls_back_and_says_so(model_client, synthetic):

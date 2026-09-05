@@ -121,6 +121,10 @@ func (b *AnalyzeRequestBuilder) Build(snapshot *Snapshot, requestID string) (*An
 		Sources:        snapshot.sourceDTOs(),
 		Observations:   observations,
 	}
+	if snapshot.HasMultisensor() {
+		payload.SchemaVersion = domain.SchemaVersionV11
+		payload.FeatureProfile = domain.FeatureProfileMultisensorV1
+	}
 	if err := validateSourceReferences(payload); err != nil {
 		return nil, err
 	}
@@ -128,8 +132,12 @@ func (b *AnalyzeRequestBuilder) Build(snapshot *Snapshot, requestID string) (*An
 	if err != nil {
 		return nil, err
 	}
-	if len(body) > b.maxBodyBytes {
-		return nil, fmt.Errorf("request body is %d bytes, contract limit is %d", len(body), b.maxBodyBytes)
+	maxBodyBytes := b.maxBodyBytes
+	if payload.SchemaVersion == domain.SchemaVersionV11 && maxBodyBytes < domain.MaxMultisensorRequestBodyBytes {
+		maxBodyBytes = domain.MaxMultisensorRequestBodyBytes
+	}
+	if len(body) > maxBodyBytes {
+		return nil, fmt.Errorf("request body is %d bytes, contract limit is %d", len(body), maxBodyBytes)
 	}
 	return &AnalyzeRequest{payload: payload, body: body}, nil
 }

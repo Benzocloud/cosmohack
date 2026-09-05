@@ -48,6 +48,7 @@ services:
     image: ${ML_IMAGE:?ML_IMAGE is required}
     environment:
       MODEL_VERSION: ${MODEL_VERSION:?MODEL_VERSION is required}
+      VEGETATION_ML_ENABLE_MULTISENSOR: ${VEGETATION_ML_ENABLE_MULTISENSOR:-true}
     expose:
       - "8000"
     healthcheck:

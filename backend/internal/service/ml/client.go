@@ -98,11 +98,23 @@ func (c *Client) Analyze(ctx context.Context, req *domain.AnalysisRequest) (*dom
 	if err := validateRequest(req); err != nil {
 		return nil, err
 	}
-	payload, err := json.Marshal(req)
+	effectiveReq := req
+	if req.SchemaVersion == domain.SchemaVersionV11 {
+		var err error
+		effectiveReq, err = c.negotiateV11(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+	}
+	payload, err := json.Marshal(effectiveReq)
 	if err != nil {
 		return nil, wrapError(domain.MLErrorInvalidRequest, "analyze request is not encodable to json", err)
 	}
-	if len(payload) > c.cfg.MaxRequestBodyBytes {
+	maxRequestBodyBytes := c.cfg.MaxRequestBodyBytes
+	if effectiveReq.FeatureProfile == domain.FeatureProfileMultisensorV1 {
+		maxRequestBodyBytes = c.cfg.MaxMultisensorRequestBodyBytes
+	}
+	if len(payload) > maxRequestBodyBytes {
 		return nil, newError(domain.MLErrorInputTooLarge, "request body exceeds the limit")
 	}
 
@@ -120,7 +132,7 @@ func (c *Client) Analyze(ctx context.Context, req *domain.AnalysisRequest) (*dom
 			return nil, err
 		}
 
-		return nil, mapHTTPError(meta.statusCode, req.RequestID, body)
+		return nil, mapHTTPError(meta.statusCode, effectiveReq.RequestID, body)
 	}
 
 	if err := checkJSONContentType(meta.contentType); err != nil {
@@ -131,10 +143,44 @@ func (c *Client) Analyze(ctx context.Context, req *domain.AnalysisRequest) (*dom
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, wrapError(domain.MLErrorInvalidResponse, "ml returned invalid result json", err)
 	}
-	if err := validateResult(req, &result, c.cfg.ExpectedModelVersion); err != nil {
+	if err := validateResult(effectiveReq, &result, c.cfg.ExpectedModelVersion); err != nil {
 		return nil, err
 	}
 	return &result, nil
+}
+
+// negotiateV11 selects v1.1 only after readiness explicitly advertises the
+// schema and requested profile. Any non-cancellation negotiation failure falls
+// back to a valid v1.0 request with extended fields removed.
+func (c *Client) negotiateV11(ctx context.Context, req *domain.AnalysisRequest) (*domain.AnalysisRequest, error) {
+	info, err := c.Ready(ctx)
+	if err == nil && supportsRequest(info, req.FeatureProfile) {
+		return req, nil
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return v1FallbackRequest(req), nil
+}
+
+func supportsRequest(info domain.ReadyInfo, profile string) bool {
+	return info.Status == domain.MLReadyStatus &&
+		slices.Contains(info.SchemaVersions, domain.SchemaVersionV11) &&
+		slices.Contains(info.FeatureProfiles, profile)
+}
+
+func v1FallbackRequest(req *domain.AnalysisRequest) *domain.AnalysisRequest {
+	fallback := *req
+	fallback.SchemaVersion = domain.SchemaVersionV1
+	fallback.FeatureProfile = domain.FeatureProfileNDVIWeatherV1
+	fallback.AreaContext = nil
+	fallback.Peers = nil
+	fallback.Observations = make([]domain.Observation, len(req.Observations))
+	copy(fallback.Observations, req.Observations)
+	for i := range fallback.Observations {
+		fallback.Observations[i].Indices = nil
+	}
+	return &fallback
 }
 
 type responseMeta struct {
@@ -197,6 +243,19 @@ func validateReadyBody(info domain.ReadyInfo, expectedModelVersion string) error
 	}
 	if !slices.Contains(info.FeatureProfiles, domain.FeatureProfileNDVIWeatherV1) {
 		return newError(domain.MLErrorInvalidResponse, "ml readiness does not support the contract feature profile")
+	}
+	seenVersions := make(map[string]bool, len(info.SchemaVersions))
+	for _, version := range info.SchemaVersions {
+		if version != domain.SchemaVersionV1 && version != domain.SchemaVersionV11 {
+			return newError(domain.MLErrorInvalidResponse, "ml readiness returned an unsupported schema version")
+		}
+		if seenVersions[version] {
+			return newError(domain.MLErrorInvalidResponse, "ml readiness returned duplicate schema versions")
+		}
+		seenVersions[version] = true
+	}
+	if len(info.SchemaVersions) > 0 && !seenVersions[domain.SchemaVersionV1] {
+		return newError(domain.MLErrorInvalidResponse, "ml readiness does not support schema_version 1.0")
 	}
 	if info.ModelVersion == "" {
 		return newError(domain.MLErrorInvalidResponse, "ml readiness did not report a model version")
