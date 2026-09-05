@@ -231,6 +231,108 @@ func TestPostgresRepositoryIntegration(t *testing.T) {
 	}
 }
 
+func TestPostgresRepositoryPersistsAcrossPoolReopen(t *testing.T) {
+	db, repo := openIntegrationRepository(t)
+	ctx := context.Background()
+	url := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+
+	resultAreaID := integrationID("reopen-result-area")
+	queuedAreaID := integrationID("reopen-queued-area")
+	runningAreaID := integrationID("reopen-running-area")
+	areaIDs := []string{resultAreaID, queuedAreaID, runningAreaID}
+	cleanupDB := db
+	t.Cleanup(func() {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		for _, areaID := range areaIDs {
+			_, _ = cleanupDB.ExecContext(cleanupCtx, "DELETE FROM analysis_results WHERE area_id = $1", areaID)
+			_, _ = cleanupDB.ExecContext(cleanupCtx, "DELETE FROM jobs WHERE area_id = $1", areaID)
+			_, _ = cleanupDB.ExecContext(cleanupCtx, "DELETE FROM areas WHERE id = $1", areaID)
+		}
+		_ = cleanupDB.Close()
+	})
+
+	resultArea := integrationArea(resultAreaID)
+	queuedArea := integrationArea(queuedAreaID)
+	runningArea := integrationArea(runningAreaID)
+	for _, area := range []domain.Area{resultArea, queuedArea, runningArea} {
+		if err := repo.CreateArea(ctx, area); err != nil {
+			t.Fatalf("create %s: %v", area.ID, err)
+		}
+	}
+
+	resultJob := integrationJob(integrationID("reopen-result-job"), resultAreaID, resultArea.Period)
+	if err := repo.PutJobQueued(ctx, resultJob); err != nil {
+		t.Fatalf("queue persisted job: %v", err)
+	}
+	if err := repo.SetJobRunning(ctx, resultJob.ID, domain.StageAnalyze); err != nil {
+		t.Fatalf("run persisted job: %v", err)
+	}
+	result := integrationResult(resultAreaID)
+	if err := repo.PutResult(ctx, 1, resultJob.ID, result); err != nil {
+		t.Fatalf("persist result: %v", err)
+	}
+
+	queuedJob := integrationJob(integrationID("reopen-queued-job"), queuedAreaID, queuedArea.Period)
+	if err := repo.PutJobQueued(ctx, queuedJob); err != nil {
+		t.Fatalf("queue recovery job: %v", err)
+	}
+	runningJob := integrationJob(integrationID("reopen-running-job"), runningAreaID, runningArea.Period)
+	if err := repo.PutJobQueued(ctx, runningJob); err != nil {
+		t.Fatalf("queue running recovery job: %v", err)
+	}
+	if err := repo.SetJobRunning(ctx, runningJob.ID, domain.StageAnalyze); err != nil {
+		t.Fatalf("run recovery job: %v", err)
+	}
+
+	if err := db.Close(); err != nil {
+		t.Fatalf("close postgres pool: %v", err)
+	}
+	reopened, err := sqlx.Open("pgx", url)
+	if err != nil {
+		t.Fatalf("reopen postgres pool: %v", err)
+	}
+	cleanupDB = reopened
+	reopenCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := reopened.PingContext(reopenCtx); err != nil {
+		t.Fatalf("ping reopened postgres pool: %v", err)
+	}
+	reopenedRepo, err := New(reopened)
+	if err != nil {
+		t.Fatalf("build repository over reopened pool: %v", err)
+	}
+
+	gotArea, err := reopenedRepo.GetArea(ctx, resultAreaID)
+	if err != nil || gotArea.ShownResultVersion != result.ResultVersion || gotArea.ShownJobID != resultJob.ID {
+		t.Fatalf("persisted area after reopen = %+v, err=%v", gotArea, err)
+	}
+	gotJob, err := reopenedRepo.GetJob(ctx, resultJob.ID)
+	if err != nil || gotJob.Status != domain.JobCompleted || gotJob.ResultVersion == nil || *gotJob.ResultVersion != result.ResultVersion {
+		t.Fatalf("persisted job after reopen = %+v, err=%v", gotJob, err)
+	}
+	gotResult, err := reopenedRepo.GetResult(ctx, resultAreaID, result.ResultVersion)
+	if err != nil || gotResult.AreaID != result.AreaID || gotResult.InputRevision != result.InputRevision || len(gotResult.Series) != 1 {
+		t.Fatalf("persisted result after reopen = %+v, err=%v", gotResult, err)
+	}
+
+	if err := reopenedRepo.RecoverInterrupted(ctx); err != nil {
+		t.Fatalf("recover jobs after reopen: %v", err)
+	}
+	for _, id := range []string{queuedJob.ID, runningJob.ID} {
+		recovered, err := reopenedRepo.GetJob(ctx, id)
+		if err != nil || recovered.Status != domain.JobFailed || recovered.ErrorCode == nil || *recovered.ErrorCode != domain.InterruptReason {
+			t.Fatalf("recovered job %s = %+v, err=%v", id, recovered, err)
+		}
+	}
+	for _, areaID := range []string{queuedAreaID, runningAreaID} {
+		recoveredArea, err := reopenedRepo.GetArea(ctx, areaID)
+		if err != nil || recoveredArea.ActiveJobID != "" {
+			t.Fatalf("recovered area %s = %+v, err=%v", areaID, recoveredArea, err)
+		}
+	}
+}
+
 func openIntegrationRepository(t *testing.T) (*sqlx.DB, *Repository) {
 	t.Helper()
 	url := strings.TrimSpace(os.Getenv("DATABASE_URL"))
