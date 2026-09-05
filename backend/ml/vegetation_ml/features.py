@@ -77,8 +77,12 @@ def _gauss_at(query_e, known_e, known_v, bandwidths, self_pos=None):
 def _neighbour_block(query_e, known_e, known_v, known_s, k):
     """Ближайшие k известных наблюдений слева и справа от каждой точки."""
     n = len(query_e)
-    dl = np.full((n, k), np.nan); vl = np.full((n, k), np.nan); sl = np.full((n, k), -1.0)
-    dr = np.full((n, k), np.nan); vr = np.full((n, k), np.nan); sr = np.full((n, k), -1.0)
+    dl = np.full((n, k), np.nan)
+    vl = np.full((n, k), np.nan)
+    sl = np.full((n, k), -1.0)
+    dr = np.full((n, k), np.nan)
+    vr = np.full((n, k), np.nan)
+    sr = np.full((n, k), -1.0)
     if len(known_e) == 0:
         return dl, vl, sl, dr, vr, sr
     pos = np.searchsorted(known_e, query_e, side="left")
@@ -88,7 +92,9 @@ def _neighbour_block(query_e, known_e, known_v, known_s, k):
             q = p - 1 - i
             if q < 0:
                 break
-            dl[j, i] = query_e[j] - known_e[q]; vl[j, i] = known_v[q]; sl[j, i] = known_s[q]
+            dl[j, i] = query_e[j] - known_e[q]
+            vl[j, i] = known_v[q]
+            sl[j, i] = known_s[q]
 
         q = p
         while q < len(known_e) and known_e[q] <= query_e[j]:
@@ -96,7 +102,9 @@ def _neighbour_block(query_e, known_e, known_v, known_s, k):
         for i in range(k):
             if q + i >= len(known_e):
                 break
-            dr[j, i] = known_e[q + i] - query_e[j]; vr[j, i] = known_v[q + i]; sr[j, i] = known_s[q + i]
+            dr[j, i] = known_e[q + i] - query_e[j]
+            vr[j, i] = known_v[q + i]
+            sr[j, i] = known_s[q + i]
     return dl, vl, sl, dr, vr, sr
 
 def estimate_sensor_offsets(panel: pd.DataFrame) -> tuple[dict, np.ndarray]:
@@ -219,17 +227,26 @@ def build_features(panel: pd.DataFrame, grids: OverpassGrids,
     raw_sm = np.full((n, nb), np.nan)
     cor_sm = np.full((n, nb), np.nan)
     n_ctx = np.zeros(n)
-    dlB = np.full((n, N_NEIGHBOURS), np.nan); vlB = np.full((n, N_NEIGHBOURS), np.nan)
+    dlB = np.full((n, N_NEIGHBOURS), np.nan)
+    vlB = np.full((n, N_NEIGHBOURS), np.nan)
     slB = np.full((n, N_NEIGHBOURS), -1.0)
-    drB = np.full((n, N_NEIGHBOURS), np.nan); vrB = np.full((n, N_NEIGHBOURS), np.nan)
+    drB = np.full((n, N_NEIGHBOURS), np.nan)
+    vrB = np.full((n, N_NEIGHBOURS), np.nan)
     srB = np.full((n, N_NEIGHBOURS), -1.0)
-    rlB = np.full((n, N_NEIGHBOURS), np.nan); rrB = np.full((n, N_NEIGHBOURS), np.nan)
-    clim_m = np.full(n, np.nan); clim_s = np.full(n, np.nan); clim_n = np.zeros(n)
+    rlB = np.full((n, N_NEIGHBOURS), np.nan)
+    rrB = np.full((n, N_NEIGHBOURS), np.nan)
+    clim_m = np.full(n, np.nan)
+    clim_s = np.full(n, np.nan)
+    clim_n = np.zeros(n)
     loo_resid = np.full(n, np.nan)
-    g_s2 = np.zeros(n); g_ls = np.zeros(n); g_md = np.zeros(n)
+    g_s2 = np.zeros(n)
+    g_ls = np.zeros(n)
+    g_md = np.zeros(n)
     p_src = np.full((n, 3), np.nan)
     exp_off = np.zeros(n)
-    n7 = np.zeros(n); n15 = np.zeros(n); n30 = np.zeros(n)
+    n7 = np.zeros(n)
+    n15 = np.zeros(n)
+    n30 = np.zeros(n)
     off_by_src = np.zeros((n, 3))
 
     probs_np = src_probs.to_numpy()
@@ -278,7 +295,9 @@ def build_features(panel: pd.DataFrame, grids: OverpassGrids,
                 clim_n[idx[j]] = len(vv)
 
         fl = grids.flags(poly, e)
-        g_s2[idx] = fl["s2_ndvi"]; g_ls[idx] = fl["landsat_ndvi"]; g_md[idx] = fl["modis_ndvi"]
+        g_s2[idx] = fl["s2_ndvi"]
+        g_ls[idx] = fl["landsat_ndvi"]
+        g_md[idx] = fl["modis_ndvi"]
         pat = (fl["s2_ndvi"].astype(int) * 4 + fl["landsat_ndvi"].astype(int) * 2
                + fl["modis_ndvi"].astype(int))
         pr = probs_np[pat]
