@@ -1,11 +1,11 @@
-package areas
+package repository
 
 import (
 	"database/sql"
 	"testing"
 	"time"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/repository/areas/record"
+	"github.com/Benzocloud/cosmohack/backend/internal/repository/record"
 )
 
 func TestMapAreaRecord(t *testing.T) {

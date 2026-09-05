@@ -1,4 +1,4 @@
-package areas
+package repository
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
-	"github.com/Benzocloud/cosmohack/backend/internal/repository/areas/record"
+	"github.com/Benzocloud/cosmohack/backend/internal/repository/record"
 	"github.com/jmoiron/sqlx"
 )
 

@@ -1,4 +1,4 @@
-package areas
+package repository
 
 import _ "embed"
 
