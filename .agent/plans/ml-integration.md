@@ -148,7 +148,7 @@ client tests. Математику модели в Go не переносить.
   запускает ruff и полный pytest.
 - [x] Docker job запускает собранный образ, ждёт `/readyz` и выполняет один
   контрактный POST; успешной сборки image без запуска недостаточно.
-- [ ] После прохождения MLI-01/02 добавить `backend/ml/PRODUCTION_READY`:
+- [x] После прохождения MLI-01/02 добавить `backend/ml/PRODUCTION_READY`:
   только этот явный marker переключает publish/deploy со stub на реальный ML.
 - [ ] После первого успешного production rollout оставить stub только в явном
   локальном Compose-профиле и как проверенный rollback image.
