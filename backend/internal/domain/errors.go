@@ -2,7 +2,7 @@ package domain
 
 import "errors"
 
-// Persistence errors shared across application boundaries.
+// Ошибки хранения, общие для границ приложения.
 var (
 	ErrNotFound   = errors.New("record not found")
 	ErrConflict   = errors.New("record conflict")

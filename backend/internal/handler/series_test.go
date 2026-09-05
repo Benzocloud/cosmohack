@@ -124,7 +124,7 @@ func TestCompletedResultVisibleAfterHandlerRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Rebuild the handler over the same persisted store, as after an app restart.
+	// Пересобирает обработчик над тем же хранилищем, как после перезапуска приложения.
 	h = newEnvWithStore(t, st, nil, nil)
 	paths := []string{
 		"/api/areas/" + id,

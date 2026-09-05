@@ -14,7 +14,7 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/repository/record"
 )
 
-// GetResult loads an immutable analysis record.
+// GetResult загружает неизменяемую запись анализа.
 func (r *Repository) GetResult(ctx context.Context, areaID, version string) (domain.AnalysisRecord, error) {
 	if err := r.check(); err != nil {
 		return domain.AnalysisRecord{}, err
@@ -29,9 +29,9 @@ func (r *Repository) GetResult(ctx context.Context, areaID, version string) (dom
 	return mapResultRow(row)
 }
 
-// PutResult atomically persists an immutable result, completes its running job,
-// and publishes the version on the area. Replaying an identical version is
-// idempotent; a different payload under the same key returns ErrConflict.
+// PutResult атомарно сохраняет неизменяемый результат, завершает выполняемую задачу
+// и публикует версию на участке. Повторная запись той же версии
+// идемпотентна; другой payload с тем же ключом возвращает ErrConflict.
 func (r *Repository) PutResult(ctx context.Context, generationAtStart int, jobID string, result domain.AnalysisRecord) error {
 	if err := r.check(); err != nil {
 		return err
@@ -118,7 +118,7 @@ func (r *Repository) PutResult(ctx context.Context, generationAtStart int, jobID
 	return nil
 }
 
-// ErrGeneration indicates that an area changed while analysis was running.
+// ErrGeneration означает, что участок изменился во время анализа.
 var ErrGeneration = domain.ErrGeneration
 
 type resultHashInput struct {

@@ -13,12 +13,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// Repository stores domain aggregates in PostgreSQL.
+// Repository хранит доменные агрегаты в PostgreSQL.
 type Repository struct {
 	db *sqlx.DB
 }
 
-// New constructs a repository over an already configured sqlx pool.
+// New создаёт репозиторий поверх настроенного пула sqlx.
 func New(db *sqlx.DB) (*Repository, error) {
 	if db == nil {
 		return nil, errors.New("repository database is nil")
@@ -26,7 +26,7 @@ func New(db *sqlx.DB) (*Repository, error) {
 	return &Repository{db: db}, nil
 }
 
-// CreateArea persists a new area aggregate.
+// CreateArea сохраняет новый агрегат участка.
 func (r *Repository) CreateArea(ctx context.Context, area domain.Area) error {
 	if err := r.check(); err != nil {
 		return err
@@ -45,7 +45,7 @@ func (r *Repository) CreateArea(ctx context.Context, area domain.Area) error {
 	return nil
 }
 
-// UpdateArea replaces the mutable snapshot fields of an existing area.
+// UpdateArea заменяет изменяемые поля снимка существующего участка.
 func (r *Repository) UpdateArea(ctx context.Context, area domain.Area) error {
 	if err := r.check(); err != nil {
 		return err
@@ -72,7 +72,7 @@ func mapDatabaseError(err error) error {
 	return err
 }
 
-// GetArea loads an area aggregate by ID.
+// GetArea загружает агрегат участка по идентификатору.
 func (r *Repository) GetArea(ctx context.Context, id string) (domain.Area, error) {
 	if err := r.check(); err != nil {
 		return domain.Area{}, err
@@ -87,7 +87,7 @@ func (r *Repository) GetArea(ctx context.Context, id string) (domain.Area, error
 	return mapAreaRow(row)
 }
 
-// ListAreas returns areas in the public creation order.
+// ListAreas возвращает участки в публичном порядке создания.
 func (r *Repository) ListAreas(ctx context.Context) ([]domain.Area, error) {
 	if err := r.check(); err != nil {
 		return nil, err
@@ -107,8 +107,8 @@ func (r *Repository) ListAreas(ctx context.Context) ([]domain.Area, error) {
 	return out, nil
 }
 
-// DeleteArea cancels active jobs, removes immutable results and deletes the
-// area in one transaction. Job history intentionally remains queryable.
+// DeleteArea отменяет активные задачи, удаляет неизменяемые результаты и удаляет
+// участок одной транзакцией. История задач намеренно остаётся доступной для запросов.
 func (r *Repository) DeleteArea(ctx context.Context, id string) ([]string, error) {
 	if err := r.check(); err != nil {
 		return nil, err

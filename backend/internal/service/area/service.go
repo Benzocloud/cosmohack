@@ -1,4 +1,4 @@
-// Package area contains area use-case construction and invariants.
+// Пакет area содержит сценарии работы с участками и их инварианты.
 package area
 
 import (
@@ -10,7 +10,7 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
-// Repository is the consumer-owned persistence port for area use cases.
+// Repository — порт хранения сценариев участков, которым владеет потребитель.
 type Repository interface {
 	CreateArea(context.Context, domain.Area) error
 	GetArea(context.Context, string) (domain.Area, error)
@@ -18,18 +18,18 @@ type Repository interface {
 	DeleteArea(context.Context, string) ([]string, error)
 }
 
-// Service owns area use cases and delegates persistence to Repository.
+// Service владеет сценариями участков и делегирует хранение Repository.
 type Service struct {
 	repo Repository
 	now  func() time.Time
 }
 
-// New constructs the area use-case service.
+// New создаёт сервис сценариев участков.
 func New(repo Repository) *Service {
 	return &Service{repo: repo, now: time.Now}
 }
 
-// CreateArea builds and persists a new area.
+// CreateArea создаёт и сохраняет новый участок.
 func (s *Service) CreateArea(ctx context.Context, input CreateInput) (domain.Area, error) {
 	area, err := Create(input, s.now())
 	if err != nil {
@@ -41,22 +41,22 @@ func (s *Service) CreateArea(ctx context.Context, input CreateInput) (domain.Are
 	return area, nil
 }
 
-// GetArea loads one area.
+// GetArea загружает один участок.
 func (s *Service) GetArea(ctx context.Context, id string) (domain.Area, error) {
 	return s.repo.GetArea(ctx, id)
 }
 
-// ListAreas loads all areas.
+// ListAreas загружает все участки.
 func (s *Service) ListAreas(ctx context.Context) ([]domain.Area, error) {
 	return s.repo.ListAreas(ctx)
 }
 
-// DeleteArea removes an area and returns jobs that were cancelled by storage.
+// DeleteArea удаляет участок и возвращает задачи, отменённые хранилищем.
 func (s *Service) DeleteArea(ctx context.Context, id string) ([]string, error) {
 	return s.repo.DeleteArea(ctx, id)
 }
 
-// CreateInput contains validated user input for a new area.
+// CreateInput содержит проверенный пользовательский ввод для нового участка.
 type CreateInput struct {
 	Name     string
 	Period   domain.Period
@@ -64,7 +64,7 @@ type CreateInput struct {
 	Source   domain.AreaSource
 }
 
-// Create builds a new area aggregate with its initial generation.
+// Create создаёт новый агрегат участка с начальным поколением.
 func Create(input CreateInput, now time.Time) (domain.Area, error) {
 	id, err := newID()
 	if err != nil {

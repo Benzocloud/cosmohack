@@ -32,8 +32,8 @@ type Settings struct {
 	Clock               domain.Clock
 }
 
-// SettingsFromConfig adapts validated application configuration to B1 source
-// settings. Environment lookup belongs exclusively to internal/config.
+// SettingsFromConfig адаптирует проверенную конфигурацию приложения к настройкам
+// источников B1. Чтение окружения выполняется только в internal/config.
 func SettingsFromConfig(cfg config.SourceConfig, limits domainsource.Limits, clock domain.Clock) Settings {
 	if limits == (domainsource.Limits{}) {
 		limits = domainsource.DefaultLimits()

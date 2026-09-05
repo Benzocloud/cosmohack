@@ -27,8 +27,8 @@ type readyResponse struct {
 	FeatureProfiles []string `json:"feature_profiles"`
 }
 
-// ReadinessCheck is supplied by the composition root for dependencies such as
-// PostgreSQL. The handler owns only the short request timeout.
+// ReadinessCheck передаётся корнем композиции для зависимостей вроде
+// PostgreSQL. Обработчик отвечает только за короткий тайм-аут запроса.
 type ReadinessCheck func(context.Context) error
 
 // Register подключает публичные маршруты к mux.

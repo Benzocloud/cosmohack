@@ -149,9 +149,9 @@ func (c *Client) Analyze(ctx context.Context, req *domain.AnalysisRequest) (*dom
 	return &result, nil
 }
 
-// negotiateV11 selects v1.1 only after readiness explicitly advertises the
-// schema and requested profile. Any non-cancellation negotiation failure falls
-// back to a valid v1.0 request with extended fields removed.
+// negotiateV11 выбирает v1.1 только после явного объявления readiness о схеме
+// и запрошенном профиле. Ошибка согласования, кроме отмены, возвращает корректный
+// запрос v1.0 без расширенных полей.
 func (c *Client) negotiateV11(ctx context.Context, req *domain.AnalysisRequest) (*domain.AnalysisRequest, error) {
 	info, err := c.Ready(ctx)
 	if err == nil && supportsRequest(info, req.FeatureProfile) {

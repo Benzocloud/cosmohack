@@ -53,7 +53,7 @@ class Strict(BaseModel):
 
 
 def _finite(value, field: str):
-    """Validate a JSON number while preserving integer values for float fields."""
+    """Проверить число JSON, сохранив целые значения в полях с плавающей точкой."""
     if value is None:
         return value
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -64,7 +64,7 @@ def _finite(value, field: str):
 
 
 def _utc_rfc3339(value: str) -> str:
-    """Require an RFC3339 timestamp with an explicit UTC offset."""
+    """Требовать временную метку RFC3339 с явным смещением UTC."""
     if not isinstance(value, str):
         raise ValueError("retrieved_at must be a string")  # noqa: TRY004
     if not re.fullmatch(
@@ -81,7 +81,7 @@ def _utc_rfc3339(value: str) -> str:
 
 
 def _strict_date(value, field: str) -> date:
-    """Require the wire format YYYY-MM-DD for contract dates."""
+    """Требовать формат YYYY-MM-DD для дат контракта."""
     if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
         raise ValueError(f"{field} must use YYYY-MM-DD")
     try:
@@ -94,8 +94,8 @@ class Period(Strict):
     from_: date = Field(alias="from")
     to: date
 
-    # The wire contract exposes the alias ``from`` only; accepting the Python
-    # attribute name ``from_`` would silently widen the JSON schema.
+    # Контракт передачи раскрывает только псевдоним `from`; принятие Python-
+    # -имени `from_` незаметно расширило бы JSON-схему.
     model_config = ConfigDict(extra="forbid", populate_by_name=False)
 
     @field_validator("from_", "to", mode="before")

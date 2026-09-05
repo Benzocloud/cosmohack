@@ -56,7 +56,7 @@ def _multisensor_enabled() -> bool:
 
 
 def _load_artifact() -> tuple[object | None, str]:
-    """Load and verify the model artifact once per process."""
+    """Загрузить и проверить артефакт модели один раз на процесс."""
     path = Path(os.environ.get(MODEL_PATH_ENV, paths.MODEL_ARTIFACT))
     if not path.exists():
         reason = f"model artifact not found: {path}"

@@ -1,4 +1,4 @@
-// Package record contains database row representations private to area storage.
+// Пакет record содержит представления строк базы данных, закрытые для хранения участков.
 package record
 
 import (
@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Area is the sqlx row shape for the areas table.
+// Area — форма строки sqlx для таблицы areas.
 type Area struct {
 	ID                 string         `db:"id"`
 	Name               string         `db:"name"`

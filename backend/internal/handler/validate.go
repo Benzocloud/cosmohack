@@ -33,14 +33,14 @@ type bbox struct {
 }
 
 type Limits struct {
-	// Canonical public limits mirror the source assembly configuration.
+	// Канонические публичные лимиты повторяют конфигурацию сборки источников.
 	AreaHaMax     float64
 	VerticesMax   int
 	PeriodDaysMax int
 	MinDate       string
 
-	// Deprecated compatibility fields are kept for callers that have not yet
-	// switched their composition root to the canonical names.
+	// Устаревшие поля совместимости сохранены для вызывающих сторон, которые ещё не
+	// перевели корень композиции на канонические имена.
 	MaxAreaKm2  float64
 	MaxVertices int
 }

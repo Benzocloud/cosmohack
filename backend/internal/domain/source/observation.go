@@ -236,7 +236,7 @@ func (b *ObservationBuilder) WithReference(reference *Reference) *ObservationBui
 	return b
 }
 
-// WithIndices attaches multisensor values to a satellite observation.
+// WithIndices добавляет мультисенсорные значения к спутниковому наблюдению.
 func (b *ObservationBuilder) WithIndices(indices *SatelliteIndices) *ObservationBuilder {
 	if err := validateSatelliteIndices(indices); err != nil {
 		b.failure = err

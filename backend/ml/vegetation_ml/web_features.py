@@ -51,9 +51,9 @@ def _row(area_id, obs_date, indices, weather, crop_type, reliable,
             row[S.TARGET] = (index_primary if index_primary is not None
                              else primary_ndvi)
         else:
-            # Peer rows may carry only the already fused primary value.  It is
-            # still valid context for the date effect; absent sensor fields
-            # must not make an otherwise usable peer disappear.
+            # Строки соседей могут содержать только уже объединённое основное значение. Оно
+            # остаётся допустимым контекстом влияния даты; отсутствующие поля датчиков
+            # не должны исключать иначе пригодного соседа.
             row[S.TARGET] = primary_ndvi
     if weather is not None:
         row["era5_temp_c"] = weather.temperature_mean_c

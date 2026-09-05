@@ -6,8 +6,8 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
-// createAreaRequest is the HTTP DTO for area creation. Domain value types are
-// used at the transport boundary; persistence types never cross this layer.
+// createAreaRequest — HTTP DTO для создания участка. Доменные типы значений
+// используются на транспортной границе; типы хранилища не выходят из этого слоя.
 type createAreaRequest struct {
 	Name     string             `json:"name"`
 	Period   domain.Period      `json:"period"`

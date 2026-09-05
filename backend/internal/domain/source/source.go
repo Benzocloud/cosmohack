@@ -121,7 +121,7 @@ func requireIdentifier(label, value string) error {
 	return nil
 }
 
-// RequireIdentifier validates a public source identifier.
+// RequireIdentifier проверяет публичный идентификатор источника.
 func RequireIdentifier(label, value string) error { return requireIdentifier(label, value) }
 
 func requireSourceIdentifier(value string) error {

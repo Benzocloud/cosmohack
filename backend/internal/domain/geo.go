@@ -1,6 +1,6 @@
 package domain
 
-// BBox is a WGS84 longitude/latitude search rectangle.
+// BBox — поисковый прямоугольник WGS84 в порядке долгота/широта.
 type BBox struct {
 	MinLon float64 `json:"min_lon"`
 	MinLat float64 `json:"min_lat"`

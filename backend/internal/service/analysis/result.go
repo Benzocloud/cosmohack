@@ -18,9 +18,9 @@ func resultVersion(req *domain.AnalysisRequest, res *domain.AnalysisResult) stri
 		h.Write([]byte(part))
 		h.Write([]byte{0})
 	}
-	// Peers and crop context are analysis inputs but are not part of the B1
-	// snapshot revision. Include them so a repeated run with changed context
-	// gets a new immutable result version instead of a record conflict.
+	// Peers и контекст культуры — входы анализа, но не часть ревизии снимка B1
+	// Учитываем ревизию, чтобы повторный запуск с изменённым контекстом
+	// получил новую неизменяемую версию результата вместо конфликта записи.
 	context, _ := json.Marshal(struct {
 		AreaContext *domain.AreaContext `json:"area_context,omitempty"`
 		Peers       []domain.PeerSeries `json:"peers,omitempty"`

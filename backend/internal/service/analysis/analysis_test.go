@@ -35,7 +35,7 @@ func waitFor(t *testing.T, cond func() bool) {
 	t.Fatal("condition not reached in time")
 }
 
-// newExecutorPersistence creates an in-memory persistence fake and seeds an area.
+// newExecutorPersistence создаёт заглушку хранения в памяти и добавляет участок.
 func newExecutorPersistence(t *testing.T) *testPersistence {
 	t.Helper()
 	st := newTestPersistence()
@@ -483,7 +483,7 @@ func TestExecutor_RestartMarksInterrupted(t *testing.T) {
 	st := newExecutorPersistence(t)
 	enqueueJob(t, st, testAreaID, testJobID)
 
-	// A fresh executor recovers unfinished jobs through its persistence port.
+	// Новый исполнитель восстанавливает незаконченные задачи через порт хранения.
 	New(st, &stubCollector{}, okAnalyzer{}, 8, testLogger()).Start(context.Background())
 
 	var failed domain.Job

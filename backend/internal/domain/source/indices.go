@@ -5,8 +5,8 @@ import (
 	"math"
 )
 
-// SatelliteIndices contains sensor indices for one satellite observation.
-// Nil values mean that the provider had no usable pixels for that index.
+// SatelliteIndices содержит индексы датчиков для одного спутникового наблюдения.
+// Значение nil означает, что у провайдера не было пригодных пикселей для этого индекса.
 type SatelliteIndices struct {
 	S2NDVI *float64
 	S2EVI  *float64

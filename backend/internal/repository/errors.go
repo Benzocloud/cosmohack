@@ -2,7 +2,7 @@ package repository
 
 import "github.com/Benzocloud/cosmohack/backend/internal/domain"
 
-// ErrNotFound indicates that a requested aggregate does not exist.
+// ErrNotFound означает, что запрошенный агрегат не существует.
 var (
 	ErrNotFound = domain.ErrNotFound
 	ErrConflict = domain.ErrConflict

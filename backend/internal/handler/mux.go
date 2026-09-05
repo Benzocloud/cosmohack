@@ -51,7 +51,7 @@ type handler struct {
 	gate      sync.Mutex
 }
 
-// NewMux builds routes over application services.
+// NewMux собирает маршруты поверх прикладных сервисов.
 func NewMux(areas *area.Service, analyses *analysisusecase.QueryService, scheduler *analysisusecase.Scheduler, contours ContourFinder, queue Queue, lim Limits) *http.ServeMux {
 	h := &handler{areas: areas, analysis: analyses, scheduler: scheduler, contours: contours, queue: queue, limits: lim}
 	mux := http.NewServeMux()

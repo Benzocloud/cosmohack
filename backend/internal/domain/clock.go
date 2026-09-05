@@ -2,5 +2,5 @@ package domain
 
 import "time"
 
-// Clock supplies the current time to deterministic domain and integration code.
+// Clock передаёт текущее время детерминированному доменному и интеграционному коду.
 type Clock func() time.Time

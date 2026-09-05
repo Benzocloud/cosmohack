@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// AnalysisResult is the sqlx row shape for an immutable analysis result.
+// AnalysisResult — форма строки sqlx для неизменяемого результата анализа.
 type AnalysisResult struct {
 	AreaID         string         `db:"area_id"`
 	ResultVersion  string         `db:"result_version"`

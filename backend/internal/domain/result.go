@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-// WeatherPoint is the weather context aligned with an analysis series date.
+// WeatherPoint — погодный контекст, выровненный по дате ряда анализа.
 type WeatherPoint struct {
 	Date               string   `json:"date"`
 	TemperatureMeanC   *float64 `json:"temperature_mean_c"`
@@ -10,9 +10,9 @@ type WeatherPoint struct {
 	SourceID           *string  `json:"source_id,omitempty"`
 }
 
-// AnalysisRecord is the domain result produced by analysis before persistence.
-// It intentionally has no job identity: one immutable record may be reused by
-// several deterministic analysis jobs.
+// AnalysisRecord — доменный результат анализа до сохранения.
+// В нём намеренно нет идентификатора задачи: одна неизменяемая запись может использоваться
+// несколькими детерминированными задачами анализа.
 type AnalysisRecord struct {
 	ResultVersion  string         `json:"result_version"`
 	AreaID         string         `json:"area_id"`

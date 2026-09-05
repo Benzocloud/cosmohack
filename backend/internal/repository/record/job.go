@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Job is the sqlx row shape for the jobs table.
+// Job — форма строки sqlx для таблицы jobs.
 type Job struct {
 	ID             string         `db:"id"`
 	AreaID         string         `db:"area_id"`

@@ -68,9 +68,8 @@ type AnalyzeRequestBuilder struct {
 	maxBodyBytes    int
 }
 
-// BuildDomain returns the canonical domain request used by the analysis
-// service. Build remains available as a wire-compatibility adapter during the
-// B1 migration.
+// BuildDomain возвращает канонический доменный запрос для сервиса анализа.
+// Build оставлен как адаптер совместимости провода на время миграции B1.
 func (b *AnalyzeRequestBuilder) BuildDomain(snapshot *Snapshot, requestID string) (*domain.AnalysisRequest, error) {
 	wire, err := b.Build(snapshot, requestID)
 	if err != nil {

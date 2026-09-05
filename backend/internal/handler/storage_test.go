@@ -9,9 +9,8 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
-// testStorage is a package-local fake for HTTP tests. Production code uses
-// repository.Repository; keeping this fake beside the tests avoids a second
-// persistence package in the application.
+// testStorage — локальная заглушка пакета для HTTP-тестов. Production использует
+// repository.Repository; заглушка рядом с тестами не создаёт второй пакет хранения.
 type testStorage struct {
 	mu      sync.Mutex
 	areas   map[string]domain.Area

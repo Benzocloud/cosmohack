@@ -1,4 +1,4 @@
-// Package config loads and validates process configuration at the composition root.
+// Пакет config загружает и проверяет конфигурацию процесса в корне композиции.
 package config
 
 import (
@@ -67,8 +67,8 @@ type MLConfig struct {
 	ExpectedModelVersion string
 }
 
-// SourceConfig contains provider settings after environment parsing.
-// Secrets are retained only in memory and must never be logged.
+// SourceConfig содержит настройки провайдеров после разбора окружения.
+// Секреты хранятся только в памяти и никогда не должны попадать в логи.
 type SourceConfig struct {
 	CDSEClientID        string
 	CDSEClientSecret    string

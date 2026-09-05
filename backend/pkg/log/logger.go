@@ -1,4 +1,4 @@
-// Package log creates the process logger used by the composition root.
+// Пакет log создаёт логгер процесса, используемый корнем композиции.
 package log
 
 import (
@@ -9,14 +9,14 @@ import (
 )
 
 const (
-	// DefaultTimeFormat is the timestamp format used by the local logger.
+	// DefaultTimeFormat — формат временной метки локального логгера.
 	DefaultTimeFormat = "2006-01-02 15:04:05"
 
 	defaultLevel = slog.LevelInfo
 )
 
-// New creates an independent structured logger. The logger is returned to the
-// caller and is never installed as the process-wide slog default.
+// New создаёт независимый структурированный логгер. Логгер возвращается
+// вызывающему коду и не устанавливается глобальным логгером slog.
 func New[L ~string | slog.Level](level L, timeFormat string) *slog.Logger {
 	logLevel := defaultLevel
 	switch value := any(level).(type) {

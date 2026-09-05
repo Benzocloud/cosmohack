@@ -16,9 +16,9 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
 )
 
-// b1Collector adapts the source service to the analysis service port. The
-// source package owns provider DTOs and snapshots; analysis receives only the
-// canonical domain request.
+// b1Collector адаптирует сервис источников к порту сервиса анализа. Пакет
+// source владеет DTO провайдеров и снимками; анализ получает только
+// канонический доменный запрос.
 type b1Collector struct {
 	collector *source.Collector
 	builder   *source.AnalyzeRequestBuilder
@@ -171,8 +171,8 @@ func distanceKm(a, b geom.Coordinate) float64 {
 	return 2 * earthRadiusKm * math.Asin(math.Sqrt(h))
 }
 
-// b1ContourFinder maps domain source results to the narrow HTTP handler port.
-// HTTP response DTOs stay in handler and provider details stay in integration.
+// b1ContourFinder переводит доменные результаты источников в узкий порт HTTP-обработчика.
+// DTO HTTP-ответов остаются в handler, а детали провайдеров — в integration.
 type b1ContourFinder struct {
 	finder domainsource.ContourFinder
 }

@@ -8,9 +8,9 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
-// testPersistence is a small package-local fake for executor tests. The
-// production implementation is repository.Repository; this fake only models
-// the domain port needed to exercise worker transitions without a database.
+// testPersistence — локальная заглушка пакета для тестов исполнителя. Production-
+// реализация — repository.Repository; заглушка моделирует только доменный порт,
+// необходимый для проверки переходов воркера без базы данных.
 type testPersistence struct {
 	mu           sync.Mutex
 	areas        map[string]domain.Area

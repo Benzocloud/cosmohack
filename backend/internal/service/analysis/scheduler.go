@@ -8,7 +8,7 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
-// SchedulerPersistence is the small write port needed to accept an analysis.
+// SchedulerPersistence — небольшой порт записи, необходимый для принятия анализа.
 type SchedulerPersistence interface {
 	GetArea(context.Context, string) (domain.Area, error)
 	GetJob(context.Context, string) (domain.Job, error)
@@ -22,7 +22,7 @@ type Enqueuer interface {
 	Enqueue(context.Context, string) error
 }
 
-// Scheduler owns the start-analysis use case and its queue compensation.
+// Scheduler владеет сценарием запуска анализа и компенсацией очереди.
 type Scheduler struct {
 	persistence SchedulerPersistence
 	queue       Enqueuer

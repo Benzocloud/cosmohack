@@ -8,7 +8,7 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/service/analysis"
 )
 
-// executorQueue adapts the executor to the handler queue port.
+// executorQueue адаптирует исполнитель к порту очереди обработчика.
 type executorQueue struct {
 	exec *analysis.Executor
 }

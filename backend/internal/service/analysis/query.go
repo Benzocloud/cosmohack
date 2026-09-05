@@ -6,28 +6,28 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
-// QueryPersistence is the read port used by analysis projections.
+// QueryPersistence — порт чтения, используемый проекциями анализа.
 type QueryPersistence interface {
 	GetJob(context.Context, string) (domain.Job, error)
 	GetResult(context.Context, string, string) (domain.AnalysisRecord, error)
 }
 
-// QueryService owns analysis read use cases consumed by HTTP handlers.
+// QueryService владеет сценариями чтения анализа, которые используют HTTP-обработчики.
 type QueryService struct {
 	persistence QueryPersistence
 }
 
-// NewQueryService constructs the analysis query service.
+// NewQueryService создаёт сервис запросов анализа.
 func NewQueryService(persistence QueryPersistence) *QueryService {
 	return &QueryService{persistence: persistence}
 }
 
-// GetJob loads a job for its public projection.
+// GetJob загружает задачу для публичной проекции.
 func (s *QueryService) GetJob(ctx context.Context, id string) (domain.Job, error) {
 	return s.persistence.GetJob(ctx, id)
 }
 
-// GetResult loads an immutable analysis result for its public projection.
+// GetResult загружает неизменяемый результат анализа для публичной проекции.
 func (s *QueryService) GetResult(ctx context.Context, areaID, version string) (domain.AnalysisRecord, error) {
 	return s.persistence.GetResult(ctx, areaID, version)
 }

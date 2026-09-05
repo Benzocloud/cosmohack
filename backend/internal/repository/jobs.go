@@ -12,14 +12,14 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// PutJobQueued persists a new queued job and claims the area's active slot.
-// The area lock, insert and active pointer update are one transaction.
+// PutJobQueued сохраняет новую задачу в очереди и занимает активный слот участка.
+// Блокировка участка, вставка и обновление активного указателя выполняются одной транзакцией.
 func (r *Repository) PutJobQueued(ctx context.Context, job domain.Job) error {
 	return r.putJobQueued(ctx, job, nil)
 }
 
-// PutJobQueuedWithPeriod atomically updates the area's default period and
-// claims its active job slot.
+// PutJobQueuedWithPeriod атомарно обновляет период участка по умолчанию и
+// занимает его активный слот задачи.
 func (r *Repository) PutJobQueuedWithPeriod(ctx context.Context, job domain.Job, period domain.Period) error {
 	return r.putJobQueued(ctx, job, &period)
 }
@@ -83,7 +83,7 @@ func (r *Repository) putJobQueued(ctx context.Context, job domain.Job, areaPerio
 	return nil
 }
 
-// GetJob loads one job aggregate.
+// GetJob загружает один агрегат задачи.
 func (r *Repository) GetJob(ctx context.Context, id string) (domain.Job, error) {
 	if err := r.check(); err != nil {
 		return domain.Job{}, err
@@ -98,8 +98,8 @@ func (r *Repository) GetJob(ctx context.Context, id string) (domain.Job, error) 
 	return mapJobRow(row)
 }
 
-// DeleteJob removes a queued job and releases its area slot when it still owns it.
-// It is used for enqueue compensation after a successful queue claim.
+// DeleteJob удаляет задачу из очереди и освобождает слот участка, если задача всё ещё им владеет.
+// Используется для компенсации постановки в очередь после успешного занятия слота.
 func (r *Repository) DeleteJob(ctx context.Context, id string) error {
 	if err := r.check(); err != nil {
 		return err
@@ -142,7 +142,7 @@ func (r *Repository) DeleteJob(ctx context.Context, id string) error {
 	return nil
 }
 
-// ListJobsByArea returns all jobs for an area in creation order.
+// ListJobsByArea возвращает все задачи участка в порядке создания.
 func (r *Repository) ListJobsByArea(ctx context.Context, areaID string) ([]domain.Job, error) {
 	if err := r.check(); err != nil {
 		return nil, err
@@ -162,7 +162,7 @@ func (r *Repository) ListJobsByArea(ctx context.Context, areaID string) ([]domai
 	return jobs, nil
 }
 
-// SetJobRunning performs the queued to running transition.
+// SetJobRunning переводит задачу из queued в running.
 func (r *Repository) SetJobRunning(ctx context.Context, id, stage string) error {
 	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool { return status == domain.JobQueued }, false, func(tx *sqlx.Tx, now time.Time) error {
 		_, err := tx.ExecContext(ctx, querySetJobRunning, id, stage, now)
@@ -170,7 +170,7 @@ func (r *Repository) SetJobRunning(ctx context.Context, id, stage string) error 
 	})
 }
 
-// SetJobStage records progress for a running job.
+// SetJobStage записывает прогресс выполняемой задачи.
 func (r *Repository) SetJobStage(ctx context.Context, id, stage string) error {
 	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool { return status == domain.JobRunning }, false, func(tx *sqlx.Tx, now time.Time) error {
 		_, err := tx.ExecContext(ctx, querySetJobStage, id, stage, now)
@@ -178,7 +178,7 @@ func (r *Repository) SetJobStage(ctx context.Context, id, stage string) error {
 	})
 }
 
-// SetJobFailed moves an active job to failed and releases the area slot.
+// SetJobFailed переводит активную задачу в failed и освобождает слот участка.
 func (r *Repository) SetJobFailed(ctx context.Context, id, code, message string, retryable bool) error {
 	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool {
 		return status == domain.JobQueued || status == domain.JobRunning
@@ -188,7 +188,7 @@ func (r *Repository) SetJobFailed(ctx context.Context, id, code, message string,
 	})
 }
 
-// SetJobCancelled moves an active job to cancelled and releases the area slot.
+// SetJobCancelled переводит активную задачу в cancelled и освобождает слот участка.
 func (r *Repository) SetJobCancelled(ctx context.Context, id string) error {
 	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool {
 		return status == domain.JobQueued || status == domain.JobRunning
@@ -198,7 +198,7 @@ func (r *Repository) SetJobCancelled(ctx context.Context, id string) error {
 	})
 }
 
-// SetJobInputRevision stores the immutable revision used for analysis input.
+// SetJobInputRevision сохраняет неизменяемую ревизию входа анализа.
 func (r *Repository) SetJobInputRevision(ctx context.Context, id, revision string) error {
 	if err := r.check(); err != nil {
 		return err
@@ -210,8 +210,8 @@ func (r *Repository) SetJobInputRevision(ctx context.Context, id, revision strin
 	return affected(result)
 }
 
-// RecoverInterrupted makes unfinished jobs terminal after a process restart and
-// clears area pointers that no longer refer to an active job.
+// RecoverInterrupted завершает незаконченные задачи после перезапуска процесса и
+// очищает указатели участков, которые больше не ссылаются на активную задачу.
 func (r *Repository) RecoverInterrupted(ctx context.Context) error {
 	if err := r.check(); err != nil {
 		return err

@@ -70,7 +70,7 @@ func NewSatelliteSample(interval DateRange, ndvi, validFraction *float64, usable
 	}, nil
 }
 
-// WithIndices attaches provider-computed multisensor values to a sample.
+// WithIndices добавляет к образцу мультисенсорные значения, рассчитанные провайдером.
 func (s SatelliteSample) WithIndices(indices *SatelliteIndices) (SatelliteSample, error) {
 	if err := validateSatelliteIndices(indices); err != nil {
 		return SatelliteSample{}, err

@@ -22,20 +22,20 @@ import (
 // Обработчик B3 транслирует его в 429 публичного API.
 var ErrQueueFull = errors.New("analysis queue is full")
 
-// ErrBadState indicates that a concurrent cancellation or terminal transition
-// already won the job race.
+// ErrBadState означает, что конкурентная отмена или терминальный переход
+// уже выиграли гонку за задачу.
 var ErrBadState = domain.ErrBadState
 
-// ErrConflict indicates that an area already has an active analysis job.
+// ErrConflict означает, что у участка уже есть активная задача анализа.
 var ErrConflict = errors.New("analysis already active")
 
-// ErrNotFound indicates that a job or area disappeared before persistence.
+// ErrNotFound означает, что задача или участок исчезли до сохранения.
 var ErrNotFound = domain.ErrNotFound
 
-// ErrGeneration indicates that an area changed during analysis.
+// ErrGeneration означает, что участок изменился во время анализа.
 var ErrGeneration = domain.ErrGeneration
 
-// Persistence is the consumer-owned storage port of the executor.
+// Persistence — порт хранения исполнителя, которым владеет потребитель.
 type Persistence interface {
 	GetJob(context.Context, string) (domain.Job, error)
 	GetArea(context.Context, string) (domain.Area, error)

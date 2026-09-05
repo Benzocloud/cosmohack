@@ -47,8 +47,8 @@ func (r CollectRequest) Period() domainsource.DateRange {
 
 type CollectorOption func(*Collector) error
 
-// StageReporter reports collector progress without coupling source service to
-// the analysis executor.
+// StageReporter сообщает прогресс сборщика, не связывая сервис источников с
+// исполнителем анализа.
 type StageReporter func(stage string)
 
 func WithLimits(limits domainsource.Limits) CollectorOption {
@@ -109,8 +109,8 @@ func (c *Collector) Collect(ctx context.Context, request CollectRequest) (*Snaps
 	return c.CollectWithStage(ctx, request, nil)
 }
 
-// CollectWithStage collects the source snapshot and reports the satellite and
-// weather boundaries when a reporter is provided.
+// CollectWithStage собирает снимок источников и сообщает границы спутниковой
+// и погодной стадий, если передан отчётчик.
 func (c *Collector) CollectWithStage(ctx context.Context, request CollectRequest, report StageReporter) (*Snapshot, error) {
 	if err := c.limits.ValidatePolygon(request.polygon); err != nil {
 		return nil, err
