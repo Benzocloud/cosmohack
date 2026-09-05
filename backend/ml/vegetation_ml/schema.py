@@ -36,6 +36,10 @@ MASKED_ON_GAP = SPECTRAL_COLUMNS + WEATHER_COLUMNS + DERIVED_COLUMNS + [TARGET]
 
 EPOCH_ORIGIN = "2010-01-01"
 
+CROP_TYPES = ["зерновые", "озимая пшеница", "пастбища/зерновые", "подсолнечник"]
+CROP_CODES = {name: code for code, name in enumerate(CROP_TYPES)}
+UNKNOWN_CROP_CODE = -1
+
 SUBMISSION_COLUMNS = ["anon_polygon_id", "date", "primary_ndvi_pred"]
 
 GAP_SCORE_RMSE_LIMIT = 0.10

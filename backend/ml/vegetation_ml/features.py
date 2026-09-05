@@ -28,6 +28,18 @@ CLIM_WINDOW = 10
 
 OFFSET_SHRINK = 20.0
 
+def encode_crop(values) -> np.ndarray:
+    """Кодирует культуру фиксированным словарём, а не порядком в таблице.
+
+    Автоматическая категоризация даёт коды по составу конкретного набора: в
+    пакетном режиме культур четыре, в веб-запросе про один участок — одна, и
+    та же культура получила бы разные коды. Словарь из схемы делает признак
+    одинаковым в обоих режимах; неизвестная культура получает отдельный код.
+    """
+    return np.array([S.CROP_CODES.get(v, S.UNKNOWN_CROP_CODE) for v in values],
+                    dtype=float)
+
+
 def _gauss_at(query_e, known_e, known_v, bandwidths, self_pos=None):
     """Гауссовы взвешенные средние в точках query_e по известным наблюдениям.
 
@@ -343,7 +355,7 @@ def build_features(panel: pd.DataFrame, grids: OverpassGrids,
     for k in (1, 2):
         F[f"sin{k}"] = np.sin(2 * np.pi * k * F["doy"] / 365.25)
         F[f"cos{k}"] = np.cos(2 * np.pi * k * F["doy"] / 365.25)
-    F["crop_type"] = pd.Categorical(panel["crop_type"]).codes
+    F["crop_type"] = encode_crop(panel["crop_type"])
     for c, v in w.items():
         F[c] = v
 
