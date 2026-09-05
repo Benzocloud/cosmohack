@@ -75,6 +75,49 @@ func (r *Repository) GetJob(ctx context.Context, id string) (domain.Job, error) 
 	return mapJobRow(row)
 }
 
+// DeleteJob removes a queued job and releases its area slot when it still owns it.
+// It is used for enqueue compensation after a successful queue claim.
+func (r *Repository) DeleteJob(ctx context.Context, id string) error {
+	if err := r.check(); err != nil {
+		return err
+	}
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delete job: %w", err)
+	}
+	defer tx.Rollback()
+	var key struct {
+		AreaID string `db:"area_id"`
+	}
+	if err := tx.GetContext(ctx, &key, queryJobArea, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return fmt.Errorf("find job area for delete: %w", err)
+	}
+	var area record.Area
+	if err := tx.GetContext(ctx, &area, queryLockArea, key.AreaID); err != nil {
+		return fmt.Errorf("lock area for delete job: %w", err)
+	}
+	var row record.Job
+	if err := tx.GetContext(ctx, &row, queryLockJob, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return fmt.Errorf("lock job for delete: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, queryDeleteJob, id); err != nil {
+		return fmt.Errorf("delete job: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, queryClearActiveJob, key.AreaID, id); err != nil {
+		return fmt.Errorf("release area job slot after delete: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete job: %w", err)
+	}
+	return nil
+}
+
 // ListJobsByArea returns all jobs for an area in creation order.
 func (r *Repository) ListJobsByArea(ctx context.Context, areaID string) ([]domain.Job, error) {
 	if err := r.check(); err != nil {

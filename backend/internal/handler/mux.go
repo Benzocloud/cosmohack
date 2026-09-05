@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
@@ -39,8 +40,23 @@ type ContourFinder interface {
 	Find(ctx context.Context, minLon, minLat, maxLon, maxLat float64) ([]Contour, error)
 }
 
+// Storage is the handler's domain persistence port. Implementations own the
+// database or legacy storage mapping; HTTP handlers only exchange domain values.
+type Storage interface {
+	CreateArea(context.Context, domain.Area) error
+	UpdateArea(context.Context, domain.Area) error
+	GetArea(context.Context, string) (domain.Area, error)
+	ListAreas(context.Context) ([]domain.Area, error)
+	DeleteArea(context.Context, string) ([]string, error)
+	GetJob(context.Context, string) (domain.Job, error)
+	ListJobsByArea(context.Context, string) ([]domain.Job, error)
+	PutJobQueued(context.Context, domain.Job) error
+	DeleteJob(context.Context, string) error
+	GetResult(context.Context, string, string) (domain.AnalysisRecord, error)
+}
+
 type handler struct {
-	store    *store.Store
+	storage  Storage
 	contours ContourFinder
 	queue    Queue
 	limits   Limits
@@ -51,7 +67,12 @@ type handler struct {
 // чтобы app добавлял /readyz тем же mux. Лимиты площади/вершин: ноль значит
 // «не проверять».
 func NewMux(st *store.Store, contours ContourFinder, queue Queue, lim Limits) *http.ServeMux {
-	h := &handler{store: st, contours: contours, queue: queue, limits: lim}
+	return NewMuxWithStorage(legacyStorage{store: st}, contours, queue, lim)
+}
+
+// NewMuxWithStorage builds routes over a domain persistence implementation.
+func NewMuxWithStorage(storage Storage, contours ContourFinder, queue Queue, lim Limits) *http.ServeMux {
+	h := &handler{storage: storage, contours: contours, queue: queue, limits: lim}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/areas", h.listAreas)
 	mux.HandleFunc("POST /api/areas", h.createArea)

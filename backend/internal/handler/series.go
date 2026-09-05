@@ -3,8 +3,6 @@ package handler
 import (
 	"errors"
 	"net/http"
-
-	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
 func (h *handler) getSeries(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +19,7 @@ func (h *handler) writeResultView(w http.ResponseWriter, r *http.Request, series
 		writeValidation(w, err)
 		return
 	}
-	a, err := h.store.GetArea(id)
+	a, err := h.storage.GetArea(r.Context(), id)
 	if err != nil {
 		writeStoreErr(w, err)
 		return
@@ -34,9 +32,9 @@ func (h *handler) writeResultView(w http.ResponseWriter, r *http.Request, series
 		writeJSON(w, http.StatusOK, emptyEvents(a.ID))
 		return
 	}
-	res, err := h.store.GetResult(a.ID, a.ShownResultVersion)
+	res, err := h.storage.GetResult(r.Context(), a.ID, a.ShownResultVersion)
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
+		if errors.Is(err, errStorageNotFound) {
 			writeError(w, http.StatusInternalServerError, "internal_error", "Не удалось прочитать или записать снимок", true)
 			return
 		}
@@ -44,8 +42,8 @@ func (h *handler) writeResultView(w http.ResponseWriter, r *http.Request, series
 		return
 	}
 	if series {
-		writeJSON(w, http.StatusOK, projectSeries(*res))
+		writeJSON(w, http.StatusOK, projectSeries(res))
 		return
 	}
-	writeJSON(w, http.StatusOK, projectEvents(*res))
+	writeJSON(w, http.StatusOK, projectEvents(res))
 }

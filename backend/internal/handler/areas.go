@@ -5,18 +5,17 @@ import (
 	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/service/area"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
 func (h *handler) listAreas(w http.ResponseWriter, r *http.Request) {
-	areas, err := h.store.ListAreas()
+	areas, err := h.storage.ListAreas(r.Context())
 	if err != nil {
 		writeStoreErr(w, err)
 		return
 	}
 	out := make([]publicArea, 0, len(areas))
 	for _, a := range areas {
-		p, err := h.projectArea(a)
+		p, err := h.projectArea(r.Context(), a)
 		if err != nil {
 			writeStoreErr(w, err)
 			return
@@ -52,12 +51,11 @@ func (h *handler) createArea(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal_error", "Не удалось прочитать или записать снимок", true)
 		return
 	}
-	a := storeAreaFromDomain(domainArea)
-	if err := h.store.PutArea(a); err != nil {
+	if err := h.storage.CreateArea(r.Context(), domainArea); err != nil {
 		writeStoreErr(w, err)
 		return
 	}
-	p, err := h.projectArea(a)
+	p, err := h.projectArea(r.Context(), domainArea)
 	if err != nil {
 		writeStoreErr(w, err)
 		return
@@ -73,19 +71,7 @@ func (h *handler) deleteArea(w http.ResponseWriter, r *http.Request) {
 		writeValidation(w, err)
 		return
 	}
-	var cancelIDs []string
-	err := h.store.WithLock(func(tx *store.Tx) error {
-		jobs, err := tx.Jobs()
-		if err != nil {
-			return err
-		}
-		for _, j := range jobs {
-			if j.AreaID == id && (j.Status == store.JobQueued || j.Status == store.JobRunning) {
-				cancelIDs = append(cancelIDs, j.ID)
-			}
-		}
-		return tx.DeleteArea(id)
-	})
+	cancelIDs, err := h.storage.DeleteArea(r.Context(), id)
 	if err != nil {
 		writeStoreErr(w, err)
 		return

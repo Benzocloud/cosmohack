@@ -1,10 +1,11 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"time"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
 func formatTime(t time.Time) string {
@@ -12,24 +13,24 @@ func formatTime(t time.Time) string {
 }
 
 type publicArea struct {
-	ID          string        `json:"id"`
-	Name        string        `json:"name"`
-	Geometry    store.Polygon `json:"geometry"`
-	Source      store.Source  `json:"source"`
-	Period      store.Period  `json:"period"`
-	CreatedAt   string        `json:"created_at"`
-	ShownResult *publicShown  `json:"shown_result"`
-	ActiveJob   *publicActive `json:"active_job"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Geometry    domain.Polygon    `json:"geometry"`
+	Source      domain.AreaSource `json:"source"`
+	Period      domain.Period     `json:"period"`
+	CreatedAt   string            `json:"created_at"`
+	ShownResult *publicShown      `json:"shown_result"`
+	ActiveJob   *publicActive     `json:"active_job"`
 }
 
 type publicShown struct {
-	ResultVersion string       `json:"result_version"`
-	JobID         string       `json:"job_id"`
-	Period        store.Period `json:"period"`
-	ComputedAt    string       `json:"computed_at"`
-	Status        string       `json:"status"`
-	Severity      *string      `json:"severity"`
-	ModelVersion  string       `json:"model_version"`
+	ResultVersion string        `json:"result_version"`
+	JobID         string        `json:"job_id"`
+	Period        domain.Period `json:"period"`
+	ComputedAt    string        `json:"computed_at"`
+	Status        string        `json:"status"`
+	Severity      *string       `json:"severity"`
+	ModelVersion  string        `json:"model_version"`
 }
 
 type publicActive struct {
@@ -38,202 +39,173 @@ type publicActive struct {
 	Stage  *string `json:"stage"`
 }
 
+type publicJobError struct {
+	Code      string `json:"code"`
+	Message   string `json:"message"`
+	Retryable bool   `json:"retryable"`
+}
+
 type publicJob struct {
 	ID            string          `json:"id"`
 	AreaID        string          `json:"area_id"`
 	Status        string          `json:"status"`
 	Stage         *string         `json:"stage"`
-	Period        store.Period    `json:"period"`
-	Error         *store.JobError `json:"error"`
+	Period        domain.Period   `json:"period"`
+	Error         *publicJobError `json:"error"`
 	ResultVersion *string         `json:"result_version"`
 	CreatedAt     string          `json:"created_at"`
 	UpdatedAt     string          `json:"updated_at"`
 }
 
-func (h *handler) projectArea(a store.Area) (publicArea, error) {
-	out := publicArea{
-		ID:        a.ID,
-		Name:      a.Name,
-		Geometry:  a.Geometry,
-		Source:    a.Source,
-		Period:    a.Period,
-		CreatedAt: formatTime(a.CreatedAt),
-	}
+func (h *handler) projectArea(ctx context.Context, a domain.Area) (publicArea, error) {
+	out := publicArea{ID: a.ID, Name: a.Name, Geometry: a.Geometry, Source: a.Source, Period: a.Period, CreatedAt: formatTime(a.CreatedAt)}
 	if a.ShownResultVersion != "" {
-		res, err := h.store.GetResult(a.ID, a.ShownResultVersion)
-		if err != nil && !errors.Is(err, store.ErrNotFound) {
+		res, err := h.storage.GetResult(ctx, a.ID, a.ShownResultVersion)
+		if err != nil && !errors.Is(err, errStorageNotFound) {
 			return out, err
 		}
 		if err == nil {
-			out.ShownResult = &publicShown{
-				ResultVersion: res.ResultVersion,
-				JobID:         res.JobID,
-				Period:        res.Period,
-				ComputedAt:    formatTime(res.ComputedAt),
-				Status:        res.Status,
-				Severity:      publicSeverity(res.Status, res.Severity),
-				ModelVersion:  res.ModelVersion,
-			}
+			jobID := a.ShownJobID
+			out.ShownResult = &publicShown{ResultVersion: res.ResultVersion, JobID: jobID, Period: res.Period,
+				ComputedAt: formatTime(res.ComputedAt), Status: string(res.Status), Severity: publicSeverity(res.Status, res.Severity), ModelVersion: res.ModelVersion}
 		}
 	}
 	if a.ActiveJobID == "" {
 		return out, nil
 	}
-	j, err := h.store.GetJob(a.ActiveJobID)
-	if errors.Is(err, store.ErrNotFound) {
+	j, err := h.storage.GetJob(ctx, a.ActiveJobID)
+	if errors.Is(err, errStorageNotFound) {
 		return out, nil
 	}
 	if err != nil {
 		return out, err
 	}
-	if j.Status != store.JobQueued && j.Status != store.JobRunning {
+	if j.Status != domain.JobQueued && j.Status != domain.JobRunning {
 		return out, nil
 	}
 	stage := j.Stage
-	if j.Status != store.JobRunning {
+	if j.Status != domain.JobRunning {
 		stage = nil
 	}
-	out.ActiveJob = &publicActive{JobID: j.ID, Status: j.Status, Stage: stage}
+	out.ActiveJob = &publicActive{JobID: j.ID, Status: string(j.Status), Stage: stage}
 	return out, nil
 }
 
-func projectJob(j store.Job) publicJob {
+func projectJob(j domain.Job) publicJob {
 	stage := j.Stage
-	if j.Status != store.JobRunning {
+	if j.Status != domain.JobRunning {
 		stage = nil
 	}
-	return publicJob{
-		ID:            j.ID,
-		AreaID:        j.AreaID,
-		Status:        j.Status,
-		Stage:         stage,
-		Period:        j.Period,
-		Error:         j.Error,
-		ResultVersion: j.ResultVersion,
-		CreatedAt:     formatTime(j.CreatedAt),
-		UpdatedAt:     formatTime(j.UpdatedAt),
+	var jobErr *publicJobError
+	if j.ErrorCode != nil || j.ErrorMessage != nil || j.ErrorRetryable != nil {
+		jobErr = &publicJobError{}
+		if j.ErrorCode != nil {
+			jobErr.Code = *j.ErrorCode
+		}
+		if j.ErrorMessage != nil {
+			jobErr.Message = *j.ErrorMessage
+		}
+		if j.ErrorRetryable != nil {
+			jobErr.Retryable = *j.ErrorRetryable
+		}
 	}
+	return publicJob{ID: j.ID, AreaID: j.AreaID, Status: string(j.Status), Stage: stage, Period: j.Period, Error: jobErr,
+		ResultVersion: j.ResultVersion, CreatedAt: formatTime(j.CreatedAt), UpdatedAt: formatTime(j.UpdatedAt)}
 }
 
 type publicSeries struct {
-	AreaID         string               `json:"area_id"`
-	ResultVersion  *string              `json:"result_version"`
-	Period         *store.Period        `json:"period"`
-	ComputedAt     *string              `json:"computed_at"`
-	SchemaVersion  string               `json:"schema_version,omitempty"`
-	FeatureProfile string               `json:"feature_profile,omitempty"`
-	ModelVersion   string               `json:"model_version,omitempty"`
-	Method         string               `json:"method,omitempty"`
-	Status         *string              `json:"status"`
-	Severity       *string              `json:"severity"`
-	Series         []store.SeriesPoint  `json:"series"`
-	Weather        []store.WeatherPoint `json:"weather"`
-	Provenance     map[string]any       `json:"provenance,omitempty"`
-	Limitations    []string             `json:"limitations"`
+	AreaID         string                `json:"area_id"`
+	ResultVersion  *string               `json:"result_version"`
+	Period         *domain.Period        `json:"period"`
+	ComputedAt     *string               `json:"computed_at"`
+	SchemaVersion  string                `json:"schema_version,omitempty"`
+	FeatureProfile string                `json:"feature_profile,omitempty"`
+	ModelVersion   string                `json:"model_version,omitempty"`
+	Method         string                `json:"method,omitempty"`
+	Status         *string               `json:"status"`
+	Severity       *string               `json:"severity"`
+	Series         []domain.SeriesPoint  `json:"series"`
+	Weather        []domain.WeatherPoint `json:"weather"`
+	Provenance     map[string]any        `json:"provenance,omitempty"`
+	Limitations    []string              `json:"limitations"`
 }
 
 type publicEvents struct {
-	AreaID        string        `json:"area_id"`
-	ResultVersion *string       `json:"result_version"`
-	Status        *string       `json:"status"`
-	Severity      *string       `json:"severity"`
-	Events        []store.Event `json:"events"`
+	AreaID        string                `json:"area_id"`
+	ResultVersion *string               `json:"result_version"`
+	Status        *string               `json:"status"`
+	Severity      *string               `json:"severity"`
+	Events        []domain.AnomalyEvent `json:"events"`
 }
 
 func emptySeries(areaID string) publicSeries {
-	return publicSeries{
-		AreaID:      areaID,
-		Series:      []store.SeriesPoint{},
-		Weather:     []store.WeatherPoint{},
-		Limitations: []string{},
-	}
+	return publicSeries{AreaID: areaID, Series: []domain.SeriesPoint{}, Weather: []domain.WeatherPoint{}, Limitations: []string{}}
 }
 
 func emptyEvents(areaID string) publicEvents {
-	return publicEvents{AreaID: areaID, Events: []store.Event{}}
+	return publicEvents{AreaID: areaID, Events: []domain.AnomalyEvent{}}
 }
 
-func projectSeries(res store.Result) publicSeries {
-	ver := res.ResultVersion
-	st := res.Status
-	comp := formatTime(res.ComputedAt)
-	period := res.Period
+func projectSeries(res domain.AnalysisRecord) publicSeries {
+	ver, status, computedAt, period := res.ResultVersion, string(res.Status), formatTime(res.ComputedAt), res.Period
 	series := res.Series
 	if series == nil {
-		series = []store.SeriesPoint{}
+		series = []domain.SeriesPoint{}
 	}
 	weather := res.Weather
 	if weather == nil {
-		weather = []store.WeatherPoint{}
+		weather = []domain.WeatherPoint{}
 	}
-	lim := res.Limitations
-	if lim == nil {
-		lim = []string{}
+	limitations := res.Limitations
+	if limitations == nil {
+		limitations = []string{}
 	}
-	return publicSeries{
-		AreaID:         res.AreaID,
-		ResultVersion:  &ver,
-		Period:         &period,
-		ComputedAt:     &comp,
-		SchemaVersion:  res.SchemaVersion,
-		FeatureProfile: res.FeatureProfile,
-		ModelVersion:   res.ModelVersion,
-		Method:         res.Method,
-		Status:         &st,
-		Severity:       publicSeverity(res.Status, res.Severity),
-		Series:         series,
-		Weather:        alignWeather(series, weather),
-		Provenance:     res.Provenance,
-		Limitations:    lim,
-	}
+	return publicSeries{AreaID: res.AreaID, ResultVersion: &ver, Period: &period, ComputedAt: &computedAt,
+		SchemaVersion: res.SchemaVersion, FeatureProfile: res.FeatureProfile, ModelVersion: res.ModelVersion, Method: res.Method,
+		Status: &status, Severity: publicSeverity(res.Status, res.Severity), Series: series, Weather: alignWeather(series, weather),
+		Provenance: res.Provenance, Limitations: limitations}
 }
 
-// publicSeverity: нет результата обрабатывается снаружи; normal → "none"; insufficient_data → null.
-func publicSeverity(status string, stored *string) *string {
+func publicSeverity(status domain.ResultStatus, stored *domain.Severity) *string {
 	switch status {
-	case "normal":
-		s := "none"
-		return &s
-	case "insufficient_data":
+	case domain.StatusNormal:
+		value := string(domain.SeverityNone)
+		return &value
+	case domain.StatusInsufficientData:
 		return nil
 	default:
-		return stored
+		if stored == nil {
+			return nil
+		}
+		value := string(*stored)
+		return &value
 	}
 }
 
-// alignWeather: одна точка на каждую дату series; нет данных — null, не 0 и не пропуск даты.
-func alignWeather(series []store.SeriesPoint, weather []store.WeatherPoint) []store.WeatherPoint {
-	byDate := make(map[string]store.WeatherPoint, len(weather))
-	for _, w := range weather {
-		if w.Date == "" {
-			continue
+func alignWeather(series []domain.SeriesPoint, weather []domain.WeatherPoint) []domain.WeatherPoint {
+	byDate := make(map[string]domain.WeatherPoint, len(weather))
+	for _, point := range weather {
+		if point.Date != "" {
+			byDate[point.Date] = point
 		}
-		byDate[w.Date] = w
 	}
-	out := make([]store.WeatherPoint, 0, len(series))
-	for _, p := range series {
-		if w, ok := byDate[p.Date]; ok {
-			w.Date = p.Date
-			out = append(out, w)
+	out := make([]domain.WeatherPoint, 0, len(series))
+	for _, point := range series {
+		if value, ok := byDate[point.Date]; ok {
+			value.Date = point.Date
+			out = append(out, value)
 			continue
 		}
-		out = append(out, store.WeatherPoint{Date: p.Date})
+		out = append(out, domain.WeatherPoint{Date: point.Date})
 	}
 	return out
 }
 
-func projectEvents(res store.Result) publicEvents {
-	ver := res.ResultVersion
-	st := res.Status
-	ev := res.Events
-	if ev == nil {
-		ev = []store.Event{}
+func projectEvents(res domain.AnalysisRecord) publicEvents {
+	version, status := res.ResultVersion, string(res.Status)
+	events := res.Events
+	if events == nil {
+		events = []domain.AnomalyEvent{}
 	}
-	return publicEvents{
-		AreaID:        res.AreaID,
-		ResultVersion: &ver,
-		Status:        &st,
-		Severity:      publicSeverity(res.Status, res.Severity),
-		Events:        ev,
-	}
+	return publicEvents{AreaID: res.AreaID, ResultVersion: &version, Status: &status, Severity: publicSeverity(res.Status, res.Severity), Events: events}
 }

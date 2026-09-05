@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-
-	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
 type errorEnvelope struct {
@@ -50,12 +48,16 @@ func writeStoreErr(w http.ResponseWriter, err error) {
 	if err == nil {
 		return
 	}
-	if errors.Is(err, store.ErrNotFound) {
+	if errors.Is(err, errStorageNotFound) {
 		writeError(w, http.StatusNotFound, "not_found", "Объект не найден", false)
 		return
 	}
-	if errors.Is(err, store.ErrBadID) {
-		writeError(w, http.StatusNotFound, "not_found", "Объект не найден", false)
+	if errors.Is(err, errStorageConflict) {
+		writeError(w, http.StatusConflict, "conflict", "Операция конфликтует с текущим состоянием", false)
+		return
+	}
+	if errors.Is(err, errStorageBadState) {
+		writeError(w, http.StatusConflict, "conflict", "Операция недоступна в текущем состоянии", false)
 		return
 	}
 	writeError(w, http.StatusInternalServerError, "internal_error", "Не удалось прочитать или записать снимок", true)

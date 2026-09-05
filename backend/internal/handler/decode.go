@@ -27,11 +27,11 @@ func decodeCreateArea(body []byte) (createAreaRequest, error) {
 	return req, nil
 }
 
-func decodeAnalyses(body []byte) (analysesRequest, error) {
+func decodeCreateAnalysis(body []byte) (createAnalysisRequest, error) {
 	if len(body) == 0 {
-		return analysesRequest{}, nil
+		return createAnalysisRequest{}, nil
 	}
-	var req analysesRequest
+	var req createAnalysisRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		return req, errInvalidJSON
 	}

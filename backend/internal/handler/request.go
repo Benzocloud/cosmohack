@@ -22,6 +22,6 @@ type createAreaRawRequest struct {
 	Source   *domain.AreaSource `json:"source"`
 }
 
-type analysesRequest struct {
+type createAnalysisRequest struct {
 	Period *domain.Period `json:"period"`
 }

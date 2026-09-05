@@ -2,12 +2,12 @@ package handler
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
 const (
@@ -24,6 +24,7 @@ var (
 	errInvalidSource   = errors.New("invalid_source")
 	errLimitExceeded   = errors.New("limit_exceeded")
 	errInvalidID       = errors.New("invalid_id")
+	idPattern          = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 )
 
 type bbox struct {
@@ -65,7 +66,7 @@ func validateName(name string) error {
 }
 
 func validateID(id string) error {
-	if err := store.ValidID(id); err != nil {
+	if !idPattern.MatchString(id) {
 		return errInvalidID
 	}
 	return nil

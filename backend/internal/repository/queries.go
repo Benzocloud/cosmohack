@@ -5,6 +5,9 @@ import _ "embed"
 //go:embed sql/area_insert.sql
 var queryInsertArea string
 
+//go:embed sql/area_update.sql
+var queryUpdateArea string
+
 //go:embed sql/area_get.sql
 var queryGetArea string
 
@@ -16,6 +19,9 @@ var queryGetJob string
 
 //go:embed sql/job_insert.sql
 var queryInsertJob string
+
+//go:embed sql/job_delete.sql
+var queryDeleteJob string
 
 //go:embed sql/job_list_area.sql
 var queryListJobsByArea string

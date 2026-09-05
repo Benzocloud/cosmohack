@@ -45,6 +45,25 @@ func (r *Repository) CreateArea(ctx context.Context, area domain.Area) error {
 	return nil
 }
 
+// UpdateArea replaces the mutable snapshot fields of an existing area.
+func (r *Repository) UpdateArea(ctx context.Context, area domain.Area) error {
+	if err := r.check(); err != nil {
+		return err
+	}
+	row, err := newAreaRow(area)
+	if err != nil {
+		return err
+	}
+	result, err := r.db.ExecContext(ctx, queryUpdateArea,
+		row.ID, row.Name, row.Geometry, row.Source, row.PeriodFrom, row.PeriodTo, row.Generation,
+		nullableArg(row.ShownResultVersion), nullableArg(row.ShownJobID), nullableArg(row.ActiveJobID),
+	)
+	if err != nil {
+		return fmt.Errorf("update area: %w", mapDatabaseError(err))
+	}
+	return affected(result)
+}
+
 func mapDatabaseError(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {

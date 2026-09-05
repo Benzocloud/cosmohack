@@ -32,10 +32,10 @@ func (h *handler) getJob(w http.ResponseWriter, r *http.Request) {
 		writeValidation(w, err)
 		return
 	}
-	j, err := h.store.GetJob(id)
+	j, err := h.storage.GetJob(r.Context(), id)
 	if err != nil {
 		writeStoreErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, projectJob(*j))
+	writeJSON(w, http.StatusOK, projectJob(j))
 }
