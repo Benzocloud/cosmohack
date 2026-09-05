@@ -16,6 +16,7 @@
 - .agent/instructions.md — общие правила разработки и работы агентов.
 - .agent/plans/backend-1-data.md — этапы получения и нормализации данных.
 - .agent/plans/ml-2-restoration.md — этапы восстановления primary_ndvi, оценки, batch-инференса, аномалий и исследования.
+- .agent/plans/ml-integration.md — импорт готового ML с сохранением авторства, совместимый v1.0 rollout и отдельное включение multisensor v1.1.
 - .agent/plans/backend-3-api-storage.md — этапы API, хранения и кеша.
 - .agent/plans/backend-4-cicd-integration.md — этапы выполнения анализа, интеграции и CI/CD.
 - .agent/plans/frontend-backend-integration.md — поэтапная синхронизация frontend с актуальным публичным API, B1/ML wiring и сквозная приёмка.
@@ -24,7 +25,7 @@
 - deploy/ — Compose и серверный скрипт развёртывания.
 - .github/workflows/ — GitHub Actions.
 - reports/research.md и reports/experiments.csv — итоговый отчёт и фактические результаты экспериментов; не дублируют планы.
-- data/, artifacts/ и submission.csv — рабочие данные, модели и batch-результат; большие/закрытые файлы не коммитить, способ доступа эксперта описать в README.
+- data/, artifacts/ и submission.csv — рабочие данные, модели и batch-результат; большие/закрытые файлы не коммитить, способ доступа эксперта описать в README. Одноразовое исключение — уже опубликованные upstream-коммиты `ndvi-gapfill` с `artifacts/restoration.{json,pkl}`: они сохраняются без переписывания ради авторства и воспроизводимости; новые версии модели этим исключением не разрешены.
 - Корневой Dockerfile собирает Go с frontend; backend/ml/Dockerfile — ML-сервис. Оба используют корень репозитория как build context. Корневые .gitignore, .dockerignore и README.md относятся ко всему монорепозиторию.
 - Новые планы в корне и параллельные копии общего плана не создавать.
 

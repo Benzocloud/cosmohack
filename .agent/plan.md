@@ -70,6 +70,7 @@ backend/
   plans/
     backend-1-data.md
     ml-2-restoration.md
+    ml-integration.md
     backend-3-api-storage.md
     backend-4-cicd-integration.md
   sources/                       две исходные постановочные PDF
@@ -99,7 +100,7 @@ B3 владеет PostgreSQL repository: миграциями, embedded SQL, dom
 | Участник | Область | План |
 |---|---|---|
 | B1 — данные — `semennejo` | Автоматический поиск контуров, спутники, погода, нормализация и происхождение | [backend-1-data.md](plans/backend-1-data.md) |
-| ML — `xsqclown` | Python HTTP-сервис, интерполяция, валидация, submission, аномалии, модель и исследовательский отчёт | [ml-2-restoration.md](plans/ml-2-restoration.md) |
+| ML — `xsqclown` | Python HTTP-сервис, интерполяция, валидация, submission, аномалии, модель и исследовательский отчёт | [ml-2-restoration.md](plans/ml-2-restoration.md); [интеграция готового ML](plans/ml-integration.md) |
 | B3 — `tsuckermandev` | Управление полигонами, статусы задач, сохранение, кеш, контракт с frontend | [backend-3-api-storage.md](plans/backend-3-api-storage.md) |
 | B4 — `globalarray` | Исполнитель задач, последовательность сбора → ML → сохранения, прогресс и ошибки, HTTP-клиент ML; Go-сервер, два образа и Compose/CI/CD | [backend-4-cicd-integration.md](plans/backend-4-cicd-integration.md) |
 | Frontend — `Prosteyshiyyy` | Выбор региона/контуров, рисование, CRUD, прогресс, графики и объяснения | [Интеграция frontend и backend](plans/frontend-backend-integration.md); [бриф для дизайна](design-brief.md) |

@@ -30,17 +30,17 @@ DATABASE_URL='postgres://cosmohack:cosmohack@127.0.0.1:5432/cosmohack?sslmode=di
 TERRALENS, а `/panel.html` — рабочую панель. Кнопки лендинга переходят в панель
 на том же origin и сохраняют demo-параметры в query string.
 
-## ML-сервис (backend/ml) — ожидается от ML-владельца
+## ML-сервис (`backend/ml`)
 
-Код сервиса, пакет `vegetation_ml` и независимая batch CLI принадлежат
-`xsqclown`; здесь фиксируется способ запуска. Образ: `backend/ml/Dockerfile`
-(Python runtime, зафиксированные зависимости, пакет и версионированный
-артефакт; обучение при сборке/старте не выполняется). Маршруты: `POST
-/v1/analyze`, `GET /readyz` — см. контракт. До поставки ML все проверки
-Python в CI пропускаются автоматически.
+Код `vegetation_ml`, HTTP-сервис, batch CLI, тесты и результаты экспериментов
+поставлены ML-владельцем `xsqclown`. Запуск и устройство модели описаны в
+[backend/ml/README.md](backend/ml/README.md), этапы подключения к Go и deploy —
+в [.agent/plans/ml-integration.md](.agent/plans/ml-integration.md). Канонический
+контракт production остаётся в [.agent/contracts/go-ml-http.md](.agent/contracts/go-ml-http.md).
 
-Batch-команда `private_features.csv → submission.csv` будет задокументирована
-вместе с поставкой ML (та же точка запуска не требует работающего веб-сервиса).
+Образ собирается через `backend/ml/Dockerfile`; обучение при сборке и старте
+HTTP-сервиса не выполняется. Независимая batch-команда работает без Go и
+frontend.
 
 ## Docker и Compose
 
@@ -52,7 +52,7 @@ Docker Hub они зеркалируются в тот же приватный G
 
 ```bash
 docker build -t cosmohack-go -f Dockerfile .              # из корня репозитория
-docker build -t cosmohack-ml -f backend/ml/Dockerfile .   # после поставки ML
+docker build -t cosmohack-ml -f backend/ml/Dockerfile .
 cd deploy
 GO_IMAGE=cosmohack-go ML_IMAGE=cosmohack-ml MODEL_VERSION=dev docker compose up -d
 ```
@@ -86,12 +86,10 @@ digest и версии; при провале возвращается пред�
 ## CI/CD
 
 `.github/workflows/pipeline.yml`: PR — Go (fmt/vet/tests с race, golangci-lint,
-govulncheck), Python и frontend (если соответствующие пакеты доставлены),
-сборка Go и временного ML stub без публикации. Main — то же + публикация Go и
-реального ML либо `ml-stub` в GHCR через `GITHUB_TOKEN` (`packages:write`
-только у задачи публикации). При `DEPLOY_ENABLED=true` и отсутствии настоящего
-ML запускается отдельный `deploy-stub`: production Go работает с образом
-`ml-stub`. Оба deploy-пути используют `DATABASE_URL`, `GHCR_USER`,
+govulncheck), Python и frontend, сборка Go и ML без публикации. Main публикует
+и развёртывает настоящий ML только после появления проверенного маркера
+`backend/ml/PRODUCTION_READY`; до завершения плана интеграции production
+остаётся на `ml-stub`. `packages:write` есть только у publish job. Deploy использует `DATABASE_URL`, `GHCR_USER`,
 `GHCR_TOKEN`, `CDSE_CLIENT_ID`, `CDSE_CLIENT_SECRET` и `MODEL_VERSION`.
 Проверки и публикация выполняются на GitHub-hosted runner; deploy — на
 self-hosted runner. Actions зафиксированы на проверенных SHA.
