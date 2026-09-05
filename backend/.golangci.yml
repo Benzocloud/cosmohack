@@ -24,7 +24,6 @@ linters:
     # стиль
     - gocritic
     - revive
-    - wsl_v5
     - whitespace
     - godot
     - misspell
@@ -109,19 +108,10 @@ linters:
     nolintlint:
       require-explanation: true
       require-specific: true
-    wsl_v5:
-      allow-first-in-block: true
-      allow-whole-block: false
-      branch-max-lines: 2
-
 formatters:
   enable:
     - gofmt
     - gofumpt
-  disable:
-    - gci        # группировку импортов уже держит gofumpt
-    - goimports  # дублирует gofumpt
-    - golines    # жёсткий перенос строк вредит читаемости
   settings:
     gofumpt:
       extra:
