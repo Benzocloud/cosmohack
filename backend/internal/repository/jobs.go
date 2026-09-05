@@ -97,7 +97,7 @@ func (r *Repository) ListJobsByArea(ctx context.Context, areaID string) ([]domai
 
 // SetJobRunning performs the queued to running transition.
 func (r *Repository) SetJobRunning(ctx context.Context, id, stage string) error {
-	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool { return status == domain.JobQueued }, func(tx *sqlx.Tx, job record.Job, now time.Time) error {
+	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool { return status == domain.JobQueued }, false, func(tx *sqlx.Tx, now time.Time) error {
 		_, err := tx.ExecContext(ctx, querySetJobRunning, id, stage, now)
 		return err
 	})
@@ -105,7 +105,7 @@ func (r *Repository) SetJobRunning(ctx context.Context, id, stage string) error 
 
 // SetJobStage records progress for a running job.
 func (r *Repository) SetJobStage(ctx context.Context, id, stage string) error {
-	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool { return status == domain.JobRunning }, func(tx *sqlx.Tx, job record.Job, now time.Time) error {
+	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool { return status == domain.JobRunning }, false, func(tx *sqlx.Tx, now time.Time) error {
 		_, err := tx.ExecContext(ctx, querySetJobStage, id, stage, now)
 		return err
 	})
@@ -115,31 +115,20 @@ func (r *Repository) SetJobStage(ctx context.Context, id, stage string) error {
 func (r *Repository) SetJobFailed(ctx context.Context, id, code, message string, retryable bool) error {
 	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool {
 		return status == domain.JobQueued || status == domain.JobRunning
-	}, func(tx *sqlx.Tx, job record.Job, now time.Time) error {
+	}, true, func(tx *sqlx.Tx, now time.Time) error {
 		_, err := tx.ExecContext(ctx, querySetJobFailed, id, code, message, retryable, now)
 		return err
-	}, true)
+	})
 }
 
 // SetJobCancelled moves an active job to cancelled and releases the area slot.
 func (r *Repository) SetJobCancelled(ctx context.Context, id string) error {
 	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool {
 		return status == domain.JobQueued || status == domain.JobRunning
-	}, func(tx *sqlx.Tx, job record.Job, now time.Time) error {
+	}, true, func(tx *sqlx.Tx, now time.Time) error {
 		_, err := tx.ExecContext(ctx, querySetJobCancelled, id, now)
 		return err
-	}, true)
-}
-
-// SetJobCompleted moves a running job to completed and publishes its result version.
-func (r *Repository) SetJobCompleted(ctx context.Context, id, resultVersion string) error {
-	if resultVersion == "" {
-		return errors.New("result version is required")
-	}
-	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool { return status == domain.JobRunning }, func(tx *sqlx.Tx, job record.Job, now time.Time) error {
-		_, err := tx.ExecContext(ctx, querySetJobCompleted, id, resultVersion, now)
-		return err
-	}, true)
+	})
 }
 
 // SetJobInputRevision stores the immutable revision used for analysis input.
@@ -177,9 +166,9 @@ func (r *Repository) RecoverInterrupted(ctx context.Context) error {
 	return nil
 }
 
-type jobUpdate func(*sqlx.Tx, record.Job, time.Time) error
+type jobUpdate func(*sqlx.Tx, time.Time) error
 
-func (r *Repository) transitionJob(ctx context.Context, id string, allowed func(domain.JobStatus) bool, update jobUpdate, release ...bool) error {
+func (r *Repository) transitionJob(ctx context.Context, id string, allowed func(domain.JobStatus) bool, release bool, update jobUpdate) error {
 	if err := r.check(); err != nil {
 		return err
 	}
@@ -188,7 +177,7 @@ func (r *Repository) transitionJob(ctx context.Context, id string, allowed func(
 		return fmt.Errorf("begin job transition: %w", err)
 	}
 	defer tx.Rollback()
-	if len(release) > 0 && release[0] {
+	if release {
 		var key struct {
 			AreaID string `db:"area_id"`
 		}
@@ -214,10 +203,10 @@ func (r *Repository) transitionJob(ctx context.Context, id string, allowed func(
 	if !allowed(domain.JobStatus(row.Status)) {
 		return ErrBadState
 	}
-	if err := update(tx, row, time.Now().UTC()); err != nil {
+	if err := update(tx, time.Now().UTC()); err != nil {
 		return fmt.Errorf("update job: %w", mapDatabaseError(err))
 	}
-	if len(release) > 0 && release[0] {
+	if release {
 		if _, err := tx.ExecContext(ctx, queryClearActiveJob, row.AreaID, id); err != nil {
 			return fmt.Errorf("release area job slot: %w", err)
 		}

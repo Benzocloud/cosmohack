@@ -106,32 +106,20 @@ func mapResultRow(row record.AnalysisResult) (domain.AnalysisRecord, error) {
 	if row.PeriodFrom.IsZero() || row.PeriodTo.IsZero() {
 		return domain.AnalysisRecord{}, errors.New("decode result period: missing date")
 	}
-	for _, payload := range []struct {
-		name string
-		data []byte
-	}{
-		{name: "series", data: row.Series}, {name: "weather", data: row.Weather},
-		{name: "provenance", data: row.Provenance}, {name: "limitations", data: row.Limitations},
-		{name: "events", data: row.Events},
-	} {
-		if len(payload.data) == 0 {
-			return domain.AnalysisRecord{}, fmt.Errorf("decode result %s: empty payload", payload.name)
-		}
+	if err := decodeJSONPart("series", row.Series, &series); err != nil {
+		return domain.AnalysisRecord{}, err
 	}
-	if err := json.Unmarshal(row.Series, &series); err != nil {
-		return domain.AnalysisRecord{}, fmt.Errorf("decode result series: %w", err)
+	if err := decodeJSONPart("weather", row.Weather, &weather); err != nil {
+		return domain.AnalysisRecord{}, err
 	}
-	if err := json.Unmarshal(row.Weather, &weather); err != nil {
-		return domain.AnalysisRecord{}, fmt.Errorf("decode result weather: %w", err)
+	if err := decodeJSONPart("provenance", row.Provenance, &provenance); err != nil {
+		return domain.AnalysisRecord{}, err
 	}
-	if err := json.Unmarshal(row.Provenance, &provenance); err != nil {
-		return domain.AnalysisRecord{}, fmt.Errorf("decode result provenance: %w", err)
+	if err := decodeJSONPart("limitations", row.Limitations, &limitations); err != nil {
+		return domain.AnalysisRecord{}, err
 	}
-	if err := json.Unmarshal(row.Limitations, &limitations); err != nil {
-		return domain.AnalysisRecord{}, fmt.Errorf("decode result limitations: %w", err)
-	}
-	if err := json.Unmarshal(row.Events, &events); err != nil {
-		return domain.AnalysisRecord{}, fmt.Errorf("decode result events: %w", err)
+	if err := decodeJSONPart("events", row.Events, &events); err != nil {
+		return domain.AnalysisRecord{}, err
 	}
 	var severity *domain.Severity
 	if row.Severity.Valid {
@@ -151,6 +139,16 @@ func mapResultRow(row record.AnalysisResult) (domain.AnalysisRecord, error) {
 		Status: status, Severity: severity, InputRevision: row.InputRevision,
 		Series: series, Weather: weather, Provenance: provenance, Limitations: limitations, Events: events,
 	}, nil
+}
+
+func decodeJSONPart(name string, payload []byte, target any) error {
+	if len(payload) == 0 {
+		return fmt.Errorf("decode result %s: empty payload", name)
+	}
+	if err := json.Unmarshal(payload, target); err != nil {
+		return fmt.Errorf("decode result %s: %w", name, err)
+	}
+	return nil
 }
 
 func newResultRow(result domain.AnalysisRecord) (record.AnalysisResult, error) {

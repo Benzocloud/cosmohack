@@ -36,8 +36,9 @@ func (r *Repository) PutResult(ctx context.Context, generationAtStart int, jobID
 	if err := r.check(); err != nil {
 		return err
 	}
-	if result.AreaID == "" || result.ResultVersion == "" || jobID == "" {
-		return errors.New("result area, version, and job are required")
+	if result.AreaID == "" || result.ResultVersion == "" || jobID == "" || result.InputRevision == "" ||
+		result.SchemaVersion == "" || result.FeatureProfile == "" || result.ModelVersion == "" || result.Method == "" {
+		return errors.New("result required fields are missing")
 	}
 	row, err := newResultRow(result)
 	if err != nil {
@@ -96,14 +97,20 @@ func (r *Repository) PutResult(ctx context.Context, generationAtStart int, jobID
 		return fmt.Errorf("complete analysis job: %w", mapDatabaseError(err))
 	}
 	if err := affected(completed); err != nil {
-		return ErrBadState
+		if errors.Is(err, ErrNotFound) {
+			return ErrBadState
+		}
+		return fmt.Errorf("check completed job: %w", err)
 	}
 	published, err := tx.ExecContext(ctx, queryPublishResult, result.AreaID, row.ResultVersion, jobID)
 	if err != nil {
 		return fmt.Errorf("publish analysis result: %w", err)
 	}
 	if err := affected(published); err != nil {
-		return ErrBadState
+		if errors.Is(err, ErrNotFound) {
+			return ErrBadState
+		}
+		return fmt.Errorf("check published result: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit analysis result: %w", err)
