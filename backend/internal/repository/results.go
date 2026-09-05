@@ -119,7 +119,7 @@ func (r *Repository) PutResult(ctx context.Context, generationAtStart int, jobID
 }
 
 // ErrGeneration indicates that an area changed while analysis was running.
-var ErrGeneration = errors.New("area generation changed")
+var ErrGeneration = domain.ErrGeneration
 
 type resultHashInput struct {
 	AreaID, ResultVersion, PeriodFrom, PeriodTo                 string

@@ -15,6 +15,16 @@ import (
 // PutJobQueued persists a new queued job and claims the area's active slot.
 // The area lock, insert and active pointer update are one transaction.
 func (r *Repository) PutJobQueued(ctx context.Context, job domain.Job) error {
+	return r.putJobQueued(ctx, job, nil)
+}
+
+// PutJobQueuedWithPeriod atomically updates the area's default period and
+// claims its active job slot.
+func (r *Repository) PutJobQueuedWithPeriod(ctx context.Context, job domain.Job, period domain.Period) error {
+	return r.putJobQueued(ctx, job, &period)
+}
+
+func (r *Repository) putJobQueued(ctx context.Context, job domain.Job, areaPeriod *domain.Period) error {
 	if err := r.check(); err != nil {
 		return err
 	}
@@ -45,6 +55,19 @@ func (r *Repository) PutJobQueued(ctx context.Context, job domain.Job) error {
 	}
 	if area.ActiveJobID.Valid {
 		return ErrConflict
+	}
+	if areaPeriod != nil {
+		from, to, err := parsePeriod(*areaPeriod)
+		if err != nil {
+			return err
+		}
+		updated, err := tx.ExecContext(ctx, queryUpdateAreaPeriod, job.AreaID, from, to)
+		if err != nil {
+			return fmt.Errorf("update area period for job: %w", err)
+		}
+		if err := affected(updated); err != nil {
+			return err
+		}
 	}
 	if _, err := tx.ExecContext(ctx, queryInsertJob,
 		job.ID, job.AreaID, from, to, area.Generation, created,

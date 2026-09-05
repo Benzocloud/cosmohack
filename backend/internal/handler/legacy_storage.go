@@ -83,6 +83,25 @@ func (s LegacyStorage) PutJobQueued(_ context.Context, job domain.Job) error {
 	return mapStorageError(s.store.PutJobQueued(storeJobFromDomain(job)))
 }
 
+func (s LegacyStorage) PutJobQueuedWithPeriod(_ context.Context, job domain.Job, period domain.Period) error {
+	err := s.store.WithLock(func(tx *store.Tx) error {
+		area, err := tx.Area(job.AreaID)
+		if err != nil {
+			return err
+		}
+		if err := tx.PutJobQueued(storeJobFromDomain(job)); err != nil {
+			return err
+		}
+		area.Period = store.Period(period)
+		if err := tx.PutArea(*area); err != nil {
+			_ = tx.DeleteJob(job.ID)
+			return err
+		}
+		return nil
+	})
+	return mapStorageError(err)
+}
+
 func (s LegacyStorage) DeleteJob(_ context.Context, id string) error {
 	return mapStorageError(s.store.DeleteJob(id))
 }

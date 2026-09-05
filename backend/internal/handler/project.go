@@ -13,14 +13,20 @@ func formatTime(t time.Time) string {
 }
 
 type publicArea struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Geometry    domain.Polygon    `json:"geometry"`
-	Source      domain.AreaSource `json:"source"`
-	Period      domain.Period     `json:"period"`
-	CreatedAt   string            `json:"created_at"`
-	ShownResult *publicShown      `json:"shown_result"`
-	ActiveJob   *publicActive     `json:"active_job"`
+	ID          string           `json:"id"`
+	Name        string           `json:"name"`
+	Geometry    domain.Polygon   `json:"geometry"`
+	Source      publicAreaSource `json:"source"`
+	Period      domain.Period    `json:"period"`
+	CreatedAt   string           `json:"created_at"`
+	ShownResult *publicShown     `json:"shown_result"`
+	ActiveJob   *publicActive    `json:"active_job"`
+}
+
+type publicAreaSource struct {
+	Kind      string  `json:"kind"`
+	ContourID *string `json:"contour_id"`
+	Provider  *string `json:"provider"`
 }
 
 type publicShown struct {
@@ -58,7 +64,9 @@ type publicJob struct {
 }
 
 func (h *handler) projectArea(ctx context.Context, a domain.Area) (publicArea, error) {
-	out := publicArea{ID: a.ID, Name: a.Name, Geometry: a.Geometry, Source: a.Source, Period: a.Period, CreatedAt: formatTime(a.CreatedAt)}
+	out := publicArea{ID: a.ID, Name: a.Name, Geometry: a.Geometry,
+		Source: publicAreaSource{Kind: a.Source.Kind, ContourID: a.Source.ContourID, Provider: a.Source.Provider},
+		Period: a.Period, CreatedAt: formatTime(a.CreatedAt)}
 	if a.ShownResultVersion != "" {
 		res, err := h.storage.GetResult(ctx, a.ID, a.ShownResultVersion)
 		if err != nil && !errors.Is(err, errStorageNotFound) {
@@ -114,20 +122,39 @@ func projectJob(j domain.Job) publicJob {
 }
 
 type publicSeries struct {
-	AreaID         string                `json:"area_id"`
-	ResultVersion  *string               `json:"result_version"`
-	Period         *domain.Period        `json:"period"`
-	ComputedAt     *string               `json:"computed_at"`
-	SchemaVersion  string                `json:"schema_version,omitempty"`
-	FeatureProfile string                `json:"feature_profile,omitempty"`
-	ModelVersion   string                `json:"model_version,omitempty"`
-	Method         string                `json:"method,omitempty"`
-	Status         *string               `json:"status"`
-	Severity       *string               `json:"severity"`
-	Series         []domain.SeriesPoint  `json:"series"`
-	Weather        []domain.WeatherPoint `json:"weather"`
-	Provenance     map[string]any        `json:"provenance,omitempty"`
-	Limitations    []string              `json:"limitations"`
+	AreaID         string               `json:"area_id"`
+	ResultVersion  *string              `json:"result_version"`
+	Period         *domain.Period       `json:"period"`
+	ComputedAt     *string              `json:"computed_at"`
+	SchemaVersion  string               `json:"schema_version,omitempty"`
+	FeatureProfile string               `json:"feature_profile,omitempty"`
+	ModelVersion   string               `json:"model_version,omitempty"`
+	Method         string               `json:"method,omitempty"`
+	Status         *string              `json:"status"`
+	Severity       *string              `json:"severity"`
+	Series         []publicSeriesPoint  `json:"series"`
+	Weather        []publicWeatherPoint `json:"weather"`
+	Provenance     map[string]any       `json:"provenance,omitempty"`
+	Limitations    []string             `json:"limitations"`
+}
+
+type publicSeriesPoint struct {
+	Date          string            `json:"date"`
+	PrimaryNDVI   *float64          `json:"primary_ndvi"`
+	Value         *float64          `json:"value"`
+	State         domain.PointState `json:"state"`
+	Method        *string           `json:"method"`
+	Baseline      *float64          `json:"baseline"`
+	ZScore        *float64          `json:"z_score"`
+	Interval      *domain.Period    `json:"interval"`
+	ValidFraction *float64          `json:"valid_fraction"`
+}
+
+type publicWeatherPoint struct {
+	Date               string   `json:"date"`
+	TemperatureMeanC   *float64 `json:"temperature_mean_c"`
+	PrecipitationSumMM *float64 `json:"precipitation_sum_mm"`
+	SourceID           *string  `json:"source_id"`
 }
 
 type publicEvents struct {
@@ -139,7 +166,7 @@ type publicEvents struct {
 }
 
 func emptySeries(areaID string) publicSeries {
-	return publicSeries{AreaID: areaID, Series: []domain.SeriesPoint{}, Weather: []domain.WeatherPoint{}, Limitations: []string{}}
+	return publicSeries{AreaID: areaID, Series: []publicSeriesPoint{}, Weather: []publicWeatherPoint{}, Limitations: []string{}}
 }
 
 func emptyEvents(areaID string) publicEvents {
@@ -148,13 +175,20 @@ func emptyEvents(areaID string) publicEvents {
 
 func projectSeries(res domain.AnalysisRecord) publicSeries {
 	ver, status, computedAt, period := res.ResultVersion, string(res.Status), formatTime(res.ComputedAt), res.Period
-	series := res.Series
-	if series == nil {
-		series = []domain.SeriesPoint{}
+	series := make([]publicSeriesPoint, 0, len(res.Series))
+	for _, point := range res.Series {
+		series = append(series, publicSeriesPoint{
+			Date: point.Date, PrimaryNDVI: point.PrimaryNDVI, Value: point.Value, State: point.State,
+			Method: point.Method, Baseline: point.Baseline, ZScore: point.ZScore,
+			Interval: point.Interval, ValidFraction: point.ValidFraction,
+		})
 	}
-	weather := res.Weather
-	if weather == nil {
-		weather = []domain.WeatherPoint{}
+	weather := make([]publicWeatherPoint, 0, len(res.Weather))
+	for _, point := range res.Weather {
+		weather = append(weather, publicWeatherPoint{
+			Date: point.Date, TemperatureMeanC: point.TemperatureMeanC,
+			PrecipitationSumMM: point.PrecipitationSumMM, SourceID: point.SourceID,
+		})
 	}
 	limitations := res.Limitations
 	if limitations == nil {
@@ -162,7 +196,7 @@ func projectSeries(res domain.AnalysisRecord) publicSeries {
 	}
 	return publicSeries{AreaID: res.AreaID, ResultVersion: &ver, Period: &period, ComputedAt: &computedAt,
 		SchemaVersion: res.SchemaVersion, FeatureProfile: res.FeatureProfile, ModelVersion: res.ModelVersion, Method: res.Method,
-		Status: &status, Severity: publicSeverity(res.Status, res.Severity), Series: series, Weather: alignWeather(series, weather),
+		Status: &status, Severity: publicSeverity(res.Status, res.Severity), Series: series, Weather: alignWeather(series, res.Weather),
 		Provenance: res.Provenance, Limitations: limitations}
 }
 
@@ -182,21 +216,24 @@ func publicSeverity(status domain.ResultStatus, stored *domain.Severity) *string
 	}
 }
 
-func alignWeather(series []domain.SeriesPoint, weather []domain.WeatherPoint) []domain.WeatherPoint {
-	byDate := make(map[string]domain.WeatherPoint, len(weather))
+func alignWeather(series []publicSeriesPoint, weather []domain.WeatherPoint) []publicWeatherPoint {
+	byDate := make(map[string]publicWeatherPoint, len(weather))
 	for _, point := range weather {
 		if point.Date != "" {
-			byDate[point.Date] = point
+			byDate[point.Date] = publicWeatherPoint{
+				Date: point.Date, TemperatureMeanC: point.TemperatureMeanC,
+				PrecipitationSumMM: point.PrecipitationSumMM, SourceID: point.SourceID,
+			}
 		}
 	}
-	out := make([]domain.WeatherPoint, 0, len(series))
+	out := make([]publicWeatherPoint, 0, len(series))
 	for _, point := range series {
 		if value, ok := byDate[point.Date]; ok {
 			value.Date = point.Date
 			out = append(out, value)
 			continue
 		}
-		out = append(out, domain.WeatherPoint{Date: point.Date})
+		out = append(out, publicWeatherPoint{Date: point.Date})
 	}
 	return out
 }

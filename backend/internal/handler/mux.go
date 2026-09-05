@@ -52,6 +52,7 @@ type Storage interface {
 	DeleteArea(context.Context, string) ([]string, error)
 	GetJob(context.Context, string) (domain.Job, error)
 	PutJobQueued(context.Context, domain.Job) error
+	PutJobQueuedWithPeriod(context.Context, domain.Job, domain.Period) error
 	DeleteJob(context.Context, string) error
 	GetResult(context.Context, string, string) (domain.AnalysisRecord, error)
 }

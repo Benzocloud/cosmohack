@@ -14,6 +14,7 @@ type SchedulerPersistence interface {
 	GetJob(context.Context, string) (domain.Job, error)
 	UpdateArea(context.Context, domain.Area) error
 	PutJobQueued(context.Context, domain.Job) error
+	PutJobQueuedWithPeriod(context.Context, domain.Job, domain.Period) error
 	DeleteJob(context.Context, string) error
 }
 
@@ -55,24 +56,25 @@ func (s *Scheduler) Start(ctx context.Context, areaID string, requestedPeriod *d
 	if err != nil {
 		return domain.Job{}, err
 	}
-	if err := s.persistence.PutJobQueued(ctx, job); err != nil {
-		return domain.Job{}, err
+	queueErr := error(nil)
+	if requestedPeriod != nil {
+		queueErr = s.persistence.PutJobQueuedWithPeriod(ctx, job, *requestedPeriod)
+	} else {
+		queueErr = s.persistence.PutJobQueued(ctx, job)
+	}
+	if queueErr != nil {
+		return domain.Job{}, queueErr
 	}
 	if err := s.queue.Enqueue(ctx, job.ID); err != nil {
 		if deleteErr := s.persistence.DeleteJob(ctx, job.ID); deleteErr != nil {
 			return domain.Job{}, deleteErr
 		}
+		if requestedPeriod != nil {
+			if restoreErr := s.persistence.UpdateArea(ctx, area); restoreErr != nil {
+				return domain.Job{}, restoreErr
+			}
+		}
 		return domain.Job{}, err
-	}
-	if requestedPeriod != nil {
-		fresh, err := s.persistence.GetArea(ctx, areaID)
-		if err != nil {
-			return domain.Job{}, err
-		}
-		fresh.Period = *requestedPeriod
-		if err := s.persistence.UpdateArea(ctx, fresh); err != nil {
-			return domain.Job{}, err
-		}
 	}
 	return job, nil
 }

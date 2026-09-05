@@ -1,10 +1,10 @@
 package repository
 
-import "errors"
+import "github.com/Benzocloud/cosmohack/backend/internal/domain"
 
 // ErrNotFound indicates that a requested aggregate does not exist.
 var (
-	ErrNotFound = errors.New("record not found")
-	ErrConflict = errors.New("record conflict")
-	ErrBadState = errors.New("invalid record state")
+	ErrNotFound = domain.ErrNotFound
+	ErrConflict = domain.ErrConflict
+	ErrBadState = domain.ErrBadState
 )

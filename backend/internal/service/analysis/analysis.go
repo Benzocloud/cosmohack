@@ -28,16 +28,16 @@ var ErrQueueFull = errors.New("analysis queue is full")
 
 // ErrBadState indicates that a concurrent cancellation or terminal transition
 // already won the job race.
-var ErrBadState = errors.New("invalid job state")
+var ErrBadState = domain.ErrBadState
 
 // ErrConflict indicates that an area already has an active analysis job.
 var ErrConflict = errors.New("analysis already active")
 
 // ErrNotFound indicates that a job or area disappeared before persistence.
-var ErrNotFound = errors.New("record not found")
+var ErrNotFound = domain.ErrNotFound
 
 // ErrGeneration indicates that an area changed during analysis.
-var ErrGeneration = errors.New("area generation changed")
+var ErrGeneration = domain.ErrGeneration
 
 // Persistence is the consumer-owned storage port of the executor.
 type Persistence interface {

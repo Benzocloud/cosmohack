@@ -8,6 +8,9 @@ var queryInsertArea string
 //go:embed sql/area_update.sql
 var queryUpdateArea string
 
+//go:embed sql/area_update_period.sql
+var queryUpdateAreaPeriod string
+
 //go:embed sql/area_get.sql
 var queryGetArea string
 

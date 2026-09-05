@@ -1,15 +1,13 @@
 package handler
 
 import (
-	"errors"
-
-	analysisusecase "github.com/Benzocloud/cosmohack/backend/internal/service/analysis"
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
 
 var (
-	errStorageNotFound = analysisusecase.ErrNotFound
-	errStorageConflict = errors.New("storage conflict")
-	errStorageBadState = errors.New("storage bad state")
+	errStorageNotFound = domain.ErrNotFound
+	errStorageConflict = domain.ErrConflict
+	errStorageBadState = domain.ErrBadState
 )
 
 // Exported aliases let the composition root normalize repository errors
