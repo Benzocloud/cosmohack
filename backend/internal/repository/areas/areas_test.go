@@ -4,13 +4,15 @@ import (
 	"database/sql"
 	"testing"
 	"time"
+
+	"github.com/Benzocloud/cosmohack/backend/internal/repository/areas/record"
 )
 
-func TestAreaRowDomain(t *testing.T) {
+func TestMapAreaRecord(t *testing.T) {
 	shownVersion := sql.NullString{String: "result-1", Valid: true}
 	shownJob := sql.NullString{String: "job-1", Valid: true}
 	activeJob := sql.NullString{String: "job-2", Valid: true}
-	row := areaRow{
+	row := record.Area{
 		ID:                 "area-1",
 		Name:               "field",
 		Geometry:           []byte(`{"type":"Polygon","coordinates":[[[30,50],[31,50],[30,50]]]}`),
@@ -24,7 +26,7 @@ func TestAreaRowDomain(t *testing.T) {
 		ActiveJobID:        activeJob,
 	}
 
-	area, err := row.domain()
+	area, err := mapAreaRow(row)
 	if err != nil {
 		t.Fatalf("map area row: %v", err)
 	}
@@ -39,9 +41,9 @@ func TestAreaRowDomain(t *testing.T) {
 	}
 }
 
-func TestAreaRowDomainRejectsInvalidJSON(t *testing.T) {
-	row := areaRow{Geometry: []byte("not-json"), Source: []byte(`{}`)}
-	if _, err := row.domain(); err == nil {
+func TestMapAreaRecordRejectsInvalidJSON(t *testing.T) {
+	row := record.Area{Geometry: []byte("not-json"), Source: []byte(`{}`)}
+	if _, err := mapAreaRow(row); err == nil {
 		t.Fatal("invalid geometry JSON must fail mapping")
 	}
 }
