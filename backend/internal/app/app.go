@@ -63,7 +63,9 @@ func Run(ctx context.Context) error {
 
 	// Один воркер-исполнитель: очередь ≤8 внутри Go, сбор → ML → store.
 	executor := analysis.New(st, placeholderCollector{}, client)
-	executor.Start(ctx)
+	if err := executor.Start(ctx); err != nil {
+		return err
+	}
 
 	addr := os.Getenv(addrEnv)
 	if addr == "" {

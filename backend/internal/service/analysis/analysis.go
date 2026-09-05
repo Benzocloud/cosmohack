@@ -78,11 +78,12 @@ func New(st *store.Store, collector Collector, analyzer Analyzer) *Executor {
 
 // Start помечает прерванные задачи и запускает единственного воркера.
 // Повторный вызов не допускается.
-func (e *Executor) Start(ctx context.Context) {
+func (e *Executor) Start(ctx context.Context) error {
 	if err := e.store.FailInterrupted(); err != nil {
-		slog.Error("interrupted jobs sweep failed", "error", err)
+		return fmt.Errorf("recover interrupted jobs: %w", err)
 	}
 	go e.worker(ctx)
+	return nil
 }
 
 // Enqueue ставит задачу в очередь; вызывается под mutex store обработчиком
