@@ -94,6 +94,7 @@ export function useTerraDraw({
   mapLatest.current = map;
   const initializedMap = useRef<MaplibreMap | null>(null);
   const initializedBasemap = useRef<string | null>(null);
+  const initializedStyle = useRef<ReturnType<MaplibreMap['getStyle']> | null>(null);
   const drawingLatest = useRef(drawing);
   drawingLatest.current = drawing;
   const finishRef = useRef(onFinish);
@@ -138,6 +139,7 @@ export function useTerraDraw({
       drawRef.current = draw;
       initializedMap.current = map;
       initializedBasemap.current = basemap;
+      initializedStyle.current = map.getStyle();
       if (import.meta.env.DEV) {
         (window as unknown as { __agroDraw?: TerraDraw }).__agroDraw = draw;
       }
@@ -178,25 +180,32 @@ export function useTerraDraw({
       map.getCanvas().addEventListener('pointerup', onPointerUp);
     };
 
+    const previousStyle = initializedStyle.current;
+    let retryTimer: number | undefined;
     const waitForStyle = () => {
-      if (cancelled) return;
-      if (map.isStyleLoaded()) {
+      if (cancelled || draw) return;
+      const styleChanged =
+        initializedMap.current !== map ||
+        initializedBasemap.current === null ||
+        map.getStyle() !== previousStyle;
+      if (map.isStyleLoaded() && styleChanged) {
+        map.off('style.load', waitForStyle);
+        if (retryTimer !== undefined) window.clearTimeout(retryTimer);
         initialize();
         return;
       }
-      map.once('style.load', waitForStyle);
+      retryTimer = window.setTimeout(waitForStyle, 50);
     };
-    // На смене basemap старый style ещё может считаться загруженным. Ждём
-    // style.load, чтобы адаптер не зарегистрировал слои, которые setStyle тут же удалит.
-    if (initializedMap.current === map && initializedBasemap.current !== null) {
-      map.once('style.load', waitForStyle);
-    } else {
-      waitForStyle();
-    }
+    // При setStyle старый style иногда остаётся «loaded» в момент эффекта,
+    // а событие style.load уже могло прийти до подписки. Проверяем одновременно
+    // событие и смену объекта style, чтобы адаптер не остался без слоёв TerraDraw.
+    map.once('style.load', waitForStyle);
+    waitForStyle();
 
     return () => {
       cancelled = true;
       map.off('style.load', waitForStyle);
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
       if (onPointerUp) map.getCanvas().removeEventListener('pointerup', onPointerUp);
       try {
         draw?.stop();

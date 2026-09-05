@@ -3,6 +3,7 @@ package analysis
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
@@ -12,11 +13,19 @@ import (
 func resultVersion(req *domain.AnalysisRequest, res *domain.AnalysisResult) string {
 	h := sha256.New()
 	for _, part := range []string{
-		"v1", req.AreaID, req.InputRevision, res.ModelVersion, req.AnalysisPeriod.From, req.AnalysisPeriod.To,
+		"v2", req.AreaID, req.InputRevision, res.ModelVersion, req.AnalysisPeriod.From, req.AnalysisPeriod.To,
 	} {
 		h.Write([]byte(part))
 		h.Write([]byte{0})
 	}
+	// Peers and crop context are analysis inputs but are not part of the B1
+	// snapshot revision. Include them so a repeated run with changed context
+	// gets a new immutable result version instead of a record conflict.
+	context, _ := json.Marshal(struct {
+		AreaContext *domain.AreaContext `json:"area_context,omitempty"`
+		Peers       []domain.PeerSeries `json:"peers,omitempty"`
+	}{AreaContext: req.AreaContext, Peers: req.Peers})
+	h.Write(context)
 	return hex.EncodeToString(h.Sum(nil))[:16]
 }
 

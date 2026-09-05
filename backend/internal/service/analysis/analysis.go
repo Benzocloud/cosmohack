@@ -254,6 +254,7 @@ func (e *Executor) runJob(base context.Context, jobID string) {
 			e.logger.Info("late result discarded", "job_id", jobID, "error", err)
 		default:
 			e.logger.Error("save result failed", "job_id", jobID, "error", err)
+			e.failResult(jobCtx, jobID, err)
 		}
 	}
 }
@@ -294,6 +295,18 @@ func (e *Executor) failAnalyze(ctx context.Context, jobID string, err error) {
 	}
 	if serr := e.persistence.SetJobFailed(ctx, jobID, code, message, retryable); serr != nil && !errors.Is(serr, ErrBadState) {
 		e.logger.Error("mark analyze failure failed", "job_id", jobID, "error", serr)
+	}
+}
+
+func (e *Executor) failResult(ctx context.Context, jobID string, err error) {
+	code := "result_persistence_error"
+	message := "failed to persist analysis result"
+	if errors.Is(err, domain.ErrConflict) {
+		code = "result_conflict"
+		message = "analysis result conflicts with an existing version"
+	}
+	if failed := e.persistence.SetJobFailed(ctx, jobID, code, message, true); failed != nil && !errors.Is(failed, ErrBadState) {
+		e.logger.Error("mark result failure failed", "job_id", jobID, "error", failed)
 	}
 }
 
