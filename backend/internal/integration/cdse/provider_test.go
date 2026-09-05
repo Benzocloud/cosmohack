@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -211,9 +212,17 @@ func TestProviderSendsContractRequest(t *testing.T) {
 	}
 	for _, key := range []string{"resx", "resy"} {
 		resolution, ok := aggregation[key].(float64)
-		if !ok || resolution != 10 {
-			t.Fatalf("%s должен быть числом 10, получено %v", key, aggregation[key])
+		if !ok || resolution <= 0 || resolution >= 0.001 {
+			t.Fatalf("%s должен быть положительным разрешением CRS84 в градусах, получено %v", key, aggregation[key])
 		}
+	}
+	resx := aggregation["resx"].(float64)
+	resy := aggregation["resy"].(float64)
+	latitude := 45.005 * math.Pi / 180
+	wantResx := 10 / (111320.0 * math.Abs(math.Cos(latitude)))
+	wantResy := 10 / 111320.0
+	if math.Abs(resx-wantResx) > 1e-12 || math.Abs(resy-wantResy) > 1e-12 {
+		t.Fatalf("разрешение CRS84 %g/%g, ожидалось %g/%g", resx, resy, wantResx, wantResy)
 	}
 	evalscript, ok := aggregation["evalscript"].(string)
 	if !ok || !strings.Contains(evalscript, "dataMask") || !strings.Contains(evalscript, "SCL") {

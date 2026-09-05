@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -23,6 +24,7 @@ const (
 
 	defaultAggregationDays  = 5
 	defaultResolutionMeters = 10.0
+	metersPerDegree         = 111320.0
 	defaultMinValidFraction = 0.5
 	defaultMosaickingOrder  = "leastCC"
 	reasonOutOfRange        = "ndvi_out_of_range"
@@ -178,6 +180,7 @@ func (b *requestBuilder) build(request source.SatelliteRequest) ([]byte, error) 
 		return nil, domain.WrapProviderError(domain.FailureInvalidRequest, ProviderName, err,
 			"geometry could not be serialized")
 	}
+	resx, resy := resolutionInCRS84(request.Polygon(), b.resolutionMeters)
 	payload := map[string]any{
 		"input": map[string]any{
 			"bounds": map[string]any{
@@ -195,8 +198,8 @@ func (b *requestBuilder) build(request source.SatelliteRequest) ([]byte, error) 
 				"to":   request.Period().To().AddDays(1).Time().Format(time.RFC3339),
 			},
 			"aggregationInterval": map[string]string{"of": fmt.Sprintf("P%dD", b.aggregationDays)},
-			"resx":                b.resolutionMeters,
-			"resy":                b.resolutionMeters,
+			"resx":                resx,
+			"resy":                resy,
 			"evalscript":          evalscript(),
 		},
 		"calculations": map[string]any{
@@ -209,4 +212,13 @@ func (b *requestBuilder) build(request source.SatelliteRequest) ([]byte, error) 
 			"request body could not be serialized")
 	}
 	return body, nil
+}
+
+func resolutionInCRS84(polygon *geom.Polygon, meters float64) (float64, float64) {
+	latitude := polygon.RepresentativePoint().Lat() * math.Pi / 180
+	longitudeScale := math.Abs(math.Cos(latitude))
+	if longitudeScale < 1e-6 {
+		longitudeScale = 1e-6
+	}
+	return meters / (metersPerDegree * longitudeScale), meters / metersPerDegree
 }
