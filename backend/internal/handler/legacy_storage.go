@@ -8,19 +8,21 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
-// legacyStorage keeps the existing HTTP characterization tests running while
-// the application composition root moves to PostgreSQL.
-type legacyStorage struct{ store *store.Store }
+// LegacyStorage keeps the existing file-store runtime available while the
+// application composition root moves to PostgreSQL.
+type LegacyStorage struct{ store *store.Store }
 
-func (s legacyStorage) CreateArea(_ context.Context, area domain.Area) error {
+func NewLegacyStorage(st *store.Store) Storage { return LegacyStorage{store: st} }
+
+func (s LegacyStorage) CreateArea(_ context.Context, area domain.Area) error {
 	return mapStorageError(s.store.PutArea(storeAreaFromDomain(area)))
 }
 
-func (s legacyStorage) UpdateArea(_ context.Context, area domain.Area) error {
+func (s LegacyStorage) UpdateArea(_ context.Context, area domain.Area) error {
 	return mapStorageError(s.store.PutArea(storeAreaFromDomain(area)))
 }
 
-func (s legacyStorage) GetArea(_ context.Context, id string) (domain.Area, error) {
+func (s LegacyStorage) GetArea(_ context.Context, id string) (domain.Area, error) {
 	area, err := s.store.GetArea(id)
 	if err != nil {
 		return domain.Area{}, mapStorageError(err)
@@ -34,7 +36,7 @@ func (s legacyStorage) GetArea(_ context.Context, id string) (domain.Area, error
 	return out, nil
 }
 
-func (s legacyStorage) ListAreas(_ context.Context) ([]domain.Area, error) {
+func (s LegacyStorage) ListAreas(_ context.Context) ([]domain.Area, error) {
 	areas, err := s.store.ListAreas()
 	if err != nil {
 		return nil, mapStorageError(err)
@@ -52,7 +54,7 @@ func (s legacyStorage) ListAreas(_ context.Context) ([]domain.Area, error) {
 	return out, nil
 }
 
-func (s legacyStorage) DeleteArea(_ context.Context, id string) ([]string, error) {
+func (s LegacyStorage) DeleteArea(_ context.Context, id string) ([]string, error) {
 	jobs, err := s.store.ListJobsByArea(id)
 	if err != nil {
 		return nil, mapStorageError(err)
@@ -69,7 +71,7 @@ func (s legacyStorage) DeleteArea(_ context.Context, id string) ([]string, error
 	return active, nil
 }
 
-func (s legacyStorage) GetJob(_ context.Context, id string) (domain.Job, error) {
+func (s LegacyStorage) GetJob(_ context.Context, id string) (domain.Job, error) {
 	job, err := s.store.GetJob(id)
 	if err != nil {
 		return domain.Job{}, mapStorageError(err)
@@ -77,15 +79,15 @@ func (s legacyStorage) GetJob(_ context.Context, id string) (domain.Job, error) 
 	return domainJobFromStore(*job), nil
 }
 
-func (s legacyStorage) PutJobQueued(_ context.Context, job domain.Job) error {
+func (s LegacyStorage) PutJobQueued(_ context.Context, job domain.Job) error {
 	return mapStorageError(s.store.PutJobQueued(storeJobFromDomain(job)))
 }
 
-func (s legacyStorage) DeleteJob(_ context.Context, id string) error {
+func (s LegacyStorage) DeleteJob(_ context.Context, id string) error {
 	return mapStorageError(s.store.DeleteJob(id))
 }
 
-func (s legacyStorage) GetResult(_ context.Context, areaID, version string) (domain.AnalysisRecord, error) {
+func (s LegacyStorage) GetResult(_ context.Context, areaID, version string) (domain.AnalysisRecord, error) {
 	result, err := s.store.GetResult(areaID, version)
 	if err != nil {
 		return domain.AnalysisRecord{}, mapStorageError(err)

@@ -70,7 +70,7 @@ type handler struct {
 // чтобы app добавлял /readyz тем же mux. Лимиты площади/вершин: ноль значит
 // «не проверять».
 func NewMux(st *store.Store, contours ContourFinder, queue Queue, lim Limits) *http.ServeMux {
-	storage := legacyStorage{store: st}
+	storage := NewLegacyStorage(st)
 	return NewMuxWithStorage(storage, area.New(storage), analysisusecase.NewScheduler(storage, queue), contours, queue, lim)
 }
 

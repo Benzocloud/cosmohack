@@ -15,6 +15,7 @@ import (
 
 	"github.com/Benzocloud/cosmohack/backend/internal/handler"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/analysis"
+	"github.com/Benzocloud/cosmohack/backend/internal/service/area"
 	mlservice "github.com/Benzocloud/cosmohack/backend/internal/service/ml"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
@@ -72,7 +73,9 @@ func Run(ctx context.Context) error {
 		addr = defaultAddr
 	}
 
-	mux := handler.NewMux(st, placeholderContours{}, &executorQueue{executor}, handler.Limits{})
+	queue := &executorQueue{executor}
+	storage := handler.NewLegacyStorage(st)
+	mux := handler.NewMuxWithStorage(storage, area.New(storage), analysis.NewScheduler(storage, queue), placeholderContours{}, queue, handler.Limits{})
 	handler.Register(mux, nil)
 	serveStatic(mux)
 
