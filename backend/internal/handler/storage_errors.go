@@ -1,9 +1,13 @@
 package handler
 
-import "errors"
+import (
+	"errors"
+
+	analysisusecase "github.com/Benzocloud/cosmohack/backend/internal/service/analysis"
+)
 
 var (
-	errStorageNotFound = errors.New("storage not found")
+	errStorageNotFound = analysisusecase.ErrNotFound
 	errStorageConflict = errors.New("storage conflict")
 	errStorageBadState = errors.New("storage bad state")
 )

@@ -30,6 +30,9 @@ var ErrQueueFull = errors.New("analysis queue is full")
 // already won the job race.
 var ErrBadState = errors.New("invalid job state")
 
+// ErrConflict indicates that an area already has an active analysis job.
+var ErrConflict = errors.New("analysis already active")
+
 // ErrNotFound indicates that a job or area disappeared before persistence.
 var ErrNotFound = errors.New("record not found")
 

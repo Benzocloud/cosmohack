@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
+	analysisusecase "github.com/Benzocloud/cosmohack/backend/internal/service/analysis"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/area"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
@@ -56,24 +57,26 @@ type Storage interface {
 }
 
 type handler struct {
-	storage  Storage
-	areas    *area.Service
-	contours ContourFinder
-	queue    Queue
-	limits   Limits
-	gate     sync.Mutex
+	storage   Storage
+	areas     *area.Service
+	scheduler *analysisusecase.Scheduler
+	contours  ContourFinder
+	queue     Queue
+	limits    Limits
+	gate      sync.Mutex
 }
 
 // NewMux собирает публичные маршруты без Listen. Возвращает *http.ServeMux,
 // чтобы app добавлял /readyz тем же mux. Лимиты площади/вершин: ноль значит
 // «не проверять».
 func NewMux(st *store.Store, contours ContourFinder, queue Queue, lim Limits) *http.ServeMux {
-	return NewMuxWithStorage(legacyStorage{store: st}, contours, queue, lim)
+	storage := legacyStorage{store: st}
+	return NewMuxWithStorage(storage, area.New(storage), analysisusecase.NewScheduler(storage, queue), contours, queue, lim)
 }
 
 // NewMuxWithStorage builds routes over a domain persistence implementation.
-func NewMuxWithStorage(storage Storage, contours ContourFinder, queue Queue, lim Limits) *http.ServeMux {
-	h := &handler{storage: storage, areas: area.New(storage), contours: contours, queue: queue, limits: lim}
+func NewMuxWithStorage(storage Storage, areas *area.Service, scheduler *analysisusecase.Scheduler, contours ContourFinder, queue Queue, lim Limits) *http.ServeMux {
+	h := &handler{storage: storage, areas: areas, scheduler: scheduler, contours: contours, queue: queue, limits: lim}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/areas", h.listAreas)
 	mux.HandleFunc("POST /api/areas", h.createArea)
