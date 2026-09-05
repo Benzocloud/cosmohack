@@ -1,24 +1,43 @@
-# Один выпуск Compose связывает два образа по digest и переменные совместимости:
-# schema_version, feature_profile и model_version проверяются деплоем
-# (.agent/contracts/go-ml-http.md). Запуск из deploy/: docker compose up -d.
-#
-# GO_IMAGE и ML_IMAGE задаются deploy/deploy.sh (immutable digest) либо
-# вручную; ML_BASE_URL фиксирован сетью Compose. Порт ML не публикуется.
-#
-# Переменные окружения: APP_PORT (по умолчанию 8080), DATA_DIR_HOST — каталог
-# машины команды для постоянного тома снимков Go.
-
+# Local and production-shaped Compose stack. PostgreSQL is the source of truth;
+# migrations complete before Go starts.
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cosmohack}
+      POSTGRES_USER: ${POSTGRES_USER:-cosmohack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cosmohack}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    image: migrate/migrate:v4.18.3
+    command: ["-path=/migrations", "-database", "${DATABASE_URL:-postgres://cosmohack:cosmohack@postgres:5432/cosmohack?sslmode=disable}", "up"]
+    volumes:
+      - ${MIGRATIONS_DIR_HOST:-../backend/migrations}:/migrations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   go:
     image: ${GO_IMAGE:?GO_IMAGE is required}
     ports:
       - "${APP_PORT:-8080}:8080"
     environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://cosmohack:cosmohack@postgres:5432/cosmohack?sslmode=disable}
+      DB_TIMEOUT: ${DB_TIMEOUT:-5s}
       ML_BASE_URL: http://ml:8000
       ML_MODEL_VERSION: ${MODEL_VERSION:?MODEL_VERSION is required}
-    volumes:
-      - ${DATA_DIR_HOST:-./data}:/data
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       ml:
         condition: service_healthy
     restart: unless-stopped
@@ -28,7 +47,7 @@ services:
     environment:
       MODEL_VERSION: ${MODEL_VERSION:?MODEL_VERSION is required}
     volumes:
-      - ${DATA_DIR_HOST:-./data}/ml-artifacts:/app/ml/artifacts:ro
+      - ${ML_ARTIFACTS_DIR_HOST:-./data/ml-artifacts}:/app/ml/artifacts:ro
     expose:
       - "8000"
     healthcheck:
@@ -37,3 +56,6 @@ services:
       timeout: 3s
       retries: 12
     restart: unless-stopped
+
+volumes:
+  postgres-data:

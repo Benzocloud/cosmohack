@@ -2,7 +2,8 @@
 # Развёртывание одного выпуска из двух immutable digest с проверкой
 # готовности обеих служб и откатом предыдущей совместимой пары с моделью.
 # Порядок по .agent/plan.md (CI/CD): остановить приём анализов (Go) →
-# обновить ML и проверить /readyz с версиями → запустить Go и проверить API.
+# применить миграции → обновить ML и проверить /readyz с версиями →
+# запустить Go и проверить API.
 #
 # Использование:
 #   GO_IMAGE=ghcr.io/org/go@sha256:... ML_IMAGE=ghcr.io/org/ml@sha256:... \
@@ -21,7 +22,10 @@ MODEL_VERSION=${MODEL_VERSION:?set MODEL_VERSION to the model version in the rel
 EXPECTED_SCHEMA=${EXPECTED_SCHEMA:-1.0}
 EXPECTED_PROFILE=${EXPECTED_PROFILE:-ndvi-weather-v1}
 APP_PORT=${APP_PORT:-8080}
-DATA_DIR_HOST=${DATA_DIR_HOST:-./data}
+DATABASE_URL=${DATABASE_URL:?set DATABASE_URL for the PostgreSQL deployment}
+DB_TIMEOUT=${DB_TIMEOUT:-5s}
+ML_ARTIFACTS_DIR_HOST=${ML_ARTIFACTS_DIR_HOST:-./data/ml-artifacts}
+MIGRATIONS_DIR_HOST=${MIGRATIONS_DIR_HOST:-../backend/migrations}
 CURRENT_MANIFEST=current-manifest.json
 PREVIOUS_MANIFEST=previous-manifest.json
 COMPOSE=(docker compose --env-file release.env -f compose.yaml)
@@ -45,7 +49,10 @@ GO_IMAGE=${GO_IMAGE}
 ML_IMAGE=${ML_IMAGE}
 MODEL_VERSION=${MODEL_VERSION}
 APP_PORT=${APP_PORT}
-DATA_DIR_HOST=${DATA_DIR_HOST}
+DATABASE_URL=${DATABASE_URL}
+DB_TIMEOUT=${DB_TIMEOUT}
+ML_ARTIFACTS_DIR_HOST=${ML_ARTIFACTS_DIR_HOST}
+MIGRATIONS_DIR_HOST=${MIGRATIONS_DIR_HOST}
 EOF
 }
 
@@ -85,6 +92,13 @@ assert body.get('schema_version') == '${EXPECTED_SCHEMA}', body
 assert '${EXPECTED_PROFILE}' in body.get('feature_profiles', []), body
 assert body.get('model_version') == '${MODEL_VERSION}', body"
   "${COMPOSE[@]}" exec -T ml python -c "$script"
+}
+
+check_migration_state() {
+  local state
+  state=$(docker run --rm --network host postgres:16-alpine \
+    psql "$DATABASE_URL" -Atc 'SELECT dirty FROM schema_migrations ORDER BY version DESC LIMIT 1')
+  [[ "$state" == "f" ]]
 }
 
 rollback() {
@@ -128,9 +142,9 @@ main() {
   [[ -f $CURRENT_MANIFEST ]] && cp "$CURRENT_MANIFEST" "$PREVIOUS_MANIFEST"
   write_release_env
 
-  # Контейнер работает под uid 10001: каталог тома должен быть ему доступен.
-  install -d -m 0750 -o 10001 -g 10001 "$DATA_DIR_HOST"
-  install -d -m 0750 -o 10001 -g 10001 "$DATA_DIR_HOST/ml-artifacts"
+  # ML-контейнеру нужен доступ к read-only каталогу артефактов.
+  install -d -m 0750 "$ML_ARTIFACTS_DIR_HOST"
+  install -d -m 0755 "$MIGRATIONS_DIR_HOST"
 
   log "stopping go (analysis intake paused)"
   "${COMPOSE[@]}" stop go || true
@@ -144,8 +158,18 @@ main() {
     rollback
   fi
 
+  log "applying database migrations"
+  if ! "${COMPOSE[@]}" run --rm migrate; then
+    log "database migration failed; release is not started"
+    exit 1
+  fi
+  if ! check_migration_state; then
+    log "database migration state is dirty or unavailable; release is not started"
+    exit 1
+  fi
+
   log "starting go"
-  "${COMPOSE[@]}" up -d go || rollback
+  "${COMPOSE[@]}" up -d --no-deps go || rollback
   wait_http "go" "http://127.0.0.1:${APP_PORT}/readyz" 30 || rollback
   if ! curl -fsS "http://127.0.0.1:${APP_PORT}/api/areas" >/dev/null; then
     log "go api check failed"

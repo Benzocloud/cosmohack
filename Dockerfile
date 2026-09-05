@@ -32,9 +32,7 @@ COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /out/server /app/server
 COPY --from=frontend /out /app/public
 ENV HTTP_ADDR=:8080
-ENV DATA_DIR=/data
 ENV PUBLIC_DIR=/app/public
 USER 10001:10001
-VOLUME /data
 EXPOSE 8080
 ENTRYPOINT ["/app/server"]

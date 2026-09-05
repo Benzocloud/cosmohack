@@ -1,6 +1,6 @@
 // Package app — composition root и жизненный цикл Go-сервера: конфигурация
-// из окружения, хранилище, исполнитель анализа, маршруты, старт и аккуратная
-// остановка по отмене контекста.
+// из окружения, PostgreSQL repository, исполнитель анализа, маршруты, старт
+// и аккуратная остановка по отмене контекста.
 package app
 
 import (
@@ -13,72 +13,64 @@ import (
 	"os"
 	"time"
 
+	appPostgres "github.com/Benzocloud/cosmohack/backend/internal/app/postgres"
+	"github.com/Benzocloud/cosmohack/backend/internal/config"
 	"github.com/Benzocloud/cosmohack/backend/internal/handler"
+	"github.com/Benzocloud/cosmohack/backend/internal/repository"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/analysis"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/area"
 	mlservice "github.com/Benzocloud/cosmohack/backend/internal/service/ml"
-	"github.com/Benzocloud/cosmohack/backend/internal/service/store"
 )
 
 const (
-	// addrEnv — переменная окружения с адресом слушателя.
-	addrEnv = "HTTP_ADDR"
-	// defaultAddr — локальный адрес по умолчанию; Compose задаёт свой.
-	defaultAddr = ":8080"
-	// dataDirEnv — каталог постоянного хранилища снимков Go.
-	dataDirEnv = "DATA_DIR"
-	// defaultDataDir — локальный каталог по умолчанию; Compose монтирует том.
-	defaultDataDir = "./data"
-	// publicDirEnv — каталог собранного frontend внутри образа.
-	publicDirEnv = "PUBLIC_DIR"
-	// defaultPublicDir — куда Dockerfile кладёт frontend/dist.
-	defaultPublicDir = "/app/public"
-	// readHeaderTimeout ограничивает время чтения заголовков запроса.
 	readHeaderTimeout = 5 * time.Second
-	// shutdownTimeout — предел ожидания завершения активных обработчиков.
-	shutdownTimeout = 10 * time.Second
+	shutdownTimeout   = 10 * time.Second
 )
 
 // Run поднимает HTTP-сервер и блокируется до ошибки запуска или отмены ctx.
-// Некорректная конфигурация ML возвращает ошибку до открытия слушателя.
+// Некорректная конфигурация ML и недоступная PostgreSQL возвращают ошибку до
+// открытия слушателя.
 func Run(ctx context.Context) error {
-	// Ранняя проверка конфигурации ML: некорректный адрес должен остановить
-	// старт, а не превратиться в ошибку первого анализа.
+	// Проверяем ML до базы, чтобы ошибка адреса была видна при старте, а не при
+	// первом анализе.
 	mlCfg, err := mlservice.ConfigFromEnv()
 	if err != nil {
 		return err
 	}
-
-	dataDir := os.Getenv(dataDirEnv)
-	if dataDir == "" {
-		dataDir = defaultDataDir
-	}
-	st, err := store.Open(dataDir)
+	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("open store: %w", err)
+		return err
+	}
+
+	db, err := appPostgres.Open(ctx, cfg.Postgres)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	storage, err := repository.New(db)
+	if err != nil {
+		return fmt.Errorf("build repository: %w", err)
 	}
 	client, err := mlservice.New(mlCfg)
 	if err != nil {
 		return fmt.Errorf("build ml client: %w", err)
 	}
 
-	// Один воркер-исполнитель: очередь ≤8 внутри Go, сбор → ML → store.
-	executor := analysis.NewLegacy(st, placeholderCollector{}, client)
+	// Один воркер-исполнитель: очередь ≤8 внутри Go, сбор → ML → PostgreSQL.
+	executor := analysis.New(storage, placeholderCollector{}, client)
 	if err := executor.Start(ctx); err != nil {
 		return err
 	}
 
-	addr := os.Getenv(addrEnv)
-	if addr == "" {
-		addr = defaultAddr
-	}
-
 	queue := &executorQueue{executor}
-	storage := handler.NewLegacyStorage(st)
 	mux := handler.NewMuxWithStorage(storage, area.New(storage), analysis.NewScheduler(storage, queue), placeholderContours{}, queue, handler.Limits{})
-	handler.Register(mux, nil)
-	serveStatic(mux)
+	handler.Register(mux, db.PingContext)
+	serveStaticAt(mux, cfg.HTTP.PublicDir)
+	return serve(ctx, mux, cfg.HTTP.Addr)
+}
 
+func serve(ctx context.Context, mux *http.ServeMux, addr string) error {
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           mux,
@@ -90,7 +82,7 @@ func Run(ctx context.Context) error {
 		serveErr <- srv.ListenAndServe()
 	}()
 
-	slog.Info("server started", "addr", addr, "data_dir", dataDir)
+	slog.Info("server started", "addr", addr)
 	select {
 	case err := <-serveErr:
 		if errors.Is(err, http.ErrServerClosed) {
@@ -100,15 +92,12 @@ func Run(ctx context.Context) error {
 	case <-ctx.Done():
 	}
 
-	// Shutdown gets its own deadline but keeps values from ctx after cancellation.
 	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		// Shutdown не дождался обработчиков: закрываем слушатель принудительно.
 		_ = srv.Close()
 		return err
 	}
-	// Дожидаемся serve-goroutine: её ошибка после Shutdown не проглатывается.
 	if err := <-serveErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
@@ -116,14 +105,7 @@ func Run(ctx context.Context) error {
 	return nil
 }
 
-// serveStatic подключает раздачу собранного frontend паттерном "GET /":
-// конкретные маршруты (/readyz, /api/*) приоритетнее. Каталог может
-// отсутствовать при локальной разработке без образа — тогда раздача off.
-func serveStatic(mux *http.ServeMux) {
-	publicDir := os.Getenv(publicDirEnv)
-	if publicDir == "" {
-		publicDir = defaultPublicDir
-	}
+func serveStaticAt(mux *http.ServeMux, publicDir string) {
 	fsys := os.DirFS(publicDir)
 	if _, err := fs.Stat(fsys, "."); err != nil {
 		slog.Info("static public dir not found, serving api only", "dir", publicDir)

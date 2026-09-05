@@ -22,6 +22,22 @@ env:
 jobs:
   go-checks:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cosmohack
+          POSTGRES_USER: cosmohack
+          POSTGRES_PASSWORD: cosmohack
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cosmohack -d cosmohack"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://cosmohack:cosmohack@127.0.0.1:5432/cosmohack?sslmode=disable
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
@@ -32,6 +48,11 @@ jobs:
         working-directory: backend
         run: |
           test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+          docker run --rm --network host -v "$GITHUB_WORKSPACE/backend/migrations:/migrations:ro" migrate/migrate:v4.18.3 \
+            -path=/migrations -database "$DATABASE_URL" up
+          migration_state=$(docker run --rm --network host postgres:16-alpine \
+            psql "$DATABASE_URL" -Atc "SELECT version || ':' || dirty FROM schema_migrations")
+          test "$migration_state" = "1:f"
           go vet ./...
           go test -race -count=1 ./...
       - name: lint
@@ -147,7 +168,8 @@ jobs:
     # Деплой запускается на выделенном self-hosted runner после зелёного main,
     # когда владелец включил переменную DEPLOY_ENABLED. Runner находится на
     # целевой машине, поэтому SSH-доставка не используется.
-    # Секреты: GHCR_USER/GHCR_TOKEN (read:packages), переменная MODEL_VERSION.
+    # Секреты: GHCR_USER/GHCR_TOKEN (read:packages), DATABASE_URL;
+    # переменная MODEL_VERSION.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.publish.outputs.ml_present == 'true' && vars.DEPLOY_ENABLED == 'true'
     needs: publish
     runs-on: self-hosted
@@ -161,15 +183,19 @@ jobs:
           ML_DIGEST: ${{ needs.publish.outputs.ml_digest }}
           IMAGE_REPO: ${{ needs.publish.outputs.image_repo }}
           MODEL_VERSION: ${{ vars.MODEL_VERSION }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/opt/cosmohack' }}
         run: |
           test -n "$GHCR_USER" && test -n "$GHCR_TOKEN" && test -n "$MODEL_VERSION" \
             || { echo "GHCR secrets or MODEL_VERSION are not configured"; exit 1; }
+          test -n "$DATABASE_URL" || { echo "DATABASE_URL secret is not configured"; exit 1; }
           test -n "$GO_DIGEST" && test -n "$ML_DIGEST" && test -n "$IMAGE_REPO" \
             || { echo "published image digests are missing"; exit 1; }
           sudo -n install -d -m 0750 "$DEPLOY_DIR"
           sudo -n install -m 0755 deploy/deploy.sh "$DEPLOY_DIR/deploy.sh"
           sudo -n install -m 0644 deploy/compose.yaml "$DEPLOY_DIR/compose.yaml"
+          sudo -n install -d -m 0755 "$DEPLOY_DIR/migrations"
+          sudo -n install -m 0644 backend/migrations/*.sql "$DEPLOY_DIR/migrations/"
           release_env=$(mktemp)
           trap 'rm -f "$release_env"' EXIT
           umask 077
@@ -178,4 +204,5 @@ jobs:
           cd "$DEPLOY_DIR"
           export GO_IMAGE="ghcr.io/${IMAGE_REPO}/go@${GO_DIGEST}"
           export ML_IMAGE="ghcr.io/${IMAGE_REPO}/ml@${ML_DIGEST}"
-          sudo -n --preserve-env=GO_IMAGE,ML_IMAGE,MODEL_VERSION ./deploy.sh
+          export MIGRATIONS_DIR_HOST=./migrations
+          sudo -n --preserve-env=GO_IMAGE,ML_IMAGE,MODEL_VERSION,DATABASE_URL,MIGRATIONS_DIR_HOST ./deploy.sh

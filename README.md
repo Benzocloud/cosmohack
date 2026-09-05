@@ -9,7 +9,7 @@ HTTP-контракт Go ↔ ML v1 — [.agent/contracts/go-ml-http.md](.agent/c
 ```bash
 cd backend
 go test -race ./...          # проверки
-go run ./cmd/server          # HTTP_ADDR=:8080, DATA_DIR=./data, ML_BASE_URL=http://127.0.0.1:8000
+go run ./cmd/server          # DATABASE_URL=..., HTTP_ADDR=:8080, ML_BASE_URL=http://127.0.0.1:8000
 ```
 
 Переменные окружения Go-сервера:
@@ -17,7 +17,8 @@ go run ./cmd/server          # HTTP_ADDR=:8080, DATA_DIR=./data, ML_BASE_URL=htt
 | Переменная | По умолчанию | Смысл |
 |---|---|---|
 | `HTTP_ADDR` | `:8080` | адрес слушателя |
-| `DATA_DIR` | `./data` | каталог постоянного хранилища снимков (вне Git) |
+| `DATABASE_URL` | — | обязательный URL PostgreSQL |
+| `DB_TIMEOUT` | `5s` | таймаут проверки подключения к PostgreSQL |
 | `ML_BASE_URL` | `http://127.0.0.1:8000` | адрес ML; задаётся оператором, не из запросов |
 | `ML_MODEL_VERSION` | пусто | ожидаемая версия модели; сверяется с ответом ML |
 
@@ -51,11 +52,9 @@ GO_IMAGE=cosmohack-go ML_IMAGE=cosmohack-ml MODEL_VERSION=dev docker compose up 
 ```
 
 - Сеть: Go обращается к ML по `ML_BASE_URL=http://ml:8000`; порт ML не публикуется.
-- Том снимков Go: `DATA_DIR_HOST:/data` (по умолчанию `./data`); ML получает
-  только read-only подкаталог артефактов и не имеет доступа к снимкам.
-  Контейнер работает под uid 10001: `deploy/deploy.sh` сам создаёт каталог
-  тома с нужным владельцем, при ручном `docker compose up` создайте его
-  сами (`install -d -o 10001 -g 10001 data`).
+- PostgreSQL хранится в named volume `postgres-data`; одноразовый сервис
+  `migrate` применяет `backend/migrations` до запуска Go. ML получает только
+  read-only каталог артефактов (`ML_ARTIFACTS_DIR_HOST`).
 - `frontend/dist` попадает в образ Go в `/app/public`; до поставки frontend
   используется явно помеченная минимальная страница.
 
@@ -64,12 +63,14 @@ GO_IMAGE=cosmohack-go ML_IMAGE=cosmohack-ml MODEL_VERSION=dev docker compose up 
 ```bash
 GO_IMAGE=ghcr.io/<org>/cosmohack/go@sha256:... \
 ML_IMAGE=ghcr.io/<org>/cosmohack/ml@sha256:... \
-MODEL_VERSION=<версия> ./deploy/deploy.sh
+MODEL_VERSION=<версия> \
+DATABASE_URL='postgres://user:password@postgres-host:5432/cosmohack?sslmode=disable' \
+./deploy/deploy.sh
 ```
 
 Порядок: логин в приватный GHCR (на сервере нужен токен `read:packages`:
 `GHCR_USER`/`GHCR_TOKEN`) → pull двух digest → пауза приёма анализов (stop go) →
-обновить ML и проверить его `/readyz` (status/schema/profile/model_version) →
+применить forward-миграции PostgreSQL → обновить ML и проверить его `/readyz` (status/schema/profile/model_version) →
 запустить Go и проверить `/readyz` + API. `current-manifest.json` хранит пару
 digest и версии; при провале возвращается предыдущая совместимая пара
 (`previous-manifest.json`). Первая неудачная установка без предыдущей версии
@@ -82,7 +83,8 @@ govulncheck), Python и frontend (если соответствующие пак
 сборка обоих образов без публикации. Main — то же + публикация двух образов в
 GHCR через `GITHUB_TOKEN` (`packages:write` только у задачи публикации) и
 локальный деплой по digest на выделенном self-hosted runner, когда владельцем
-включены `DEPLOY_ENABLED`, `MODEL_VERSION`, `GHCR_USER` и `GHCR_TOKEN`.
+включены `DEPLOY_ENABLED`, `MODEL_VERSION`, `DATABASE_URL`, `GHCR_USER` и
+`GHCR_TOKEN`. CI поднимает PostgreSQL и применяет миграции до Go-тестов.
 Проверки и публикация выполняются на GitHub-hosted runner; self-hosted runner
 используется только для deploy. Actions зафиксированы на проверенных SHA.
 
