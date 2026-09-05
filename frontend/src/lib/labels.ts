@@ -152,7 +152,7 @@ export const AREA_LIST_LABELS = {
  * и aria-подписи. Не являются утверждённым словарём брифа; заменяются на этапах FE-1–FE-5.
  */
 export const SCAFFOLD = {
-  appTitle: 'TerraLens',
+  appTitle: 'TERRALENS',
   appSubtitle: 'Аналитика полей',
   areasPanel: 'Участки',
   mapPanel: 'Карта',
