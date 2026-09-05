@@ -1,8 +1,8 @@
 name: pipeline
 
-# PR: проверки Go, Python (если ML доставлен), frontend (если доставлен) и
-# сборка Go, ML (если доставлен) и development ML stub без публикации. Main:
-# то же + публикация образов в
+# PR и push рабочих веток: проверки Go, Python (если ML доставлен), frontend
+# (если доставлен) и сборка Go, ML (если доставлен) и development ML stub без
+# публикации. Main: то же + публикация образов в
 # приватный GHCR через GITHUB_TOKEN (packages:write только здесь) и деплой
 # по digest. Действия зафиксированы на проверенных SHA; версии Go/Python/Node
 # берутся из файлов соответствующих каталогов. Обновления main
@@ -10,7 +10,6 @@ name: pipeline
 on:
   pull_request:
   push:
-    branches: [main]
 
 concurrency:
   group: pipeline-${{ github.ref }}
