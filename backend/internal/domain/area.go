@@ -20,6 +20,7 @@ type Area struct {
 	CreatedAt          time.Time  `json:"created_at"`
 	Generation         int        `json:"generation"`
 	ShownResultVersion string     `json:"shown_result_version"`
+	ShownJobID         string     `json:"shown_job_id"`
 	ActiveJobID        string     `json:"active_job_id"`
 }
 

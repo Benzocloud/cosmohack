@@ -18,6 +18,7 @@ type AnalysisRecord struct {
 	AreaID         string         `json:"area_id"`
 	Period         Period         `json:"period"`
 	ComputedAt     time.Time      `json:"computed_at"`
+	InputRevision  string         `json:"input_revision"`
 	SchemaVersion  string         `json:"schema_version"`
 	FeatureProfile string         `json:"feature_profile"`
 	ModelVersion   string         `json:"model_version"`
