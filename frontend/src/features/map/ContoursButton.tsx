@@ -2,7 +2,7 @@ import type { ContoursResult } from '@/api/adapters/contours';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { EMPTY, MAP_LABELS, SCAFFOLD } from '@/lib/labels';
-import { Info, LoaderCircle, PenLine, Search } from 'lucide-react';
+import { Info, LoaderCircle, Search } from 'lucide-react';
 
 /**
  * Кнопка поиска контуров со состояниями плана §6.4:
@@ -13,16 +13,18 @@ export function ContoursButton({
   loading,
   stale,
   result,
+  error,
   onSearch,
   onDraw,
 }: {
   loading: boolean;
   stale: boolean;
   result: ContoursResult | null;
+  error?: unknown;
   onSearch: () => void;
   onDraw: () => void;
 }) {
-  const status = result?.status ?? null;
+  const status = error ? 'failed' : (result?.status ?? null);
   const okResult = result?.status === 'ok' ? result : null;
   const hasResult = status === 'ok' || status === 'empty' || status === 'failed';
 
@@ -33,26 +35,25 @@ export function ContoursButton({
       : status === 'empty'
         ? EMPTY.contoursNotFound
         : status === 'failed'
-          ? EMPTY.contoursFailed
+          ? 'Повторить поиск контуров'
           : SCAFFOLD.findContours;
 
   return (
     <div className="flex max-w-[calc(100%-24px)] flex-col gap-1 rounded-md border border-border bg-surface/95 p-1.5 shadow-1 backdrop-blur-sm">
       <div className="flex items-start gap-1">
-        <Button size="sm" className="min-h-11 flex-1" disabled={loading} onClick={onSearch}>
-          {loading ? <LoaderCircle className="animate-spin" aria-hidden /> : <Search aria-hidden />}
-          {label}
-        </Button>
-        {/* Рисование — второй путь добавления участка (бриф §3A) */}
-        <Button
-          variant="outline"
-          size="icon"
-          className="min-h-11 shrink-0"
-          aria-label={SCAFFOLD.drawArea}
-          onClick={onDraw}
-        >
-          <PenLine aria-hidden />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="sm" className="min-h-11 flex-1" disabled={loading} onClick={onSearch}>
+              {loading ? (
+                <LoaderCircle className="animate-spin" aria-hidden />
+              ) : (
+                <Search aria-hidden />
+              )}
+              {label}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Найти сельхозконтуры в текущей области карты</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* ok: N контуров + примечание о неполноте каталога по ⓘ */}
@@ -86,8 +87,8 @@ export function ContoursButton({
 
       {/* failed: повтор запроса тем же действием */}
       {status === 'failed' && !stale && (
-        <p className="px-1 text-2xs text-verdict-confirmed">
-          {EMPTY.contoursFailed} — «Повторить» кнопкой выше
+        <p className="px-1 text-2xs text-verdict-confirmed" role="alert">
+          {EMPTY.contoursFailed}. Проверьте область и повторите запрос.
         </p>
       )}
     </div>

@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { MAP_LABELS } from '@/lib/labels';
 import { cn } from '@/lib/utils';
 import { useUi } from '@/store/ui';
@@ -13,16 +14,24 @@ export function BasemapSwitcher({ className }: { className?: string }) {
   const setBasemap = useUi((s) => s.setBasemap);
   const toSatellite = basemap === 'map';
 
+  const label = toSatellite ? MAP_LABELS.basemapToSatellite : MAP_LABELS.basemapToMap;
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className={cn('min-h-11 bg-surface/95 shadow-1 backdrop-blur-sm', className)}
-      aria-label={toSatellite ? MAP_LABELS.basemapToSatellite : MAP_LABELS.basemapToMap}
-      onClick={() => setBasemap(toSatellite ? 'satellite' : 'map')}
-    >
-      {toSatellite ? <Satellite aria-hidden /> : <MapIcon aria-hidden />}
-      {toSatellite ? MAP_LABELS.basemapToSatellite : MAP_LABELS.basemapToMap}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn('min-h-11 border-slate-300 bg-white text-slate-900 shadow-2', className)}
+          aria-label={label}
+          onClick={() => setBasemap(toSatellite ? 'satellite' : 'map')}
+        >
+          {toSatellite ? <Satellite aria-hidden /> : <MapIcon aria-hidden />}
+          {label}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="left">
+        {toSatellite ? 'Переключить на спутниковую подложку' : 'Переключить на обычную карту'}
+      </TooltipContent>
+    </Tooltip>
   );
 }

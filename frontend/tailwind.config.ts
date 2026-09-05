@@ -96,6 +96,7 @@ export default {
         temp: 'var(--temp)',
         precip: 'var(--precip)',
         contour: 'var(--contour-found)',
+        'area-selected-outline': 'var(--area-selected-outline)',
       },
       borderRadius: {
         sm: 'var(--radius-sm)',

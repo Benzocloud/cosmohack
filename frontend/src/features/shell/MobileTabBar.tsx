@@ -20,7 +20,7 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label={SCAFFOLD.mainNavigation}
-      className="flex h-14 shrink-0 border-t border-border bg-surface lg:hidden"
+      className="flex h-14 shrink-0 border-t border-border bg-surface shadow-[0_-2px_10px_rgba(21,26,33,.04)] lg:hidden"
     >
       {TABS.map(({ id, label, Icon }) => {
         const active = mobileTab === id;

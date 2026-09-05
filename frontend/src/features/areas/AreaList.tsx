@@ -1,5 +1,5 @@
 import { useStartAnalysis } from '@/api/mutations';
-import { useAreas } from '@/api/queries';
+import { useAreas, useJob } from '@/api/queries';
 import type { Verdict } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -73,6 +73,7 @@ export function AreaList() {
                 <span className={cn('text-2xs', status.className)}>{status.text}</span>
               )}
             </button>
+            {area.activeJob && <JobWatcher jobId={area.activeJob.id} />}
             {needsManualStart && (
               <Button
                 variant="link"
@@ -95,4 +96,9 @@ export function AreaList() {
       })}
     </ul>
   );
+}
+
+function JobWatcher({ jobId }: { jobId: string }) {
+  useJob(jobId);
+  return null;
 }

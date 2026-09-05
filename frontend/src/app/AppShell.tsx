@@ -9,7 +9,7 @@ import { MobileTabBar } from '@/features/shell/MobileTabBar';
 import { EMPTY, SCAFFOLD } from '@/lib/labels';
 import { useBreakpoint } from '@/lib/useMediaQuery';
 import { useUi } from '@/store/ui';
-import { PanelRight, Rows3 } from 'lucide-react';
+import { PanelRight, Rows3, Sprout } from 'lucide-react';
 import { useState } from 'react';
 
 /**
@@ -24,13 +24,23 @@ import { useState } from 'react';
 
 function AreasPanel() {
   const areasCount = useAreas().data?.length ?? 0;
+  const requestDraw = useUi((s) => s.requestDraw);
+  const setMobileTab = useUi((s) => s.setMobileTab);
   return (
     <section aria-label={SCAFFOLD.areasPanel} className="flex h-full flex-col overflow-y-auto">
       <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
         <h2 className="text-sm font-semibold">{SCAFFOLD.areasPanel}</h2>
-        {/* Добавление идёт через карту: контуры/рисование (§3A); прямой ввод — вне P0 */}
-        <Button size="sm" disabled title={SCAFFOLD.findContours}>
-          {SCAFFOLD.addArea}
+        <Button
+          size="sm"
+          variant="outline"
+          className="min-h-11"
+          onClick={() => {
+            setMobileTab('map');
+            requestDraw();
+          }}
+          aria-label={SCAFFOLD.drawArea}
+        >
+          {SCAFFOLD.drawArea}
         </Button>
       </div>
       {areasCount > 0 ? (
@@ -46,9 +56,12 @@ function ChartPlaceholder() {
   return (
     <div
       aria-label={SCAFFOLD.placeholderChart}
-      className="flex min-h-0 flex-1 items-center justify-center text-sm text-ink-tertiary"
+      className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 bg-surface px-6 text-center"
     >
-      {SCAFFOLD.placeholderChart}
+      <span className="text-sm font-medium text-ink">История вегетации появится здесь</span>
+      <span className="max-w-sm text-xs leading-relaxed text-ink-tertiary">
+        Выберите участок, чтобы увидеть динамику NDVI, сезонный фон и даты наблюдений.
+      </span>
     </div>
   );
 }
@@ -57,9 +70,10 @@ function WeatherPlaceholder() {
   return (
     <div
       aria-label={SCAFFOLD.placeholderWeather}
-      className="flex items-center justify-center border-t border-border text-sm text-ink-tertiary"
+      className="flex flex-col items-center justify-center gap-1 border-t border-border bg-surface-muted text-center"
     >
-      {SCAFFOLD.placeholderWeather}
+      <span className="text-sm font-medium text-ink">Погодный контекст</span>
+      <span className="text-xs text-ink-tertiary">Станет доступен после выбора участка</span>
     </div>
   );
 }
@@ -67,11 +81,22 @@ function WeatherPlaceholder() {
 function CardPanel() {
   return (
     <section aria-label={SCAFFOLD.openAreaCard} className="flex h-full flex-col">
-      <div className="border-b border-border px-4 py-3">
-        <h2 className="text-sm font-semibold">{SCAFFOLD.noAreaSelected}</h2>
+      <div className="border-b border-border px-5 py-4">
+        <p className="text-2xs font-medium uppercase tracking-[0.12em] text-ink-tertiary">
+          Карточка участка
+        </p>
+        <h2 className="mt-1 text-base font-semibold tracking-[-0.01em]">
+          {SCAFFOLD.noAreaSelected}
+        </h2>
       </div>
-      <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-ink-tertiary">
-        {SCAFFOLD.placeholderCard}
+      <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
+        <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-action-soft text-action">
+          <Sprout className="size-5" aria-hidden />
+        </div>
+        <p className="max-w-[220px] text-sm font-medium text-ink">Начните с выбора участка</p>
+        <p className="mt-2 max-w-[240px] text-xs leading-relaxed text-ink-tertiary">
+          Здесь появятся показатели поля, события и рекомендации по результатам анализа.
+        </p>
       </div>
     </section>
   );
@@ -202,7 +227,7 @@ export function AppShell() {
   const breakpoint = useBreakpoint();
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-app">
+    <div className="flex h-dvh flex-col overflow-hidden bg-app text-[13px]">
       <Header />
       {breakpoint === 'desktop' && <DesktopLayout />}
       {breakpoint === 'tablet' && <TabletLayout />}

@@ -36,6 +36,8 @@ export interface UiState {
   basemap: Basemap;
   /** Участок, у которого сохранение прошло, а запуск не удался: в списке кнопка «Запустить анализ». */
   pendingStart: { areaId: string; period: { from: string; to: string } } | null;
+  /** Incremented when a user requests drawing from outside the map tab. */
+  drawRequest: number;
   setMobileTab: (tab: MobileTab) => void;
   setListCollapsed: (collapsed: boolean) => void;
   setCardOpen: (open: boolean) => void;
@@ -44,6 +46,7 @@ export interface UiState {
   setPendingStart: (
     pendingStart: { areaId: string; period: { from: string; to: string } } | null,
   ) => void;
+  requestDraw: () => void;
 }
 
 export const useUi = create<UiState>()((set) => ({
@@ -53,6 +56,7 @@ export const useUi = create<UiState>()((set) => ({
   demoMode: initialDemoMode(),
   basemap: readStoredBasemap(),
   pendingStart: null,
+  drawRequest: 0,
   setMobileTab: (mobileTab) => set({ mobileTab }),
   setListCollapsed: (listCollapsed) => set({ listCollapsed }),
   setCardOpen: (cardOpen) => set({ cardOpen }),
@@ -64,4 +68,5 @@ export const useUi = create<UiState>()((set) => ({
     set({ basemap });
   },
   setPendingStart: (pendingStart) => set({ pendingStart }),
+  requestDraw: () => set((state) => ({ drawRequest: state.drawRequest + 1 })),
 }));

@@ -1,11 +1,11 @@
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import { useEffect, useRef } from 'react';
-import { TerraDraw, TerraDrawPolygonMode, TerraDrawSelectMode } from 'terra-draw';
+import { TerraDraw, TerraDrawFreehandMode, TerraDrawSelectMode } from 'terra-draw';
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
 
 /**
- * Жизненный цикл terra-draw (frontend-plan §8): один экземпляр на карту,
- * режим polygon — только пока drawMode==='drawing'.
+ * Жизненный цикл terra-draw: один экземпляр на карту, режим freehand — только
+ * пока drawMode==='drawing'. Отпускание pointer/touch автоматически замыкает контур.
  *
  * Особенности версии 1.33 (проверено по dist .d.ts):
  *  - публичного finish() нет — полигон закрывается клавиатурным событием Enter
@@ -25,6 +25,7 @@ interface UseTerraDrawOptions {
   onVerticesChange?: (vertices: Ring) => void;
   /** Полигон закрыт (кнопка «Завершить»/двойной клик/клик по первой точке). */
   onFinish?: (ring: Ring) => void;
+  onIncomplete?: () => void;
 }
 
 function draftFeature(draw: TerraDraw) {
@@ -32,7 +33,8 @@ function draftFeature(draw: TerraDraw) {
     .getSnapshot()
     .find(
       (feature) =>
-        feature.properties?.currentlyDrawing === true && feature.properties?.mode === 'polygon',
+        feature.properties?.currentlyDrawing === true &&
+        (feature.properties?.mode === 'freehand' || feature.properties?.mode === 'polygon'),
     );
 }
 
@@ -77,7 +79,13 @@ function replayClicks(map: MaplibreMap, ring: Ring): void {
   }
 }
 
-export function useTerraDraw({ map, drawing, onVerticesChange, onFinish }: UseTerraDrawOptions) {
+export function useTerraDraw({
+  map,
+  drawing,
+  onVerticesChange,
+  onFinish,
+  onIncomplete,
+}: UseTerraDrawOptions) {
   const drawRef = useRef<TerraDraw | null>(null);
   const mapLatest = useRef<MaplibreMap | null>(map);
   mapLatest.current = map;
@@ -85,6 +93,8 @@ export function useTerraDraw({ map, drawing, onVerticesChange, onFinish }: UseTe
   finishRef.current = onFinish;
   const verticesRef = useRef(onVerticesChange);
   verticesRef.current = onVerticesChange;
+  const incompleteRef = useRef(onIncomplete);
+  incompleteRef.current = onIncomplete;
 
   // Один экземпляр на карту; stop() при размонтировании карты
   useEffect(() => {
@@ -92,7 +102,21 @@ export function useTerraDraw({ map, drawing, onVerticesChange, onFinish }: UseTe
     const draw = new TerraDraw({
       adapter: new TerraDrawMapLibreGLAdapter({ map }),
       // StaticMode в v1.33 нет: «спокойный» режим — SelectMode
-      modes: [new TerraDrawPolygonMode(), new TerraDrawSelectMode()],
+      modes: [
+        new TerraDrawFreehandMode({
+          minDistance: 4,
+          smoothing: 0.35,
+          autoClose: false,
+          drawInteraction: 'click-drag',
+          styles: {
+            closingPointOpacity: 0,
+            closingPointOutlineOpacity: 0,
+            closingPointWidth: 0,
+            closingPointOutlineWidth: 0,
+          },
+        }),
+        new TerraDrawSelectMode(),
+      ],
     });
     draw.start();
     draw.setMode('select');
@@ -102,7 +126,7 @@ export function useTerraDraw({ map, drawing, onVerticesChange, onFinish }: UseTe
     }
 
     draw.on('change', () => {
-      if (draw.getMode() !== 'polygon') return;
+      if (draw.getMode() !== 'freehand') return;
       verticesRef.current?.(draftVertices(draw));
     });
     draw.on('finish', (id, context) => {
@@ -116,8 +140,20 @@ export function useTerraDraw({ map, drawing, onVerticesChange, onFinish }: UseTe
       finishRef.current?.(ring);
     });
 
+    // При отпускании свободной линии без возврата к началу Terra Draw оставляет
+    // черновик открытым. Сообщаем UI об ошибке, не изменяя траекторию пользователя.
+    const onPointerUp = () => {
+      window.setTimeout(() => {
+        if (draw.getMode() === 'freehand' && draftFeature(draw)) {
+          incompleteRef.current?.();
+        }
+      }, 0);
+    };
+    map.getCanvas().addEventListener('pointerup', onPointerUp);
+
     return () => {
       draw.stop();
+      map.getCanvas().removeEventListener('pointerup', onPointerUp);
       drawRef.current = null;
     };
   }, [map]);
@@ -132,7 +168,7 @@ export function useTerraDraw({ map, drawing, onVerticesChange, onFinish }: UseTe
     if (!draw || !map) return;
     if (drawing) {
       draw.clear();
-      draw.setMode('polygon');
+      draw.setMode('freehand');
     } else {
       draw.setMode('select');
     }
@@ -147,7 +183,7 @@ export function useTerraDraw({ map, drawing, onVerticesChange, onFinish }: UseTe
     finishDrawing(): void {
       const currentMap = mapLatest.current;
       const draw = drawRef.current;
-      if (!draw || !currentMap || draw.getMode() !== 'polygon') return;
+      if (!draw || !currentMap || draw.getMode() !== 'freehand') return;
       const ring = draftVertices(draw);
       if (ring.length < 3) return;
       const draft = draftFeature(draw);
@@ -176,7 +212,7 @@ export function useTerraDraw({ map, drawing, onVerticesChange, onFinish }: UseTe
       if (!draw || !currentMap || draw.getMode() !== 'polygon') return;
       const remaining = draftVertices(draw).slice(0, -1);
       draw.clear();
-      draw.setMode('polygon');
+      draw.setMode('freehand');
       verticesRef.current?.([]);
       if (remaining.length > 0) {
         replayClicks(currentMap, remaining);

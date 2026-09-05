@@ -2,17 +2,20 @@ import { bbox as turfBbox } from '@turf/bbox';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { ExpressionSpecification, FilterSpecification } from 'maplibre-gl';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MapGL, { Layer, Source, type MapRef } from 'react-map-gl/maplibre';
 
 import type { Contour, ContoursResult } from '@/api/adapters/contours';
 import type { AppError } from '@/api/client';
 import { useAreas, useContours, useLimits } from '@/api/queries';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cssVar } from '@/lib/chart-theme';
 import { polygonAreaHa, validatePolygon } from '@/lib/geo';
 import { useDraft } from '@/store/draft';
 import { selectionActions, useSelection } from '@/store/selection';
 import { useUi } from '@/store/ui';
+import { PenLine } from 'lucide-react';
 import { AddAreaDialog, type AddAreaSource } from './AddAreaDialog';
 import { BasemapSwitcher } from './BasemapSwitcher';
 import { ContourPopover, type ContourPopoverState } from './ContourPopover';
@@ -40,10 +43,8 @@ import { type Ring, useTerraDraw } from './useTerraDraw';
  * Цвет полигона = итог сохранённого lastResult за подписанный период; перекраска
  * по выбранной дате графика не делается (бриф §3C).
  *
- * Задел под P2: источник 'ndvi-raster' добавляется ТОЛЬКО если бэкенд отдаст URL
- * слоя (сейчас всегда null — ничего фейкового не рисуем, вопрос в ui-spec §8.2).
+ * Растровый NDVI-слой намеренно отсутствует до подтверждённого backend URL.
  */
-const NDVI_RASTER_URL: string | null = null;
 
 // Цвета статусов — из токенов §2.2; альфа заливки 0.22 ≈ 0x38 в 8-значном hex
 const VERDICT_FILL_ALPHA = '38';
@@ -66,6 +67,7 @@ const verdictColorExpr = (alpha: string): ExpressionSpecification => [
 export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile' }) {
   const demoMode = useUi((s) => s.demoMode);
   const basemap = useUi((s) => s.basemap);
+  const drawRequest = useUi((s) => s.drawRequest);
   const drawMode = useDraft((s) => s.drawMode);
   const vertices = useDraft((s) => s.vertices);
   const setVertices = useDraft((s) => s.setVertices);
@@ -92,6 +94,7 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
   const [contourPopover, setContourPopover] = useState<ContourPopoverState | null>(null);
   const [addSource, setAddSource] = useState<AddAreaSource | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [drawWarning, setDrawWarning] = useState<string | null>(null);
 
   const drawing = drawMode === 'drawing';
   // В моке стартуем строго над фикстурными контурами; иначе — сохранённый вид/центр РФ
@@ -109,6 +112,10 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
     drawing,
     onVerticesChange: setVertices,
     onFinish: handleFinish,
+    onIncomplete: () =>
+      setDrawWarning(
+        'Контур не замкнут. Вернитесь к началу линии и соедините её перед отпусканием.',
+      ),
   });
 
   // Esc отменяет рисование (бриф §3A: завершение и отмена доступны)
@@ -161,17 +168,20 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
     setContourPopover(null);
   };
 
-  const startDrawing = () => {
+  const startDrawing = useCallback(() => {
+    setDrawWarning(null);
     setContourPopover(null);
     // стартуем «чисто»: предыдущий черновик не восстанавливаем
     draw.clear();
     useDraft.getState().startDrawing();
-  };
+  }, [draw]);
 
-  const finishDrawing = () => {
-    // по 'finish' прилетит finishedGeometry → откроем диалог (эффект ниже)
-    draw.finishDrawing();
-  };
+  const lastDrawRequest = useRef(0);
+  useEffect(() => {
+    if (drawRequest <= lastDrawRequest.current) return;
+    lastDrawRequest.current = drawRequest;
+    startDrawing();
+  }, [drawRequest, startDrawing]);
 
   // Завершённый черновик → диалог добавления
   const finishedGeometry = useDraft((s) => s.finishedGeometry);
@@ -246,14 +256,12 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
     [contoursResult],
   );
 
-  const mapStyle = styleBroken
-    ? OPENFREEMAP_STYLE_URL
-    : basemap === 'satellite'
-      ? SATELLITE_STYLE
-      : POSITRON_STYLE_URL;
-  const alwaysAttribution =
-    'Контуры: © OpenStreetMap contributors | © OpenStreetMap contributors © CARTO';
-
+  const mapStyle =
+    styleBroken && basemap === 'map'
+      ? OPENFREEMAP_STYLE_URL
+      : basemap === 'satellite'
+        ? SATELLITE_STYLE
+        : POSITRON_STYLE_URL;
   return (
     <div className="relative h-full min-h-0 w-full" ref={containerRef}>
       <MapGL
@@ -264,13 +272,6 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
         style={{ width: '100%', height: '100%' }}
         attributionControl={false}
         onLoad={(event) => {
-          // своя атрибуция: OSM/CARTO и контуры OSM видны на обеих подложках (уточнение FE-3)
-          event.target.addControl(
-            new maplibregl.AttributionControl({
-              customAttribution: alwaysAttribution,
-              compact: variant === 'mobile',
-            }),
-          );
           if (import.meta.env.DEV) {
             (window as unknown as { __agroMap?: maplibregl.Map }).__agroMap = event.target;
           }
@@ -315,18 +316,6 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
           }
         }}
       >
-        {/* P2: растровый слой NDVI — только по URL от B1/B4 (ui-spec §8.2) */}
-        {NDVI_RASTER_URL && (
-          <Source id="ndvi-raster" type="raster" tiles={[NDVI_RASTER_URL]} tileSize={256}>
-            <Layer
-              id="ndvi-raster-layer"
-              type="raster"
-              beforeId="areas-fill"
-              paint={{ 'raster-opacity': 0.7 }}
-            />
-          </Source>
-        )}
-
         <Source id="contours" type="geojson" data={contoursFC}>
           <Layer
             id="contours-fill"
@@ -389,9 +378,27 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
           loading={contoursQuery.isFetching}
           stale={stale}
           result={contoursResult}
+          error={contoursQuery.error}
           onSearch={searchContours}
           onDraw={startDrawing}
         />
+      </div>
+
+      <div className="absolute bottom-4 right-4 z-20">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-12 rounded-full border-slate-300 bg-white text-slate-900 shadow-2 hover:bg-slate-50"
+              aria-label="Отметить свою зону"
+              onClick={startDrawing}
+            >
+              <PenLine aria-hidden />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">Отметить свою зону на карте</TooltipContent>
+        </Tooltip>
       </div>
 
       <div className="absolute right-3 top-3 z-10">
@@ -404,10 +411,8 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
 
       {drawing && (
         <DrawToolbar
-          vertexCount={vertices.length}
           validation={validation}
-          onUndo={() => draw.undoVertex()}
-          onFinish={finishDrawing}
+          warning={drawWarning}
           onCancel={() => {
             draw.clear();
             cancelDrawing();
@@ -415,7 +420,7 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
         />
       )}
 
-      <MapLegend variant={variant} />
+      {!drawing && <MapLegend />}
 
       <ContourPopover
         state={contourPopover}

@@ -22,13 +22,19 @@ export const useSelection = create<SelectionState>()((set) => ({
   selectedDate: null,
   selectionSource: null,
   setFromSearch: ({ area, event, date }) =>
-    set({
+    set((state) => ({
       selectedAreaId: area ?? null,
       selectedEventId: event ?? null,
       selectedDate: date ?? null,
-      // восстановление по ссылке — как выбор из списка: карта подлетает к участку
-      selectionSource: area ? 'list' : null,
-    }),
+      // Не затираем источник map при отражении собственного router.navigate.
+      // Прямая ссылка/смена участка по URL остаётся выбором списка.
+      selectionSource:
+        area && area === state.selectedAreaId && state.selectionSource === 'map'
+          ? 'map'
+          : area
+            ? 'list'
+            : null,
+    })),
 }));
 
 export type SelectionPatch = {

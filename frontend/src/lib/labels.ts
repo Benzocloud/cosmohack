@@ -97,7 +97,7 @@ export const MAP_LABELS = {
   searching: 'Ищем контуры…',
   stale: 'Область изменилась — искать снова',
   contourSource: 'Контур OpenStreetMap',
-  drawHint: 'Ставьте вершины касанием или кликом',
+  drawHint: 'Обведите нужную область одной непрерывной линией',
   undoVertex: 'Отменить точку',
   finishDraw: 'Завершить',
   cancelDraw: 'Отмена',
@@ -152,8 +152,8 @@ export const AREA_LIST_LABELS = {
  * и aria-подписи. Не являются утверждённым словарём брифа; заменяются на этапах FE-1–FE-5.
  */
 export const SCAFFOLD = {
-  appTitle: 'AgroPulse',
-  appSubtitle: 'Мониторинг вегетации',
+  appTitle: 'TerraLens',
+  appSubtitle: 'Аналитика полей',
   areasPanel: 'Участки',
   mapPanel: 'Карта',
   analysisPanel: 'Анализ',

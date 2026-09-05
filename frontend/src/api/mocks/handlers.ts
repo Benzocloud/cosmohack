@@ -148,6 +148,21 @@ export const handlers: HttpHandler[] = [
       createdAt: Date.now(),
       period: body?.period ?? { from: '2024-03-01', to: '2024-09-30' },
     });
+    const area = AREAS.find((item) => item.id === areaId);
+    if (area) {
+      area.active_job = {
+        id: jobId,
+        area_id: areaId,
+        requested_period: body?.period ?? { from: '2024-03-01', to: '2024-09-30' },
+        status: 'running',
+        stage: 'satellite',
+        message: null,
+        error_code: null,
+        error_message: null,
+        result_version: null,
+        updated_at: new Date().toISOString(),
+      };
+    }
     return HttpResponse.json({ _synthetic: true, job_id: jobId }, { status: 202 });
   }),
 
