@@ -1,7 +1,8 @@
 name: pipeline
 
 # PR: проверки Go, Python (если ML доставлен), frontend (если доставлен) и
-# сборка обоих образов без публикации. Main: то же + публикация образов в
+# сборка Go, ML (если доставлен) и development ML stub без публикации. Main:
+# то же + публикация образов в
 # приватный GHCR через GITHUB_TOKEN (packages:write только здесь) и деплой
 # по digest. Действия зафиксированы на проверенных SHA; версии Go/Python/Node
 # берутся из файлов соответствующих каталогов. Обновления main
@@ -126,9 +127,15 @@ jobs:
           context: .
           file: ./backend/ml/Dockerfile
           push: false
+      - name: build development ML stub image (no push)
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: ./deploy/ml-stub
+          file: ./deploy/ml-stub/Dockerfile
+          push: false
 
   publish:
-    # Публикация пары образов только для main в приватный GHCR;
+    # Публикация Go и ML/stub-образов только для main в приватный GHCR;
     # packages:write только здесь. Имя репозитория приводится к lowercase:
     # registry принимает только строчные пути.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -140,6 +147,7 @@ jobs:
     outputs:
       go_digest: ${{ steps.go.outputs.digest }}
       ml_digest: ${{ steps.ml.outputs.digest }}
+      ml_stub_digest: ${{ steps.ml_stub.outputs.digest }}
       ml_present: ${{ steps.ml_guard.outputs.present }}
       image_repo: ${{ steps.repo.outputs.repo }}
     steps:
@@ -168,6 +176,14 @@ jobs:
           file: ./backend/ml/Dockerfile
           push: true
           tags: ghcr.io/${{ steps.repo.outputs.repo }}/ml
+      - id: ml_stub
+        if: ${{ steps.ml_guard.outputs.present != 'true' }}
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: ./deploy/ml-stub
+          file: ./deploy/ml-stub/Dockerfile
+          push: true
+          tags: ghcr.io/${{ steps.repo.outputs.repo }}/ml-stub
 
   deploy:
     # Деплой запускается на выделенном self-hosted runner после зелёного main,
@@ -184,6 +200,8 @@ jobs:
         env:
           GHCR_USER: ${{ secrets.GHCR_USER }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          CDSE_CLIENT_ID: ${{ secrets.CDSE_CLIENT_ID }}
+          CDSE_CLIENT_SECRET: ${{ secrets.CDSE_CLIENT_SECRET }}
           GO_DIGEST: ${{ needs.publish.outputs.go_digest }}
           ML_DIGEST: ${{ needs.publish.outputs.ml_digest }}
           IMAGE_REPO: ${{ needs.publish.outputs.image_repo }}
@@ -191,8 +209,10 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/opt/cosmohack' }}
         run: |
-          test -n "$GHCR_USER" && test -n "$GHCR_TOKEN" && test -n "$MODEL_VERSION" \
-            || { echo "GHCR secrets or MODEL_VERSION are not configured"; exit 1; }
+          test -n "$GHCR_USER" && test -n "$GHCR_TOKEN" \
+            && test -n "$CDSE_CLIENT_ID" && test -n "$CDSE_CLIENT_SECRET" \
+            && test -n "$MODEL_VERSION" \
+            || { echo "GHCR/CDSE secrets or MODEL_VERSION are not configured"; exit 1; }
           test -n "$DATABASE_URL" || { echo "DATABASE_URL secret is not configured"; exit 1; }
           test -n "$GO_DIGEST" && test -n "$ML_DIGEST" && test -n "$IMAGE_REPO" \
             || { echo "published image digests are missing"; exit 1; }
@@ -204,10 +224,56 @@ jobs:
           release_env=$(mktemp)
           trap 'rm -f "$release_env"' EXIT
           umask 077
-          printf 'GHCR_USER=%s\nGHCR_TOKEN=%s\nDATABASE_URL=%s\n' "$GHCR_USER" "$GHCR_TOKEN" "$DATABASE_URL" > "$release_env"
+          printf 'GHCR_USER=%s\nGHCR_TOKEN=%s\nDATABASE_URL=%s\nCDSE_CLIENT_ID=%s\nCDSE_CLIENT_SECRET=%s\n' \
+            "$GHCR_USER" "$GHCR_TOKEN" "$DATABASE_URL" "$CDSE_CLIENT_ID" "$CDSE_CLIENT_SECRET" > "$release_env"
           sudo -n install -m 0600 "$release_env" "$DEPLOY_DIR/release-ghcr.env"
           cd "$DEPLOY_DIR"
           export GO_IMAGE="ghcr.io/${IMAGE_REPO}/go@${GO_DIGEST}"
           export ML_IMAGE="ghcr.io/${IMAGE_REPO}/ml@${ML_DIGEST}"
+          export MIGRATIONS_DIR_HOST=./migrations
+          sudo -n --preserve-env=GO_IMAGE,ML_IMAGE,MODEL_VERSION,MIGRATIONS_DIR_HOST ./deploy.sh
+
+  deploy-stub:
+    # До поставки настоящего ML запускаем production Go с образом ML stub на
+    # том же self-hosted runner. Production deploy остаётся закрыт без ML.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.publish.outputs.ml_present != 'true' && vars.DEPLOY_ENABLED == 'true'
+    needs: publish
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: deploy Go with development ML stub
+        env:
+          GHCR_USER: ${{ secrets.GHCR_USER }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          CDSE_CLIENT_ID: ${{ secrets.CDSE_CLIENT_ID }}
+          CDSE_CLIENT_SECRET: ${{ secrets.CDSE_CLIENT_SECRET }}
+          GO_DIGEST: ${{ needs.publish.outputs.go_digest }}
+          ML_STUB_DIGEST: ${{ needs.publish.outputs.ml_stub_digest }}
+          IMAGE_REPO: ${{ needs.publish.outputs.image_repo }}
+          MODEL_VERSION: ${{ vars.MODEL_VERSION || 'dev-stub' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/opt/cosmohack' }}
+        run: |
+          test -n "$GHCR_USER" && test -n "$GHCR_TOKEN" \
+            && test -n "$CDSE_CLIENT_ID" && test -n "$CDSE_CLIENT_SECRET" \
+            || { echo "GHCR/CDSE secrets are not configured"; exit 1; }
+          test -n "$DATABASE_URL" || { echo "DATABASE_URL secret is not configured"; exit 1; }
+          test -n "$GO_DIGEST" && test -n "$ML_STUB_DIGEST" && test -n "$IMAGE_REPO" \
+            || { echo "published Go or ML stub image digest is missing"; exit 1; }
+          sudo -n install -d -m 0750 "$DEPLOY_DIR"
+          sudo -n install -m 0755 deploy/deploy.sh "$DEPLOY_DIR/deploy.sh"
+          sudo -n install -m 0644 deploy/compose.yaml "$DEPLOY_DIR/compose.yaml"
+          sudo -n install -d -m 0755 "$DEPLOY_DIR/migrations"
+          sudo -n install -m 0644 backend/migrations/*.sql "$DEPLOY_DIR/migrations/"
+          release_env=$(mktemp)
+          trap 'rm -f "$release_env"' EXIT
+          umask 077
+          printf 'GHCR_USER=%s\nGHCR_TOKEN=%s\nDATABASE_URL=%s\nCDSE_CLIENT_ID=%s\nCDSE_CLIENT_SECRET=%s\n' \
+            "$GHCR_USER" "$GHCR_TOKEN" "$DATABASE_URL" "$CDSE_CLIENT_ID" "$CDSE_CLIENT_SECRET" > "$release_env"
+          sudo -n install -m 0600 "$release_env" "$DEPLOY_DIR/release-ghcr.env"
+          cd "$DEPLOY_DIR"
+          export GO_IMAGE="ghcr.io/${IMAGE_REPO}/go@${GO_DIGEST}"
+          export ML_IMAGE="ghcr.io/${IMAGE_REPO}/ml-stub@${ML_STUB_DIGEST}"
+          export MODEL_VERSION
           export MIGRATIONS_DIR_HOST=./migrations
           sudo -n --preserve-env=GO_IMAGE,ML_IMAGE,MODEL_VERSION,MIGRATIONS_DIR_HOST ./deploy.sh

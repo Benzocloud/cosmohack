@@ -40,8 +40,9 @@ Batch-команда `private_features.csv → submission.csv` будет зад
 
 ## Docker и Compose
 
-Публикация и доставка — приватный `ghcr.io` (пакеты `ghcr.io/benzocloud/cosmohack/go`
-и `/ml`, видимость private; первый push создаёт их приватными). Базовые слои
+Публикация и доставка — приватный `ghcr.io` (пакеты
+`ghcr.io/benzocloud/cosmohack/go`, `/ml` и временный `/ml-stub`, видимость
+private; первый push создаёт их приватными). Базовые слои
 `node/golang/alpine` — публичные library-образы Docker Hub; при блокировке
 Docker Hub они зеркалируются в тот же приватный GHCR отдельным решением.
 
@@ -82,13 +83,14 @@ digest и версии; при провале возвращается пред�
 
 `.github/workflows/pipeline.yml`: PR — Go (fmt/vet/tests с race, golangci-lint,
 govulncheck), Python и frontend (если соответствующие пакеты доставлены),
-сборка обоих образов без публикации. Main — то же + публикация двух образов в
-GHCR через `GITHUB_TOKEN` (`packages:write` только у задачи публикации) и
-локальный деплой по digest на выделенном self-hosted runner, когда владельцем
-включены `DEPLOY_ENABLED`, `MODEL_VERSION`, `DATABASE_URL`, `GHCR_USER` и
-`GHCR_TOKEN`. CI поднимает PostgreSQL и применяет миграции до Go-тестов.
-Проверки и публикация выполняются на GitHub-hosted runner; self-hosted runner
-используется только для deploy. Actions зафиксированы на проверенных SHA.
+сборка Go и временного ML stub без публикации. Main — то же + публикация Go и
+реального ML либо `ml-stub` в GHCR через `GITHUB_TOKEN` (`packages:write`
+только у задачи публикации). При `DEPLOY_ENABLED=true` и отсутствии настоящего
+ML запускается отдельный `deploy-stub`: production Go работает с образом
+`ml-stub`. Оба deploy-пути используют `DATABASE_URL`, `GHCR_USER`,
+`GHCR_TOKEN`, `CDSE_CLIENT_ID`, `CDSE_CLIENT_SECRET` и `MODEL_VERSION`.
+Проверки и публикация выполняются на GitHub-hosted runner; deploy — на
+self-hosted runner. Actions зафиксированы на проверенных SHA.
 
 ## Лимиты и совместимость выпусков
 
