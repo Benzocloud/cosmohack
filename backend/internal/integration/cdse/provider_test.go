@@ -209,6 +209,12 @@ func TestProviderSendsContractRequest(t *testing.T) {
 	if !ok || interval["of"] != "P5D" {
 		t.Fatalf("интервал агрегации %v", interval)
 	}
+	for _, key := range []string{"resx", "resy"} {
+		resolution, ok := aggregation[key].(float64)
+		if !ok || resolution != 10 {
+			t.Fatalf("%s должен быть числом 10, получено %v", key, aggregation[key])
+		}
+	}
 	evalscript, ok := aggregation["evalscript"].(string)
 	if !ok || !strings.Contains(evalscript, "dataMask") || !strings.Contains(evalscript, "SCL") {
 		t.Fatal("evalscript не содержит маску качества")

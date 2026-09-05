@@ -195,8 +195,8 @@ func (b *requestBuilder) build(request source.SatelliteRequest) ([]byte, error) 
 				"to":   request.Period().To().AddDays(1).Time().Format(time.RFC3339),
 			},
 			"aggregationInterval": map[string]string{"of": fmt.Sprintf("P%dD", b.aggregationDays)},
-			"resx":                fmt.Sprintf("%g", b.resolutionMeters),
-			"resy":                fmt.Sprintf("%g", b.resolutionMeters),
+			"resx":                b.resolutionMeters,
+			"resy":                b.resolutionMeters,
 			"evalscript":          evalscript(),
 		},
 		"calculations": map[string]any{
