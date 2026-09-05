@@ -8,6 +8,7 @@ import (
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 	"github.com/Benzocloud/cosmohack/backend/internal/repository/record"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -38,9 +39,17 @@ func (r *Repository) CreateArea(ctx context.Context, area domain.Area) error {
 		row.Generation, nullableArg(row.ShownResultVersion), nullableArg(row.ShownJobID), nullableArg(row.ActiveJobID),
 	)
 	if err != nil {
-		return fmt.Errorf("insert area: %w", err)
+		return fmt.Errorf("insert area: %w", mapDatabaseError(err))
 	}
 	return nil
+}
+
+func mapDatabaseError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return ErrConflict
+	}
+	return err
 }
 
 // GetArea loads an area aggregate by ID.
