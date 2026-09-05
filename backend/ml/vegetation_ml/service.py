@@ -16,33 +16,65 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import anyio
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from . import __version__, contracts, web_analysis
+from . import __version__, contracts, model as M, paths, web_analysis
 from .contracts import AnalyzeRequest, UnsupportedContract
 
 MAX_REQUEST_BYTES = 1 * 1024 * 1024
+MAX_REQUEST_BYTES_EXTENDED = 8 * 1024 * 1024
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
+
+MODEL_PATH_ENV = "VEGETATION_ML_MODEL"
 
 log = logging.getLogger("vegetation_ml.service")
 
 _slot = threading.Lock()
 _state = {"ready": False, "reason": "сервис ещё не запущен"}
+_model = {"artifact": None}
+
+
+def _load_artifact():
+    """Загружает артефакт один раз на процесс.
+
+    Отсутствие артефакта не делает сервис неготовым: базовый профиль работает
+    и без него. Меняется только список профилей, объявляемый в /readyz.
+    """
+    path = Path(os.environ.get(MODEL_PATH_ENV, paths.MODEL_ARTIFACT))
+    if not path.exists():
+        log.warning("артефакт модели не найден: %s", path)
+        return None
+    try:
+        return M.RestorationModel.load(path)
+    except Exception:
+        log.exception("артефакт модели не загружен: %s", path)
+        return None
+
+
+def available_profiles() -> tuple[str, ...]:
+    """Профили, которые процесс действительно может обслужить."""
+    if _model["artifact"] is None:
+        return (contracts.FEATURE_PROFILE,)
+    return (contracts.FEATURE_PROFILE, contracts.PROFILE_MULTISENSOR)
 
 
 @asynccontextmanager
 async def _lifespan(_: FastAPI):
     """Готовность объявляется после загрузки методов расчёта, а не при импорте."""
     web_analysis.warm_up()
+    _model["artifact"] = _load_artifact()
     _state["ready"] = True
     _state["reason"] = ""
-    log.info("сервис готов, model_version=%s", web_analysis.MODEL_VERSION)
+    log.info("сервис готов, model_version=%s, профили=%s",
+             web_analysis.model_version(_model["artifact"]), available_profiles())
     yield
     _state["ready"] = False
     _state["reason"] = "сервис остановлен"
@@ -93,8 +125,9 @@ async def readyz() -> JSONResponse:
     return JSONResponse(status_code=200, content={
         "status": "ready",
         "schema_version": contracts.SCHEMA_VERSION,
-        "feature_profiles": [contracts.FEATURE_PROFILE],
-        "model_version": web_analysis.MODEL_VERSION,
+        "schema_versions": list(contracts.SUPPORTED_SCHEMA_VERSIONS),
+        "feature_profiles": list(available_profiles()),
+        "model_version": web_analysis.model_version(_model["artifact"]),
     })
 
 
@@ -105,7 +138,7 @@ def _compute(request: AnalyzeRequest) -> dict:
     корутина снята, поток всё равно доработает и отпустит слот сам.
     """
     try:
-        return web_analysis.analyse(request)
+        return web_analysis.analyse(request, _model["artifact"])
     finally:
         _slot.release()
 
@@ -121,15 +154,18 @@ async def analyze(http_request: Request):
         return _error(415, "unsupported_media_type",
                       "Ожидается Content-Type: application/json", False, None)
 
+    limit = (MAX_REQUEST_BYTES_EXTENDED if _model["artifact"] is not None
+             else MAX_REQUEST_BYTES)
+    limit_mib = limit // (1024 * 1024)
     declared = http_request.headers.get("content-length")
-    if declared and declared.isdigit() and int(declared) > MAX_REQUEST_BYTES:
+    if declared and declared.isdigit() and int(declared) > limit:
         return _error(413, "payload_too_large",
-                      "Тело запроса превышает 1 MiB", False, None)
+                      f"Тело запроса превышает {limit_mib} MiB", False, None)
 
     body = await http_request.body()
-    if len(body) > MAX_REQUEST_BYTES:
+    if len(body) > limit:
         return _error(413, "payload_too_large",
-                      "Тело запроса превышает 1 MiB", False, None)
+                      f"Тело запроса превышает {limit_mib} MiB", False, None)
 
     try:
         payload = json.loads(body, parse_constant=_reject_constant)
@@ -148,7 +184,7 @@ async def analyze(http_request: Request):
         request_id = raw_id
 
     try:
-        contracts.check_contract(payload)
+        contracts.check_contract(payload, available_profiles())
     except UnsupportedContract as exc:
         return _error(422, "unsupported_contract", str(exc), False, request_id)
 
