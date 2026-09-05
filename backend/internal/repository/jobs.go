@@ -1,0 +1,240 @@
+package repository
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/Benzocloud/cosmohack/backend/internal/domain"
+	"github.com/Benzocloud/cosmohack/backend/internal/repository/record"
+	"github.com/jmoiron/sqlx"
+)
+
+// PutJobQueued persists a new queued job and claims the area's active slot.
+// The area lock, insert and active pointer update are one transaction.
+func (r *Repository) PutJobQueued(ctx context.Context, job domain.Job) error {
+	if err := r.check(); err != nil {
+		return err
+	}
+	if job.ID == "" || job.AreaID == "" {
+		return errors.New("job id and area id are required")
+	}
+	from, to, err := parsePeriod(job.Period)
+	if err != nil {
+		return err
+	}
+	created := job.CreatedAt.UTC()
+	if created.IsZero() {
+		created = time.Now().UTC()
+	}
+
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin queue job: %w", err)
+	}
+	defer tx.Rollback()
+
+	var area record.Area
+	if err := tx.GetContext(ctx, &area, queryLockArea, job.AreaID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("lock area for job: %w", err)
+	}
+	if area.ActiveJobID.Valid {
+		return ErrConflict
+	}
+	if _, err := tx.ExecContext(ctx, queryInsertJob,
+		job.ID, job.AreaID, from, to, area.Generation, created,
+	); err != nil {
+		return fmt.Errorf("insert job: %w", mapDatabaseError(err))
+	}
+	if _, err := tx.ExecContext(ctx, querySetActiveJob, job.AreaID, job.ID); err != nil {
+		return fmt.Errorf("claim area job slot: %w", mapDatabaseError(err))
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit queued job: %w", err)
+	}
+	return nil
+}
+
+// GetJob loads one job aggregate.
+func (r *Repository) GetJob(ctx context.Context, id string) (domain.Job, error) {
+	if err := r.check(); err != nil {
+		return domain.Job{}, err
+	}
+	var row record.Job
+	if err := r.db.GetContext(ctx, &row, queryGetJob, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return domain.Job{}, ErrNotFound
+		}
+		return domain.Job{}, fmt.Errorf("get job: %w", err)
+	}
+	return mapJobRow(row)
+}
+
+// ListJobsByArea returns all jobs for an area in creation order.
+func (r *Repository) ListJobsByArea(ctx context.Context, areaID string) ([]domain.Job, error) {
+	if err := r.check(); err != nil {
+		return nil, err
+	}
+	var rows []record.Job
+	if err := r.db.SelectContext(ctx, &rows, queryListJobsByArea, areaID); err != nil {
+		return nil, fmt.Errorf("list jobs: %w", err)
+	}
+	jobs := make([]domain.Job, 0, len(rows))
+	for _, row := range rows {
+		job, err := mapJobRow(row)
+		if err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, nil
+}
+
+// SetJobRunning performs the queued to running transition.
+func (r *Repository) SetJobRunning(ctx context.Context, id, stage string) error {
+	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool { return status == domain.JobQueued }, func(tx *sqlx.Tx, job record.Job, now time.Time) error {
+		_, err := tx.ExecContext(ctx, querySetJobRunning, id, stage, now)
+		return err
+	})
+}
+
+// SetJobStage records progress for a running job.
+func (r *Repository) SetJobStage(ctx context.Context, id, stage string) error {
+	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool { return status == domain.JobRunning }, func(tx *sqlx.Tx, job record.Job, now time.Time) error {
+		_, err := tx.ExecContext(ctx, querySetJobStage, id, stage, now)
+		return err
+	})
+}
+
+// SetJobFailed moves an active job to failed and releases the area slot.
+func (r *Repository) SetJobFailed(ctx context.Context, id, code, message string, retryable bool) error {
+	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool {
+		return status == domain.JobQueued || status == domain.JobRunning
+	}, func(tx *sqlx.Tx, job record.Job, now time.Time) error {
+		_, err := tx.ExecContext(ctx, querySetJobFailed, id, code, message, retryable, now)
+		return err
+	}, true)
+}
+
+// SetJobCancelled moves an active job to cancelled and releases the area slot.
+func (r *Repository) SetJobCancelled(ctx context.Context, id string) error {
+	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool {
+		return status == domain.JobQueued || status == domain.JobRunning
+	}, func(tx *sqlx.Tx, job record.Job, now time.Time) error {
+		_, err := tx.ExecContext(ctx, querySetJobCancelled, id, now)
+		return err
+	}, true)
+}
+
+// SetJobCompleted moves a running job to completed and publishes its result version.
+func (r *Repository) SetJobCompleted(ctx context.Context, id, resultVersion string) error {
+	if resultVersion == "" {
+		return errors.New("result version is required")
+	}
+	return r.transitionJob(ctx, id, func(status domain.JobStatus) bool { return status == domain.JobRunning }, func(tx *sqlx.Tx, job record.Job, now time.Time) error {
+		_, err := tx.ExecContext(ctx, querySetJobCompleted, id, resultVersion, now)
+		return err
+	}, true)
+}
+
+// SetJobInputRevision stores the immutable revision used for analysis input.
+func (r *Repository) SetJobInputRevision(ctx context.Context, id, revision string) error {
+	if err := r.check(); err != nil {
+		return err
+	}
+	result, err := r.db.ExecContext(ctx, querySetJobInputRevision, id, revision, time.Now().UTC())
+	if err != nil {
+		return fmt.Errorf("set job input revision: %w", err)
+	}
+	return affected(result)
+}
+
+// RecoverInterrupted makes unfinished jobs terminal after a process restart and
+// clears area pointers that no longer refer to an active job.
+func (r *Repository) RecoverInterrupted(ctx context.Context) error {
+	if err := r.check(); err != nil {
+		return err
+	}
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin recovery: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, queryRecoverJobs, time.Now().UTC()); err != nil {
+		return fmt.Errorf("recover jobs: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, queryRecoverAreas); err != nil {
+		return fmt.Errorf("recover area pointers: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit recovery: %w", err)
+	}
+	return nil
+}
+
+type jobUpdate func(*sqlx.Tx, record.Job, time.Time) error
+
+func (r *Repository) transitionJob(ctx context.Context, id string, allowed func(domain.JobStatus) bool, update jobUpdate, release ...bool) error {
+	if err := r.check(); err != nil {
+		return err
+	}
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin job transition: %w", err)
+	}
+	defer tx.Rollback()
+	if len(release) > 0 && release[0] {
+		var key struct {
+			AreaID string `db:"area_id"`
+		}
+		if err := tx.GetContext(ctx, &key, queryJobArea, id); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ErrNotFound
+			}
+			return fmt.Errorf("find job area: %w", err)
+		}
+		var area record.Area
+		if err := tx.GetContext(ctx, &area, queryLockArea, key.AreaID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("lock area for job transition: %w", err)
+		}
+	}
+
+	var row record.Job
+	if err := tx.GetContext(ctx, &row, queryLockJob, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("lock job: %w", err)
+	}
+	if !allowed(domain.JobStatus(row.Status)) {
+		return ErrBadState
+	}
+	if err := update(tx, row, time.Now().UTC()); err != nil {
+		return fmt.Errorf("update job: %w", mapDatabaseError(err))
+	}
+	if len(release) > 0 && release[0] {
+		if _, err := tx.ExecContext(ctx, queryClearActiveJob, row.AreaID, id); err != nil {
+			return fmt.Errorf("release area job slot: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit job transition: %w", err)
+	}
+	return nil
+}
+
+func affected(result sql.Result) error {
+	count, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check affected rows: %w", err)
+	}
+	if count == 0 {
+		return ErrNotFound
+	}
+	return nil
+}

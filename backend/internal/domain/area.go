@@ -44,6 +44,7 @@ type Job struct {
 	Stage          *string   `json:"stage"`
 	ErrorCode      *string   `json:"error_code"`
 	ErrorMessage   *string   `json:"error_message"`
+	ErrorRetryable *bool     `json:"error_retryable"`
 	ResultVersion  *string   `json:"result_version"`
 	InputRevision  *string   `json:"input_revision"`
 }
