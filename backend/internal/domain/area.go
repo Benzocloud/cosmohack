@@ -28,6 +28,7 @@ type AreaSource struct {
 	Kind      string  `json:"kind"`
 	ContourID *string `json:"contour_id,omitempty"`
 	Provider  *string `json:"provider,omitempty"`
+	CropType  *string `json:"crop_type,omitempty"`
 }
 
 // Job — задача анализа. Состояния и результаты принадлежат Go; хранит B3.

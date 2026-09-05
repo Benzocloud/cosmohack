@@ -27,6 +27,7 @@ type publicAreaSource struct {
 	Kind      string  `json:"kind"`
 	ContourID *string `json:"contour_id"`
 	Provider  *string `json:"provider"`
+	CropType  *string `json:"crop_type,omitempty"`
 }
 
 type publicShown struct {
@@ -37,6 +38,11 @@ type publicShown struct {
 	Status        string        `json:"status"`
 	Severity      *string       `json:"severity"`
 	ModelVersion  string        `json:"model_version"`
+	Method        string        `json:"method"`
+	UsableCount   int           `json:"usable_count"`
+	ImputedCount  int           `json:"imputed_count"`
+	MissingCount  int           `json:"missing_count"`
+	Limitations   []string      `json:"limitations"`
 }
 
 type publicActive struct {
@@ -66,7 +72,7 @@ type publicJob struct {
 func (h *handler) projectArea(ctx context.Context, a domain.Area) (publicArea, error) {
 	out := publicArea{
 		ID: a.ID, Name: a.Name, Geometry: a.Geometry,
-		Source: publicAreaSource{Kind: a.Source.Kind, ContourID: a.Source.ContourID, Provider: a.Source.Provider},
+		Source: publicAreaSource{Kind: a.Source.Kind, ContourID: a.Source.ContourID, Provider: a.Source.Provider, CropType: a.Source.CropType},
 		Period: a.Period, CreatedAt: formatTime(a.CreatedAt),
 	}
 	if a.ShownResultVersion != "" {
@@ -79,6 +85,7 @@ func (h *handler) projectArea(ctx context.Context, a domain.Area) (publicArea, e
 			out.ShownResult = &publicShown{
 				ResultVersion: res.ResultVersion, JobID: jobID, Period: res.Period,
 				ComputedAt: formatTime(res.ComputedAt), Status: string(res.Status), Severity: publicSeverity(res.Status, res.Severity), ModelVersion: res.ModelVersion,
+				Method: res.Method, UsableCount: countSeriesState(res.Series, domain.StateObserved), ImputedCount: countSeriesState(res.Series, domain.StateImputed), MissingCount: countSeriesState(res.Series, domain.StateMissing), Limitations: nonNilStrings(res.Limitations),
 			}
 		}
 	}
@@ -143,6 +150,9 @@ type publicSeries struct {
 	Weather        []publicWeatherPoint `json:"weather"`
 	Provenance     map[string]any       `json:"provenance,omitempty"`
 	Limitations    []string             `json:"limitations"`
+	UsableCount    int                  `json:"usable_count"`
+	ImputedCount   int                  `json:"imputed_count"`
+	MissingCount   int                  `json:"missing_count"`
 }
 
 type publicSeriesPoint struct {
@@ -176,6 +186,23 @@ func emptySeries(areaID string) publicSeries {
 	return publicSeries{AreaID: areaID, Series: []publicSeriesPoint{}, Weather: []publicWeatherPoint{}, Limitations: []string{}}
 }
 
+func nonNilStrings(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
+}
+
+func countSeriesState(series []domain.SeriesPoint, state domain.PointState) int {
+	count := 0
+	for _, point := range series {
+		if point.State == state {
+			count++
+		}
+	}
+	return count
+}
+
 func emptyEvents(areaID string) publicEvents {
 	return publicEvents{AreaID: areaID, Events: []domain.AnomalyEvent{}}
 }
@@ -190,16 +217,14 @@ func projectSeries(res domain.AnalysisRecord) publicSeries {
 			Interval: point.Interval, ValidFraction: point.ValidFraction,
 		})
 	}
-	limitations := res.Limitations
-	if limitations == nil {
-		limitations = []string{}
-	}
+	limitations := nonNilStrings(res.Limitations)
 
 	return publicSeries{
 		AreaID: res.AreaID, ResultVersion: &ver, Period: &period, ComputedAt: &computedAt,
 		SchemaVersion: res.SchemaVersion, FeatureProfile: res.FeatureProfile, ModelVersion: res.ModelVersion, Method: res.Method,
 		Status: &status, Severity: publicSeverity(res.Status, res.Severity), Series: series, Weather: alignWeather(series, res.Weather),
 		Provenance: res.Provenance, Limitations: limitations,
+		UsableCount: countSeriesState(res.Series, domain.StateObserved), ImputedCount: countSeriesState(res.Series, domain.StateImputed), MissingCount: countSeriesState(res.Series, domain.StateMissing),
 	}
 }
 

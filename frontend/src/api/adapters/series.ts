@@ -31,6 +31,15 @@ export interface SeriesRaw {
   weather?: unknown;
   series?: PointRaw[];
   points?: PointRaw[];
+  schema_version?: string;
+  feature_profile?: string;
+  model_version?: string;
+  method?: string;
+  status?: string;
+  limitations?: string[];
+  usable_count?: number;
+  imputed_count?: number;
+  missing_count?: number;
 }
 
 function requireString(value: unknown, field: string): string {
@@ -41,6 +50,14 @@ function requireString(value: unknown, field: string): string {
 }
 
 const PROVENANCES: Provenance[] = ['observed', 'imputed', 'missing'];
+const RESULT_STATUSES = ['normal', 'candidate', 'confirmed', 'insufficient_data'] as const;
+
+function adaptSeriesStatus(value?: string): Series['status'] {
+  if (value === undefined) return undefined;
+  const status = RESULT_STATUSES.find((candidate) => candidate === value);
+  if (!status) throw new Error(`adaptSeries: unknown status ${value}`);
+  return status;
+}
 
 export function adaptSeriesPoint(raw: PointRaw): SeriesPoint {
   // null/undefined/NaN NDVI → null («Нет данных»); число → число. Ноль — только настоящий 0.
@@ -120,5 +137,14 @@ export function adaptSeries(raw: SeriesRaw): Series {
     points: (raw.series ?? []).map(adaptSeriesPoint),
     background: null,
     weather,
+    schemaVersion: raw.schema_version,
+    featureProfile: raw.feature_profile,
+    modelVersion: raw.model_version,
+    method: raw.method,
+    status: adaptSeriesStatus(raw.status),
+    limitations: raw.limitations ?? [],
+    usableCount: raw.usable_count ?? 0,
+    imputedCount: raw.imputed_count ?? 0,
+    missingCount: raw.missing_count ?? 0,
   };
 }

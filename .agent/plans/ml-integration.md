@@ -24,7 +24,7 @@ frontend
   -> PostgreSQL job
   -> B1: CDSE NDVI + Open-Meteo
   -> Go analysis worker
-  -> Python POST /v1/analyze (v1.0, ndvi-weather-v1)
+  -> Python POST /v1/analyze (v1.1, ndvi-multisensor-v1 when available)
   -> Go validates and persists AnalysisResult
   -> frontend polls and renders series/events
 ```
@@ -203,5 +203,23 @@ stub не может быть выбран production job автоматичес
 получил 70 usable S2-наблюдений за 731 день; ответ содержит
 `method=gradient_boosting_residual`, а результат отображается в браузере.
 Go принимает результат v1.1, а fallback явно наблюдаем и не выдаётся за HGB.
-Landsat/MODIS, crop context и peers пока не подключены; ограничения записываются
+S2 остаётся единственным доступным спутниковым набором; `crop_type` берётся из
+формы участка, а peers собираются из опубликованных результатов близких
+участков. Если контекст отсутствует, ML получает пустые поля и сообщает причину
 в `limitations`.
+
+## MLI-06 — provenance результата и контекст HGB
+
+**Статус:** review. **Зависимость:** MLI-05.
+
+- [x] Передавать `crop_type` из формы создания участка через JSONB source в
+  `AreaContext` запроса v1.1; пустое значение не отправлять.
+- [x] Передавать до восьми опубликованных результатов ближайших участков в
+  `Peers`, ограничивая геодезическое расстояние 60 км и включая только
+  observed NDVI.
+- [x] Сохранять в provenance `crop_type_provided`, `peer_count` и число
+  частично недоступных peer-результатов.
+- [x] Отдавать UI метод, число usable/imputed/missing точек и ограничения
+  fallback/`insufficient_data` в area и series projections.
+- [ ] После deploy проверить UI с заполненной культурой и двумя соседними
+  участками и подтвердить, что HGB больше не сообщает отсутствие контекста.

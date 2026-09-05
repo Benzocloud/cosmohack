@@ -14,6 +14,11 @@ export interface ResultMetaRaw {
   computed_at?: string;
   status?: string;
   severity?: string | null;
+  model_version?: string;
+  method?: string;
+  usable_count?: number;
+  imputed_count?: number;
+  missing_count?: number;
   sources?: Record<string, { status?: string; note?: string } | null>;
   limitations?: string[];
 }
@@ -25,6 +30,12 @@ export interface ShownResultRaw {
   computed_at?: string;
   status?: string;
   severity?: string | null;
+  model_version?: string;
+  method?: string;
+  usable_count?: number;
+  imputed_count?: number;
+  missing_count?: number;
+  limitations?: string[];
 }
 
 export interface AreaRaw {
@@ -38,6 +49,7 @@ export interface AreaRaw {
     external_id?: string;
     contour_id?: string;
     provider?: string;
+    crop_type?: string;
   };
   period?: { from?: string; to?: string };
   created_at?: string;
@@ -112,6 +124,11 @@ export function adaptResultMeta(raw: ResultMetaRaw): ResultMeta {
     computedAt: requireString(raw.computed_at, 'last_result.computed_at'),
     verdict,
     severity: raw.severity ?? null,
+    modelVersion: raw.model_version,
+    method: raw.method,
+    usableCount: raw.usable_count,
+    imputedCount: raw.imputed_count,
+    missingCount: raw.missing_count,
     sources,
     limitations: raw.limitations ?? [],
   };
@@ -140,6 +157,7 @@ export function adaptArea(raw: AreaRaw): Area {
       kind,
       label: sourceLabel,
       externalId: raw.source?.external_id ?? raw.source?.contour_id,
+      cropType: raw.source?.crop_type,
     },
     ...(raw.period?.from && raw.period?.to
       ? { period: { from: raw.period.from, to: raw.period.to } }

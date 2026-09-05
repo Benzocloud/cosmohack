@@ -68,7 +68,7 @@ func Run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	}
 
 	// Один воркер-исполнитель: сбор → ML → PostgreSQL.
-	executor := analysis.New(storage, newB1Collector(sources.Collector()), client, cfg.Analysis.QueueSize, logger)
+	executor := analysis.New(storage, newB1Collector(sources.Collector(), storage), client, cfg.Analysis.QueueSize, logger)
 	if err := executor.Start(ctx); err != nil {
 		return err
 	}

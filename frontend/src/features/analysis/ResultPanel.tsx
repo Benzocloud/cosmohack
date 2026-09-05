@@ -66,10 +66,43 @@ function EmptyResult() {
   );
 }
 
+function methodLabel(method?: string) {
+  switch (method) {
+    case 'gradient_boosting_residual':
+      return 'Градиентный бустинг (HGB)';
+    case 'gaussian_smoothing_h8':
+      return 'Сглаживание ряда';
+    case 'nearest_neighbour_mean':
+      return 'Соседнее значение';
+    case 'no_estimate':
+      return 'Оценка не построена';
+    default:
+      return method || 'Не определён';
+  }
+}
+
+function resultLimitations(result: {
+  limitations: string[];
+  method?: string;
+  insufficient: boolean;
+}) {
+  if (result.limitations.length > 0) return result.limitations;
+  if (result.insufficient) {
+    return ['Недостаточно пригодных наблюдений для надёжного вывода'];
+  }
+  if (result.method && result.method !== 'gradient_boosting_residual') {
+    return ['Использован резервный метод восстановления'];
+  }
+  return [];
+}
+
 function AreaSummary({ area, result }: { area: Area; result: ResultData }) {
   const job = area.activeJob;
   const status = jobStatusText(job);
   const meta = result.bundle?.meta ?? area.lastResult;
+  const limitations = meta
+    ? resultLimitations({ ...meta, insufficient: meta.verdict === 'insufficient_data' })
+    : [];
 
   return (
     <div className="space-y-4 p-5">
@@ -120,6 +153,21 @@ function AreaSummary({ area, result }: { area: Area; result: ResultData }) {
               </p>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <p className="text-2xs text-ink-tertiary">Метод</p>
+              <p className="mt-1 text-ink-secondary">{methodLabel(meta.method)}</p>
+            </div>
+            <div>
+              <p className="text-2xs text-ink-tertiary">Пригодные наблюдения</p>
+              <p className="mt-1 text-ink-secondary">{meta.usableCount ?? '—'}</p>
+            </div>
+          </div>
+          {(meta.imputedCount !== undefined || meta.missingCount !== undefined) && (
+            <p className="text-xs text-ink-secondary">
+              Восстановлено: {meta.imputedCount ?? 0} · без значения: {meta.missingCount ?? 0}
+            </p>
+          )}
           {Object.keys(meta.sources).length > 0 && (
             <div>
               <p className="text-2xs text-ink-tertiary">Источники</p>
@@ -133,11 +181,11 @@ function AreaSummary({ area, result }: { area: Area; result: ResultData }) {
               </ul>
             </div>
           )}
-          {meta.limitations.length > 0 && (
+          {limitations.length > 0 && (
             <div>
               <p className="text-2xs text-ink-tertiary">Ограничения</p>
               <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-ink-secondary">
-                {meta.limitations.map((limitation) => (
+                {limitations.map((limitation) => (
                   <li key={limitation}>{limitation}</li>
                 ))}
               </ul>
@@ -272,6 +320,10 @@ export function AnalysisTimeline({
   if (result.isLoading || !result.bundle) return <ResultLoading />;
 
   const { series, events } = result.bundle;
+  const limitations = resultLimitations({
+    ...series,
+    insufficient: series.status === 'insufficient_data',
+  });
   return (
     <div className="h-full min-h-0 overflow-y-auto p-4">
       <div className="rounded-md border border-border bg-surface">
@@ -280,6 +332,32 @@ export function AnalysisTimeline({
           <p className="mt-1 text-2xs text-ink-tertiary">
             {series.period.from} — {series.period.to} · {series.points.length} наблюдений
           </p>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-2xs text-ink-secondary sm:grid-cols-4">
+            <div>
+              <p className="text-ink-tertiary">Метод</p>
+              <p className="mt-0.5 font-medium text-ink">{methodLabel(series.method)}</p>
+            </div>
+            <div>
+              <p className="text-ink-tertiary">Пригодные</p>
+              <p className="mt-0.5 font-medium text-ink">{series.usableCount}</p>
+            </div>
+            <div>
+              <p className="text-ink-tertiary">Восстановлено</p>
+              <p className="mt-0.5 font-medium text-ink">{series.imputedCount}</p>
+            </div>
+            <div>
+              <p className="text-ink-tertiary">Без значения</p>
+              <p className="mt-0.5 font-medium text-ink">{series.missingCount}</p>
+            </div>
+          </div>
+          {limitations.length > 0 && (
+            <Alert className="mt-3 border-amber-200 bg-amber-50 py-2">
+              <AlertTitle className="text-xs">Ограничения результата</AlertTitle>
+              <AlertDescription className="text-2xs text-ink-secondary">
+                {limitations.join(' · ')}
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
         {series.points.length > 0 ? (
           <PreviewChart series={series} />

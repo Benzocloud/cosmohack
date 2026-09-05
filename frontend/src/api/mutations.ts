@@ -17,6 +17,7 @@ export interface CreateAreaInput {
   sourceLabel: string;
   sourceExternalId?: string;
   sourceProvider?: string;
+  cropType?: string;
   period: Period;
 }
 
@@ -60,6 +61,7 @@ async function createArea(input: CreateAreaInput): Promise<Area> {
       ...(input.sourceKind === 'contour' && input.sourceProvider
         ? { provider: input.sourceProvider }
         : {}),
+      ...(input.cropType?.trim() ? { crop_type: input.cropType.trim() } : {}),
     },
     period: input.period,
   });

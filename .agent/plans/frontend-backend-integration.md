@@ -83,9 +83,10 @@ FI-06: общий E2E, CI и deploy после FI-01…FI-05
 
 ### Areas и create request
 
-- Принимать `shown_result`, `source.kind`, `source.contour_id`, `source.provider`, `period` и краткий `active_job:{job_id,status,stage}`.
+- Принимать `shown_result`, `source.kind`, `source.contour_id`, `source.provider`, необязательный `source.crop_type`, `period` и краткий `active_job:{job_id,status,stage}`.
 - Не переиспользовать полный job adapter для `active_job`; сделать отдельный узкий adapter.
 - Для нарисованной области отправлять `source:{kind:"drawn"}`. Для выбранного контура отправлять `source:{kind:"contour",contour_id,provider}`.
+- Передавать заполненную культуру как `source.crop_type`; пустое значение не отправлять.
 - Удалить обязательность несуществующих backend-полей `source.label`, `source.external_id` и `last_result`.
 - Не повторять автоматически POST создания участка после ошибки adapter: успешный ответ backend не должен приводить к дубликату.
 
@@ -104,7 +105,7 @@ FI-06: общий E2E, CI и deploy после FI-01…FI-05
 
 ### Series, weather и events
 
-- Принимать top-level series envelope: `area_id`, `result_version`, `period`, `computed_at`, версии, `method`, `status`, `severity`, `series`, `weather`, `provenance`, `limitations`.
+- Принимать top-level series envelope: `area_id`, `result_version`, `period`, `computed_at`, версии, `method`, `status`, `severity`, `series`, `weather`, `provenance`, `limitations`, а также `usable_count`, `imputed_count` и `missing_count` для объяснения результата.
 - Точка графика: `value` — отображаемое значение; `primary_ndvi` — исходное наблюдение; `state` — источник отображения; `baseline`, `z_score`, `interval`, `valid_fraction` остаются nullable.
 - Погода приходит выровненным массивом с `temperature_mean_c`, `precipitation_sum_mm`, `source_id`; frontend не ожидает вложенные отдельные ряды.
 - Событие принимает `start_date`, `end_date`, `status`, `severity`, `min_z_score`, `evidence_dates`, `facts`, `hypothesis`, `limitations`.

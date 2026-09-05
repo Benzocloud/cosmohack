@@ -105,6 +105,12 @@ describe('canonical adapters', () => {
         },
       ],
       weather: [{ date: '2024-01-01', temperature_mean_c: 22, precipitation_sum_mm: 4 }],
+      method: 'gradient_boosting_residual',
+      status: 'insufficient_data',
+      limitations: ['Соседние участки не переданы'],
+      usable_count: 3,
+      imputed_count: 1,
+      missing_count: 0,
     });
     expect(series.points[0]).toMatchObject({
       ndvi: 0.4,
@@ -113,6 +119,10 @@ describe('canonical adapters', () => {
       z: -2,
     });
     expect(series.weather?.temperature[0].value).toBe(22);
+    expect(series.method).toBe('gradient_boosting_residual');
+    expect(series.status).toBe('insufficient_data');
+    expect(series.usableCount).toBe(3);
+    expect(series.limitations).toEqual(['Соседние участки не переданы']);
     expect(adaptSeries({ area_id: 'a1', series: [], weather: [] }).points).toEqual([]);
     expect(
       adaptSeries({

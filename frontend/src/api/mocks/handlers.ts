@@ -241,7 +241,6 @@ export const handlers: HttpHandler[] = [
       area_id: base.area_id,
       result_version: version ?? base.result_version,
       period: base.period,
-      status: 'completed',
       severity: null,
       series: (base.points ?? []).map((point) => {
         const legacy = point as unknown as {

@@ -57,6 +57,7 @@ export function AddAreaDialog({
   const [period, setPeriod] = useState<Period>({ from: '', to: '' });
   const [periodError, setPeriodError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [cropType, setCropType] = useState('');
 
   const createMutation = useCreateArea();
   const startMutation = useStartAnalysis();
@@ -68,6 +69,7 @@ export function AddAreaDialog({
     setNameError(null);
     setPeriodError(null);
     setServerError(null);
+    setCropType('');
     // Период по умолчанию — последние полгода до сегодня (UTC); лимиты periodDaysMax
     // проверяются в validatePeriod, числа лимитов из бэкенда
     const to = new Date();
@@ -109,6 +111,7 @@ export function AddAreaDialog({
         sourceLabel: source.label,
         sourceExternalId: source.externalId,
         sourceProvider: source.provider,
+        cropType,
         period,
       });
       if (!andAnalyze) {
@@ -189,6 +192,17 @@ export function AddAreaDialog({
                 <p className="font-medium text-ink">{DIALOG_LABELS.area}</p>
                 <p>{MAP_LABELS.areaHa(areaHa.toFixed(1))}</p>
               </div>
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label htmlFor="crop-type">Культура (необязательно)</Label>
+              <Input
+                id="crop-type"
+                value={cropType}
+                onChange={(event) => setCropType(event.target.value)}
+                placeholder="например, пшеница"
+                autoComplete="off"
+              />
             </div>
 
             {serverError && (

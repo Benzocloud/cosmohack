@@ -18,7 +18,7 @@ export interface Area {
   id: string;
   name: string;
   geometry: GeoJSON.Polygon;
-  source: { kind: 'contour' | 'drawn'; label: string; externalId?: string }; // label: «Контур OpenStreetMap», «Нарисован вручную»
+  source: { kind: 'contour' | 'drawn'; label: string; externalId?: string; cropType?: string }; // label: «Контур OpenStreetMap», «Нарисован вручную»
   period?: Period;
   createdAt: string;
   lastResult?: ResultMeta; // сохранённый результат (может быть от старого периода)
@@ -31,6 +31,11 @@ export interface ResultMeta {
   computedAt: string;
   verdict: Verdict;
   severity?: string | null; // severity — строка от ML, показываем как есть
+  modelVersion?: string;
+  method?: string;
+  usableCount?: number;
+  imputedCount?: number;
+  missingCount?: number;
   sources: Record<string, { status: SourceStatus; note?: string }>; // {'sentinel2': {...}, 'modis': ..., 'era5': ...}
   limitations: string[];
 }
@@ -80,6 +85,15 @@ export interface Series {
     source: string;
     spatialNote: string; // «ячейка реанализа ERA5-Land ~9 км»
   } | null;
+  schemaVersion?: string;
+  featureProfile?: string;
+  modelVersion?: string;
+  method?: string;
+  status?: Verdict;
+  limitations: string[];
+  usableCount: number;
+  imputedCount: number;
+  missingCount: number;
 }
 
 export interface AnalysisEvent {
