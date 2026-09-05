@@ -1,0 +1,24 @@
+{
+  "status": "OK",
+  "data": [
+    {
+      "interval": {"from": "2025-06-01T00:00:00Z", "to": "2025-06-06T00:00:00Z"},
+      "outputs": {
+        "ndvi": {
+          "bands": {
+            "B0": {
+              "stats": {
+                "min": "NaN",
+                "max": "NaN",
+                "mean": "NaN",
+                "stDev": "NaN",
+                "sampleCount": 1000,
+                "noDataCount": 1000
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

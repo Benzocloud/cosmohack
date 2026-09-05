@@ -23,6 +23,18 @@ export function toPolygonGeometry(ring: Ring): GeoJSON.Polygon {
   return { type: 'Polygon', coordinates: [closed] };
 }
 
+/** Закрывает внешнее кольцо перед отправкой GeoJSON на сервер. */
+export function closePolygonGeometry(geometry: GeoJSON.Polygon): GeoJSON.Polygon {
+  const rings = geometry.coordinates.map((ring, index) => {
+    if (index !== 0 || ring.length === 0) return ring;
+    const first = ring[0];
+    const last = ring[ring.length - 1];
+    if (first[0] === last[0] && first[1] === last[1]) return ring;
+    return [...ring, first];
+  });
+  return { ...geometry, coordinates: rings };
+}
+
 export function isSelfIntersecting(ring: Ring): boolean {
   if (ring.length < 4) return false;
   return kinks(toPolygonGeometry(ring)).features.length > 0;

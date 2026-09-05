@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type AreaRaw, adaptArea } from '@/api/adapters/areas';
 import { apiDelete, apiPost } from '@/api/client';
 import type { Area, Period } from '@/api/types';
+import { closePolygonGeometry } from '@/lib/geo';
 
 /**
  * Мутации (frontend-plan §4, corrections §1).
@@ -51,7 +52,7 @@ export function useStartAnalysis() {
 async function createArea(input: CreateAreaInput): Promise<Area> {
   const raw = await apiPost<AreaRaw>('/api/areas' as never, {
     name: input.name,
-    geometry: input.geometry,
+    geometry: closePolygonGeometry(input.geometry),
     source: {
       kind: input.sourceKind,
       label: input.sourceLabel,

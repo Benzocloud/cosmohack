@@ -22,13 +22,14 @@ import (
 )
 
 type stubService struct {
-	server        *httptest.Server
-	tokenCalls    int32
-	statisticCall int32
-	lastBody      []byte
-	lastAuth      string
-	tokenStatus   int
-	statusCode    int
+	server            *httptest.Server
+	tokenCalls        int32
+	statisticCall     int32
+	lastBody          []byte
+	lastAuth          string
+	tokenStatus       int
+	statusCode        int
+	statisticsFixture string
 }
 
 func fixture(t *testing.T, name string) []byte {
@@ -66,11 +67,31 @@ func newService(t *testing.T) *stubService {
 			return
 		}
 		writer.Header().Set("Content-Type", "application/json")
-		writer.Write(fixture(t, "statistics_synthetic.json"))
+		name := service.statisticsFixture
+		if name == "" {
+			name = "statistics_synthetic.json"
+		}
+		writer.Write(fixture(t, name))
 	})
 	service.server = httptest.NewServer(mux)
 	t.Cleanup(service.server.Close)
 	return service
+}
+
+func TestProviderAcceptsNaNStatisticsAsNoValidSamples(t *testing.T) {
+	service := newService(t)
+	service.statisticsFixture = "statistics_nan.json"
+
+	series, err := newProvider(t, service, fixedClock()).FetchNDVI(
+		context.Background(), satelliteRequest(t, "2025-06-01", "2025-06-05"),
+	)
+	if err != nil {
+		t.Fatalf("статистика с NaN должна быть обработана: %v", err)
+	}
+	if samples := series.Samples(); len(samples) != 1 || samples[0].Usable() ||
+		samples[0].Reason() != source.ReasonNoValidSamples {
+		t.Fatalf("интервал с NaN разобран неверно: %v", series.Samples())
+	}
 }
 
 func newProvider(t *testing.T, service *stubService, clock domain.Clock) *cdse.Provider {

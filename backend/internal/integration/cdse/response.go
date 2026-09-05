@@ -1,8 +1,12 @@
 package cdse
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
@@ -10,10 +14,47 @@ import (
 )
 
 type bandStats struct {
-	Mean        *float64 `json:"mean"`
-	StDev       *float64 `json:"stDev"`
-	SampleCount int      `json:"sampleCount"`
-	NoDataCount int      `json:"noDataCount"`
+	Min         statisticNumber `json:"min"`
+	Max         statisticNumber `json:"max"`
+	Mean        statisticNumber `json:"mean"`
+	StDev       statisticNumber `json:"stDev"`
+	SampleCount int             `json:"sampleCount"`
+	NoDataCount int             `json:"noDataCount"`
+}
+
+type statisticNumber struct {
+	value *float64
+}
+
+func (n *statisticNumber) UnmarshalJSON(data []byte) error {
+	data = bytes.TrimSpace(data)
+	if bytes.Equal(data, []byte("null")) {
+		n.value = nil
+		return nil
+	}
+	if len(data) > 0 && data[0] == '"' {
+		var text string
+		if err := json.Unmarshal(data, &text); err != nil {
+			return err
+		}
+		data = []byte(text)
+	}
+	text := string(data)
+	if strings.EqualFold(text, "nan") || strings.EqualFold(text, "infinity") ||
+		strings.EqualFold(text, "+infinity") || strings.EqualFold(text, "-infinity") {
+		n.value = nil
+		return nil
+	}
+	value, err := strconv.ParseFloat(text, 64)
+	if err != nil {
+		return err
+	}
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		n.value = nil
+		return nil
+	}
+	n.value = &value
+	return nil
 }
 
 type bandOutput struct {
@@ -101,10 +142,10 @@ func (i statisticsItem) sample(interval source.DateRange, minValidFraction float
 	}
 	fraction := float64(stats.SampleCount-stats.NoDataCount) / float64(stats.SampleCount)
 	validFraction := source.Float(math.Min(math.Max(fraction, 0), 1))
-	if stats.Mean == nil || math.IsNaN(*stats.Mean) || math.IsInf(*stats.Mean, 0) {
+	if stats.Mean.value == nil {
 		return newSample(interval, nil, validFraction, false, source.ReasonNoValidSamples)
 	}
-	value := source.Float(*stats.Mean)
+	value := source.Float(*stats.Mean.value)
 	switch {
 	case *value < -1 || *value > 1:
 		return newSample(interval, value, validFraction, false, reasonOutOfRange)

@@ -1,5 +1,6 @@
 import type { Limits } from '@/api/adapters/limits';
 import {
+  closePolygonGeometry,
   isSelfIntersecting,
   polygonAreaHa,
   toPolygonGeometry,
@@ -45,6 +46,23 @@ describe('toPolygonGeometry', () => {
   it('уже замкнутое кольцо не дублируется', () => {
     const closed = [...square, square[0]];
     expect(toPolygonGeometry(closed).coordinates[0]).toHaveLength(5);
+  });
+});
+
+describe('closePolygonGeometry', () => {
+  it('closes an open outer ring before submission', () => {
+    const geometry = closePolygonGeometry({
+      type: 'Polygon',
+      coordinates: [[[39, 45], [39.01, 45], [39.01, 45.01], [39, 45.01]]],
+    });
+
+    expect(geometry.coordinates[0]).toEqual([
+      [39, 45],
+      [39.01, 45],
+      [39.01, 45.01],
+      [39, 45.01],
+      [39, 45],
+    ]);
   });
 });
 
