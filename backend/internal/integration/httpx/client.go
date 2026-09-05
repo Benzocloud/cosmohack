@@ -84,7 +84,7 @@ func (c *Client) DoJSON(ctx context.Context, provider string, request *http.Requ
 		return nil
 	}
 	if err := json.Unmarshal(body, target); err != nil {
-		return domain.NewProviderError(domain.FailureMalformed, provider, "ответ не разбирается как JSON")
+		return domain.NewProviderError(domain.FailureMalformed, provider, "response is not valid JSON")
 	}
 	return nil
 }
@@ -107,15 +107,15 @@ func (c *Client) Do(ctx context.Context, provider string, request *http.Request)
 
 	body, err := io.ReadAll(io.LimitReader(response.Body, c.maxResponseBytes+1))
 	if err != nil {
-		return nil, domain.WrapProviderError(domain.FailureUnavailable, provider, err, "ответ не прочитан")
+		return nil, domain.WrapProviderError(domain.FailureUnavailable, provider, err, "response could not be read")
 	}
 	if int64(len(body)) > c.maxResponseBytes {
 		return nil, domain.NewProviderError(domain.FailureMalformed, provider,
-			"ответ больше предела %d байт", c.maxResponseBytes)
+			"response exceeds %d byte limit", c.maxResponseBytes)
 	}
 	if response.StatusCode < 200 || response.StatusCode > 299 {
 		return nil, domain.NewProviderError(statusKind(response.StatusCode), provider,
-			"HTTP %d", response.StatusCode)
+			"http status %d", response.StatusCode)
 	}
 	return body, nil
 }
@@ -123,11 +123,11 @@ func (c *Client) Do(ctx context.Context, provider string, request *http.Request)
 func transportError(ctx context.Context, provider string, err error) error {
 	switch {
 	case errors.Is(err, context.Canceled):
-		return domain.WrapProviderError(domain.FailureUnavailable, provider, err, "запрос отменён")
+		return domain.WrapProviderError(domain.FailureUnavailable, provider, err, "request was canceled")
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(ctx.Err(), context.DeadlineExceeded):
-		return domain.WrapProviderError(domain.FailureTimeout, provider, err, "истёк тайм-аут запроса")
+		return domain.WrapProviderError(domain.FailureTimeout, provider, err, "request timed out")
 	default:
-		return domain.WrapProviderError(domain.FailureUnavailable, provider, err, "соединение не установлено")
+		return domain.WrapProviderError(domain.FailureUnavailable, provider, err, "connection could not be established")
 	}
 }
 

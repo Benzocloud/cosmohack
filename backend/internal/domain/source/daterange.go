@@ -12,7 +12,7 @@ func NewDateRange(from, to Date) (DateRange, error) {
 		return DateRange{}, errEmptyDate
 	}
 	if from.After(to) {
-		return DateRange{}, fmt.Errorf("начало %s позже конца %s", from, to)
+		return DateRange{}, fmt.Errorf("start %s is after end %s", from, to)
 	}
 	return DateRange{from: from, to: to}, nil
 }

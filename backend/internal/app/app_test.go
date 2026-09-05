@@ -3,13 +3,16 @@ package app
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
 
 func TestRunRejectsInvalidMLConfig(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/cosmohack")
 	t.Setenv("ML_BASE_URL", "not-a-url")
-	if err := Run(context.Background()); err == nil {
+	err := Run(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "ml base url scheme is not http or https") {
 		t.Fatal("Run must fail fast on an invalid ML base url")
 	}
 }

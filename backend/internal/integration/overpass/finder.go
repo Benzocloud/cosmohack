@@ -110,7 +110,7 @@ func (f *Finder) FindContours(ctx context.Context, bbox geom.BBox) (source.Conto
 	})
 	if err != nil {
 		return source.ContourSearchResult{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
-			"происхождение контуров не построено")
+			"contour provenance could not be built")
 	}
 	contours, notes := f.convert(document, origin)
 	truncated := len(document.Elements) >= f.query.maxResults

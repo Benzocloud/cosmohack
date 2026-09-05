@@ -18,10 +18,10 @@ type SatelliteRequest struct {
 
 func NewSatelliteRequest(polygon *geom.Polygon, period DateRange) (SatelliteRequest, error) {
 	if polygon == nil {
-		return SatelliteRequest{}, fmt.Errorf("запрос спутниковых данных без геометрии")
+		return SatelliteRequest{}, fmt.Errorf("satellite data request has no geometry")
 	}
 	if period.IsZero() {
-		return SatelliteRequest{}, fmt.Errorf("запрос спутниковых данных без периода")
+		return SatelliteRequest{}, fmt.Errorf("satellite data request has no period")
 	}
 	return SatelliteRequest{polygon: polygon, period: period}, nil
 }
@@ -45,7 +45,7 @@ type SatelliteSample struct {
 
 func NewSatelliteSample(interval DateRange, ndvi, validFraction *float64, usable bool, reason string) (SatelliteSample, error) {
 	if interval.IsZero() {
-		return SatelliteSample{}, fmt.Errorf("наблюдение без интервала агрегации")
+		return SatelliteSample{}, fmt.Errorf("satellite sample has no aggregation interval")
 	}
 	if err := requireFiniteOrNil("ndvi", ndvi); err != nil {
 		return SatelliteSample{}, err
@@ -54,10 +54,10 @@ func NewSatelliteSample(interval DateRange, ndvi, validFraction *float64, usable
 		return SatelliteSample{}, err
 	}
 	if usable && ndvi == nil {
-		return SatelliteSample{}, fmt.Errorf("пригодное наблюдение %s без значения", interval)
+		return SatelliteSample{}, fmt.Errorf("usable satellite sample %s has no value", interval)
 	}
 	if !usable && reason == "" {
-		return SatelliteSample{}, fmt.Errorf("непригодное наблюдение %s без причины", interval)
+		return SatelliteSample{}, fmt.Errorf("unusable satellite sample %s has no reason", interval)
 	}
 	return SatelliteSample{
 		date:          intervalMidpoint(interval),
@@ -101,7 +101,7 @@ type SatelliteSeries struct {
 
 func NewSatelliteSeries(descriptor Descriptor, samples []SatelliteSample, notes []string) (SatelliteSeries, error) {
 	if descriptor.Kind() != KindSatellite {
-		return SatelliteSeries{}, fmt.Errorf("источник спутниковых данных имеет вид %q", descriptor.Kind())
+		return SatelliteSeries{}, fmt.Errorf("satellite data source has kind %q", descriptor.Kind())
 	}
 	stored := make([]SatelliteSample, len(samples))
 	copy(stored, samples)
@@ -137,7 +137,7 @@ type WeatherRequest struct {
 
 func NewWeatherRequest(point geom.Coordinate, period DateRange) (WeatherRequest, error) {
 	if period.IsZero() {
-		return WeatherRequest{}, fmt.Errorf("запрос погоды без периода")
+		return WeatherRequest{}, fmt.Errorf("weather request has no period")
 	}
 	return WeatherRequest{point: point, period: period}, nil
 }
@@ -194,7 +194,7 @@ type WeatherSeries struct {
 
 func NewWeatherSeries(descriptor Descriptor, cell geom.Coordinate, days []WeatherDay, notes []string) (WeatherSeries, error) {
 	if descriptor.Kind() != KindWeather {
-		return WeatherSeries{}, fmt.Errorf("источник погоды имеет вид %q", descriptor.Kind())
+		return WeatherSeries{}, fmt.Errorf("weather source has kind %q", descriptor.Kind())
 	}
 	stored := make([]WeatherDay, len(days))
 	copy(stored, days)

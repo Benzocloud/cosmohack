@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -15,11 +16,11 @@ type Endpoints struct {
 }
 
 func NewEndpoints(primary, fallback string) (Endpoints, error) {
-	if err := validateEndpoint("основной адрес", primary); err != nil {
+	if err := validateEndpoint("primary endpoint", primary); err != nil {
 		return Endpoints{}, err
 	}
 	if fallback != "" {
-		if err := validateEndpoint("резервный адрес", fallback); err != nil {
+		if err := validateEndpoint("fallback endpoint", fallback); err != nil {
 			return Endpoints{}, err
 		}
 	}
@@ -47,7 +48,7 @@ type Failover struct {
 
 func NewFailover(client *Client, endpoints Endpoints) (*Failover, error) {
 	if client == nil {
-		return nil, fmt.Errorf("резервный вызов без HTTP-клиента")
+		return nil, errors.New("failover client is nil")
 	}
 	return &Failover{client: client, endpoints: endpoints}, nil
 }
@@ -67,13 +68,13 @@ func (f *Failover) DoJSON(ctx context.Context, provider string, factory RequestF
 		return fallback, nil
 	}
 	return fallback, domain.WrapProviderError(domain.KindOfOrUnknown(fallbackErr), provider, fallbackErr,
-		"основной адрес отказал (%v), резервный адрес отказал", err)
+		"primary endpoint failed (%v), fallback endpoint failed", err)
 }
 
 func (f *Failover) attempt(ctx context.Context, provider, endpoint string, factory RequestFactory, target any) error {
 	request, err := factory(ctx, endpoint)
 	if err != nil {
-		return domain.WrapProviderError(domain.FailureInvalidRequest, provider, err, "запрос не построен")
+		return domain.WrapProviderError(domain.FailureInvalidRequest, provider, err, "request could not be built")
 	}
 	return f.client.DoJSON(ctx, provider, request, target)
 }
@@ -81,13 +82,13 @@ func (f *Failover) attempt(ctx context.Context, provider, endpoint string, facto
 func validateEndpoint(label, value string) error {
 	parsed, err := url.Parse(value)
 	if err != nil {
-		return fmt.Errorf("%s не разбирается: %w", label, err)
+		return fmt.Errorf("%s could not be parsed: %w", label, err)
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return fmt.Errorf("%s должен использовать http или https", label)
+		return fmt.Errorf("%s must use http or https", label)
 	}
 	if parsed.Host == "" {
-		return fmt.Errorf("%s не содержит хоста", label)
+		return fmt.Errorf("%s has no host", label)
 	}
 	return nil
 }

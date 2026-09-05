@@ -10,7 +10,6 @@ package ml
 
 import (
 	"errors"
-	"os"
 	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
@@ -52,22 +51,6 @@ func DefaultConfig(baseURL string) Config {
 		MaxRequestBodyBytes:  domain.MaxRequestBodyBytes,
 		MaxResponseBodyBytes: domain.MaxResponseBodyBytes,
 	}
-}
-
-// ConfigFromEnv собирает конфигурацию из окружения. ML_BASE_URL задаёт адрес
-// сервиса; без переменной используется локальный адрес из контракта.
-// ML_MODEL_VERSION при задании включает сверку версии модели с манифестом.
-func ConfigFromEnv() (Config, error) {
-	baseURL := os.Getenv("ML_BASE_URL")
-	if baseURL == "" {
-		baseURL = "http://127.0.0.1:8000"
-	}
-	cfg := DefaultConfig(baseURL)
-	cfg.ExpectedModelVersion = os.Getenv("ML_MODEL_VERSION")
-	if err := cfg.validate(); err != nil {
-		return Config{}, err
-	}
-	return cfg, nil
 }
 
 func (c Config) validate() error {

@@ -25,7 +25,7 @@ func NewPolygon(ring []Coordinate) (*Polygon, error) {
 	}
 	signedArea := ringAreaSquareMeters(normalized)
 	if math.Abs(signedArea)/squareMetersPerHa < minimalAreaHectares {
-		return nil, NewValidationError(CodeDegenerateArea, "площадь полигона вырождена")
+		return nil, NewValidationError(CodeDegenerateArea, "polygon area is degenerate")
 	}
 	if signedArea > 0 {
 		normalized = reverseRing(normalized)
@@ -126,13 +126,13 @@ func (p *Polygon) scanlineMidpoint(latitude float64) (Coordinate, bool) {
 
 func normalizeRing(ring []Coordinate) ([]Coordinate, error) {
 	if len(ring) > MaxRingVertices {
-		return nil, NewValidationError(CodeTooManyVertices, "%d вершин превышает предел %d", len(ring), MaxRingVertices)
+		return nil, NewValidationError(CodeTooManyVertices, "%d vertices exceed limit %d", len(ring), MaxRingVertices)
 	}
 	if len(ring) < 4 {
-		return nil, NewValidationError(CodeTooFewVertices, "кольцо содержит %d точек, нужно не менее 4", len(ring))
+		return nil, NewValidationError(CodeTooFewVertices, "ring contains %d points, at least 4 are required", len(ring))
 	}
 	if !ring[0].Equal(ring[len(ring)-1]) {
-		return nil, NewValidationError(CodeRingNotClosed, "первая и последняя точки не совпадают")
+		return nil, NewValidationError(CodeRingNotClosed, "first and last points do not match")
 	}
 	deduplicated := make([]Coordinate, 0, len(ring))
 	for i, coordinate := range ring {
@@ -145,7 +145,7 @@ func normalizeRing(ring []Coordinate) ([]Coordinate, error) {
 		deduplicated = append(deduplicated, coordinate)
 	}
 	if len(deduplicated) < 4 {
-		return nil, NewValidationError(CodeTooFewVertices, "после удаления повторов осталось %d точек", len(deduplicated))
+		return nil, NewValidationError(CodeTooFewVertices, "%d points remain after removing duplicates", len(deduplicated))
 	}
 	return deduplicated, nil
 }
@@ -158,7 +158,7 @@ func ensureSimple(ring []Coordinate) error {
 				continue
 			}
 			if segmentsIntersect(ring[i], ring[i+1], ring[j], ring[j+1]) {
-				return NewValidationError(CodeSelfIntersection, "рёбра %d и %d пересекаются", i, j)
+				return NewValidationError(CodeSelfIntersection, "edges %d and %d intersect", i, j)
 			}
 		}
 	}

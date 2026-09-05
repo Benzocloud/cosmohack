@@ -18,10 +18,6 @@ import (
 	"github.com/Benzocloud/cosmohack/backend/internal/service/ml"
 )
 
-// queueWaitingLimit — начальный лимит ожидающих задач; активная задача
-// в лимит не входит. Изменение согласуют B4 и ML и фиксируют в README.
-const queueWaitingLimit = 8
-
 // ErrQueueFull — очередь ожидающих заполнена; повтор запуска явный.
 // Обработчик B3 транслирует его в 429 публичного API.
 var ErrQueueFull = errors.New("analysis queue is full")
@@ -88,13 +84,13 @@ type Executor struct {
 	queued map[string]bool
 }
 
-// New собирает исполнитель с лимитом очереди из контракта.
-func New(persistence Persistence, collector Collector, analyzer Analyzer) *Executor {
+// New собирает исполнитель с заданным лимитом очереди.
+func New(persistence Persistence, collector Collector, analyzer Analyzer, queueSize int) *Executor {
 	return &Executor{
 		persistence: persistence,
 		collector:   collector,
 		analyzer:    analyzer,
-		queue:       make(chan string, queueWaitingLimit),
+		queue:       make(chan string, queueSize),
 		active:      map[string]context.CancelFunc{},
 		queued:      map[string]bool{},
 	}

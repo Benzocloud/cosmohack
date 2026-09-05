@@ -26,7 +26,7 @@ func testdata(t *testing.T, name string) []byte {
 	return b
 }
 
-func newEnv(t *testing.T, contours handler.ContourFinder, q *handler.StubQueue) (http.Handler, *testStorage) {
+func newEnv(t *testing.T, contours handler.ContourFinder, q *stubQueue) (http.Handler, *testStorage) {
 	t.Helper()
 
 	st := newTestStorage()
@@ -34,20 +34,20 @@ func newEnv(t *testing.T, contours handler.ContourFinder, q *handler.StubQueue) 
 	return newEnvWithStore(t, st, contours, q), st
 }
 
-func newEnvWithStore(t *testing.T, st *testStorage, contours handler.ContourFinder, q *handler.StubQueue) http.Handler {
+func newEnvWithStore(t *testing.T, st *testStorage, contours handler.ContourFinder, q *stubQueue) http.Handler {
 	t.Helper()
 
 	storage := st
 
 	if contours == nil {
-		contours = handler.StubContours{}
+		contours = stubContours{}
 	}
 
 	if q == nil {
-		q = handler.NewStubQueue(8)
+		q = newStubQueue(8)
 	}
 
-	return handler.NewMuxWithStorage(storage, area.New(storage), analysis.NewScheduler(storage, q), contours, q, handler.Limits{})
+	return handler.NewMux(area.New(storage), analysis.NewQueryService(storage), analysis.NewScheduler(storage, q), contours, q, handler.Limits{})
 }
 
 func doReq(t *testing.T, h http.Handler, method, path string, body []byte, ct string) *httptest.ResponseRecorder {
@@ -228,8 +228,8 @@ func TestPublicConfig(t *testing.T) {
 	t.Parallel()
 
 	st := newTestStorage()
-	q := handler.NewStubQueue(8)
-	h := handler.NewMuxWithStorage(st, area.New(st), analysis.NewScheduler(st, q), handler.StubContours{}, q,
+	q := newStubQueue(8)
+	h := handler.NewMux(area.New(st), analysis.NewQueryService(st), analysis.NewScheduler(st, q), stubContours{}, q,
 		handler.Limits{AreaHaMax: 12.5, VerticesMax: 99, PeriodDaysMax: 30, MinDate: "2024-01-01"})
 
 	w := doJSON(t, h, http.MethodGet, "/api/config", nil)
@@ -254,8 +254,8 @@ func assertAreaCreationRejected(t *testing.T, limits handler.Limits) {
 	t.Helper()
 
 	st := newTestStorage()
-	q := handler.NewStubQueue(8)
-	h := handler.NewMuxWithStorage(st, area.New(st), analysis.NewScheduler(st, q), handler.StubContours{}, q,
+	q := newStubQueue(8)
+	h := handler.NewMux(area.New(st), analysis.NewQueryService(st), analysis.NewScheduler(st, q), stubContours{}, q,
 		limits)
 
 	w := doJSON(t, h, http.MethodPost, "/api/areas", testdata(t, "area-create-valid.json"))

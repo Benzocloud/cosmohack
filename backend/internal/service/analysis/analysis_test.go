@@ -232,7 +232,7 @@ func TestExecutor_SuccessPath(t *testing.T) {
 	st := newExecutorPersistence(t)
 
 	collector := &stubCollector{}
-	exec := New(st, collector, okAnalyzer{})
+	exec := New(st, collector, okAnalyzer{}, 8)
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -286,11 +286,11 @@ func TestExecutor_SuccessPath(t *testing.T) {
 	}
 }
 
-func TestExecutor_QueueFull(t *testing.T) {
+func TestExecutor_QueueUsesConfiguredCapacity(t *testing.T) {
 	st := newExecutorPersistence(t)
-	exec := New(st, &stubCollector{}, okAnalyzer{})
+	exec := New(st, &stubCollector{}, okAnalyzer{}, 2)
 
-	for range queueWaitingLimit {
+	for range 2 {
 		if err := exec.Enqueue(context.Background(), testJobID); err != nil {
 			t.Fatalf("enqueue within limit: %v", err)
 		}
@@ -304,7 +304,7 @@ func TestExecutor_SourceError(t *testing.T) {
 	st := newExecutorPersistence(t)
 
 	collector := &stubCollector{err: errors.New("provider unavailable")}
-	exec := New(st, collector, okAnalyzer{})
+	exec := New(st, collector, okAnalyzer{}, 8)
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -336,7 +336,7 @@ func TestExecutor_BusyML(t *testing.T) {
 
 	analyzeErr := analyzeErrorAgainstServer(t, http.StatusTooManyRequests,
 		`{"schema_version":"1.0","request_id":"`+testJobID+`","error":{"code":"busy","message":"ML busy","retryable":true}}`)
-	exec := New(st, &stubCollector{}, mlErrorAnalyzer{err: analyzeErr})
+	exec := New(st, &stubCollector{}, mlErrorAnalyzer{err: analyzeErr}, 8)
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -367,7 +367,7 @@ func TestExecutor_CancelDuringAnalyze(t *testing.T) {
 	st := newExecutorPersistence(t)
 
 	blocker := &blockingAnalyzer{entered: make(chan struct{}), release: make(chan struct{})}
-	exec := New(st, &stubCollector{}, blocker)
+	exec := New(st, &stubCollector{}, blocker, 8)
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -414,7 +414,7 @@ func TestExecutor_CancelPending(t *testing.T) {
 	enqueueJob(t, st, testArea2ID, testJob2ID)
 
 	blocker := &blockingAnalyzer{entered: make(chan struct{}), release: make(chan struct{})}
-	exec := New(st, &stubCollector{}, blocker)
+	exec := New(st, &stubCollector{}, blocker, 8)
 	exec.Start(context.Background())
 	enqueueJob(t, st, testAreaID, testJobID)
 	if err := exec.Enqueue(context.Background(), testJobID); err != nil {
@@ -447,7 +447,7 @@ func TestExecutor_RestartMarksInterrupted(t *testing.T) {
 	enqueueJob(t, st, testAreaID, testJobID)
 
 	// A fresh executor recovers unfinished jobs through its persistence port.
-	New(st, &stubCollector{}, okAnalyzer{}).Start(context.Background())
+	New(st, &stubCollector{}, okAnalyzer{}, 8).Start(context.Background())
 
 	var failed domain.Job
 	waitFor(t, func() bool {

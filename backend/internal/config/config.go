@@ -26,7 +26,6 @@ const (
 	EnvSatelliteMinValidFraction = "SATELLITE_MIN_VALID_FRACTION"
 	EnvDBURL                     = "DATABASE_URL"
 	EnvDBTimeout                 = "DB_TIMEOUT"
-	EnvAnalysisWorkers           = "ANALYSIS_WORKERS"
 	EnvAnalysisQueueSize         = "ANALYSIS_QUEUE_SIZE"
 )
 
@@ -42,7 +41,6 @@ const (
 	defaultPublicDir         = "/app/public"
 	defaultMLBaseURL         = "http://127.0.0.1:8000"
 	defaultDBTimeout         = 5 * time.Second
-	defaultAnalysisWorkers   = 2
 	defaultAnalysisQueueSize = 8
 	defaultAggregationDays   = 5
 	defaultMinValidFraction  = 0.5
@@ -87,7 +85,6 @@ type PostgresConfig struct {
 }
 
 type AnalysisConfig struct {
-	Workers   int
 	QueueSize int
 }
 
@@ -121,16 +118,13 @@ func LoadFrom(lookup Lookup) (cfg Config, err error) {
 			WeatherFallbackURL:  value(lookup, EnvWeatherFallbackURL, DefaultWeatherFallbackURL),
 		},
 		Postgres: PostgresConfig{URL: value(lookup, EnvDBURL, ""), Timeout: defaultDBTimeout},
-		Analysis: AnalysisConfig{Workers: defaultAnalysisWorkers, QueueSize: defaultAnalysisQueueSize},
+		Analysis: AnalysisConfig{QueueSize: defaultAnalysisQueueSize},
 	}
 
 	if c.Source.AggregationDays, err = integer(lookup, EnvSatelliteAggregationDays, defaultAggregationDays); err != nil {
 		return cfg, err
 	}
 	if c.Source.MinValidFraction, err = fractional(lookup, EnvSatelliteMinValidFraction, defaultMinValidFraction); err != nil {
-		return cfg, err
-	}
-	if c.Analysis.Workers, err = integer(lookup, EnvAnalysisWorkers, defaultAnalysisWorkers); err != nil {
 		return cfg, err
 	}
 	if c.Analysis.QueueSize, err = integer(lookup, EnvAnalysisQueueSize, defaultAnalysisQueueSize); err != nil {
@@ -148,8 +142,8 @@ func LoadFrom(lookup Lookup) (cfg Config, err error) {
 	if c.Source.AggregationDays <= 0 || c.Source.MinValidFraction <= 0 || c.Source.MinValidFraction > 1 {
 		return cfg, fmt.Errorf("invalid satellite source limits")
 	}
-	if c.Analysis.Workers <= 0 || c.Analysis.QueueSize <= 0 {
-		return cfg, fmt.Errorf("invalid analysis worker limits")
+	if c.Analysis.QueueSize <= 0 {
+		return cfg, fmt.Errorf("%s must be positive", EnvAnalysisQueueSize)
 	}
 	cfg = c
 	return cfg, nil

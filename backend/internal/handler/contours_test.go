@@ -11,7 +11,7 @@ import (
 )
 
 func TestContoursTable(t *testing.T) {
-	found := handler.StubContours{Items: []handler.Contour{{
+	found := stubContours{Items: []handler.Contour{{
 		ID: "osm-way-123",
 		Geometry: domain.Polygon{
 			Type: "Polygon",
@@ -62,7 +62,7 @@ func TestContoursTable(t *testing.T) {
 		}
 	})
 	t.Run("empty", func(t *testing.T) {
-		h, _ := newEnv(t, handler.StubContours{}, nil)
+		h, _ := newEnv(t, stubContours{}, nil)
 		w := doJSON(t, h, http.MethodGet, "/api/regions/contours?bbox=-1,-1,1,1", nil)
 		var wrap struct {
 			Contours []any `json:"contours"`
@@ -73,7 +73,7 @@ func TestContoursTable(t *testing.T) {
 		}
 	})
 	t.Run("error", func(t *testing.T) {
-		h, _ := newEnv(t, handler.StubContours{Err: errors.New("overpass down")}, nil)
+		h, _ := newEnv(t, stubContours{Err: errors.New("overpass down")}, nil)
 		w := doJSON(t, h, http.MethodGet, "/api/regions/contours?bbox=-1,-1,1,1", nil)
 		if w.Code != 500 {
 			t.Fatalf("%d %s", w.Code, w.Body.String())

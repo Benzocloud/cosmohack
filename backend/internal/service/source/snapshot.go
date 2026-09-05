@@ -41,13 +41,13 @@ func NewSnapshot(spec SnapshotSpec) (*Snapshot, error) {
 		return nil, err
 	}
 	if spec.Period.IsZero() {
-		return nil, fmt.Errorf("снимок %s без периода", spec.AreaID)
+		return nil, fmt.Errorf("snapshot %s has no period", spec.AreaID)
 	}
 	if spec.Polygon == nil {
-		return nil, fmt.Errorf("снимок %s без геометрии", spec.AreaID)
+		return nil, fmt.Errorf("snapshot %s has no geometry", spec.AreaID)
 	}
 	if spec.CollectedAt.IsZero() {
-		return nil, fmt.Errorf("снимок %s без времени сбора", spec.AreaID)
+		return nil, fmt.Errorf("snapshot %s has no collection time", spec.AreaID)
 	}
 	index, err := indexDescriptors(spec.Descriptors)
 	if err != nil {
@@ -212,10 +212,10 @@ func indexDescriptors(descriptors []domainsource.Descriptor) (map[string]domains
 	index := make(map[string]domainsource.Descriptor, len(descriptors))
 	for _, descriptor := range descriptors {
 		if descriptor.IsZero() {
-			return nil, fmt.Errorf("источник без идентификатора")
+			return nil, fmt.Errorf("source has no identifier")
 		}
 		if _, exists := index[descriptor.ID()]; exists {
-			return nil, fmt.Errorf("идентификатор источника %s повторяется", descriptor.ID())
+			return nil, fmt.Errorf("source identifier %s is duplicated", descriptor.ID())
 		}
 		index[descriptor.ID()] = descriptor
 	}
@@ -225,37 +225,37 @@ func indexDescriptors(descriptors []domainsource.Descriptor) (map[string]domains
 func validateObservations(period domainsource.DateRange, observations []domainsource.Observation, index map[string]domainsource.Descriptor) error {
 	expected := period.Dates()
 	if len(observations) != len(expected) {
-		return fmt.Errorf("наблюдений %d, период содержит %d дней", len(observations), len(expected))
+		return fmt.Errorf("observation count %d does not match period length %d", len(observations), len(expected))
 	}
 	for position, observation := range observations {
 		if !observation.Date().Equal(expected[position]) {
-			return fmt.Errorf("на позиции %d дата %s, ожидалась %s", position, observation.Date(), expected[position])
+			return fmt.Errorf("observation at position %d has date %s, expected %s", position, observation.Date(), expected[position])
 		}
 		if sourceID := observation.NDVISourceID(); sourceID != "" {
 			descriptor, exists := index[sourceID]
 			if !exists {
-				return fmt.Errorf("наблюдение %s ссылается на неизвестный источник %s", observation.Date(), sourceID)
+				return fmt.Errorf("observation %s references unknown source %s", observation.Date(), sourceID)
 			}
 			if descriptor.Kind() != domainsource.KindSatellite {
-				return fmt.Errorf("наблюдение %s ссылается на источник вида %q", observation.Date(), descriptor.Kind())
+				return fmt.Errorf("observation %s references source of kind %q", observation.Date(), descriptor.Kind())
 			}
 		}
 		if weather := observation.Weather(); weather != nil {
 			descriptor, exists := index[weather.SourceID()]
 			if !exists {
-				return fmt.Errorf("погода %s ссылается на неизвестный источник %s", observation.Date(), weather.SourceID())
+				return fmt.Errorf("weather on %s references unknown source %s", observation.Date(), weather.SourceID())
 			}
 			if descriptor.Kind() != domainsource.KindWeather {
-				return fmt.Errorf("погода %s ссылается на источник вида %q", observation.Date(), descriptor.Kind())
+				return fmt.Errorf("weather on %s references source of kind %q", observation.Date(), descriptor.Kind())
 			}
 		}
 		if reference := observation.Reference(); reference != nil {
 			descriptor, exists := index[reference.SourceID()]
 			if !exists {
-				return fmt.Errorf("сезонный фон %s ссылается на неизвестный источник %s", observation.Date(), reference.SourceID())
+				return fmt.Errorf("reference on %s points to unknown source %s", observation.Date(), reference.SourceID())
 			}
 			if descriptor.Kind() != domainsource.KindReference {
-				return fmt.Errorf("сезонный фон %s ссылается на источник вида %q", observation.Date(), descriptor.Kind())
+				return fmt.Errorf("reference on %s points to source of kind %q", observation.Date(), descriptor.Kind())
 			}
 		}
 	}

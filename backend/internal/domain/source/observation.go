@@ -48,7 +48,7 @@ func NewWeather(sourceID string, temperatureMeanC, precipitationSumMM *float64) 
 		return nil, err
 	}
 	if precipitationSumMM != nil && *precipitationSumMM < 0 {
-		return nil, fmt.Errorf("precipitation_sum_mm отрицательна: %g", *precipitationSumMM)
+		return nil, fmt.Errorf("precipitation_sum_mm is negative: %g", *precipitationSumMM)
 	}
 	return &Weather{
 		sourceID:           sourceID,
@@ -82,16 +82,16 @@ func NewReference(sourceID string, mean, std float64, referenceYears int, target
 		return nil, err
 	}
 	if !isFinite(mean) || !isFinite(std) {
-		return nil, fmt.Errorf("сезонный фон содержит неконечное значение")
+		return nil, fmt.Errorf("seasonal baseline contains a non-finite value")
 	}
 	if std < 0 {
-		return nil, fmt.Errorf("std сезонного фона отрицательна: %g", std)
+		return nil, fmt.Errorf("seasonal baseline std is negative: %g", std)
 	}
 	if referenceYears <= 0 {
-		return nil, fmt.Errorf("n_reference_years должно быть положительным, получено %d", referenceYears)
+		return nil, fmt.Errorf("n_reference_years must be positive, got %d", referenceYears)
 	}
 	if !targetYearExcluded {
-		return nil, fmt.Errorf("сезонный фон без исключения целевого года не передаётся")
+		return nil, fmt.Errorf("seasonal baseline must exclude the target year")
 	}
 	return &Reference{
 		sourceID:           sourceID,
@@ -233,7 +233,7 @@ func (b *ObservationBuilder) Build() (Observation, error) {
 	}
 	observation := b.observation
 	if !observation.quality.Valid() {
-		return Observation{}, fmt.Errorf("качество %q не поддерживается", observation.quality)
+		return Observation{}, fmt.Errorf("quality %q is unsupported", observation.quality)
 	}
 	if err := requireFiniteOrNil("primary_ndvi", observation.primaryNDVI); err != nil {
 		return Observation{}, err
@@ -244,24 +244,24 @@ func (b *ObservationBuilder) Build() (Observation, error) {
 	switch observation.quality {
 	case QualityUsable:
 		if observation.primaryNDVI == nil {
-			return Observation{}, fmt.Errorf("наблюдение %s помечено usable без значения", observation.date)
+			return Observation{}, fmt.Errorf("observation %s is marked usable without a value", observation.date)
 		}
 		if observation.missingReason != "" {
-			return Observation{}, fmt.Errorf("наблюдение %s помечено usable с причиной отбраковки", observation.date)
+			return Observation{}, fmt.Errorf("observation %s is marked usable with a rejection reason", observation.date)
 		}
 	case QualityUnusable:
 		if observation.missingReason == "" {
-			return Observation{}, fmt.Errorf("наблюдение %s помечено unusable без причины", observation.date)
+			return Observation{}, fmt.Errorf("observation %s is marked unusable without a reason", observation.date)
 		}
 	case QualityMissing:
 		if observation.missingReason == "" {
-			return Observation{}, fmt.Errorf("наблюдение %s помечено missing без причины", observation.date)
+			return Observation{}, fmt.Errorf("observation %s is marked missing without a reason", observation.date)
 		}
 		if observation.primaryNDVI != nil || observation.interval != nil || observation.validFraction != nil {
-			return Observation{}, fmt.Errorf("наблюдение %s помечено missing, но содержит данные измерения", observation.date)
+			return Observation{}, fmt.Errorf("observation %s is marked missing but contains measurement data", observation.date)
 		}
 		if observation.ndviSourceID != "" {
-			return Observation{}, fmt.Errorf("наблюдение %s помечено missing со ссылкой на источник", observation.date)
+			return Observation{}, fmt.Errorf("observation %s is marked missing with a source reference", observation.date)
 		}
 	}
 	if observation.quality != QualityMissing {
@@ -269,10 +269,10 @@ func (b *ObservationBuilder) Build() (Observation, error) {
 			return Observation{}, err
 		}
 		if observation.interval == nil {
-			return Observation{}, fmt.Errorf("наблюдение %s без интервала агрегации", observation.date)
+			return Observation{}, fmt.Errorf("observation %s has no aggregation interval", observation.date)
 		}
 		if !observation.interval.Contains(observation.date) {
-			return Observation{}, fmt.Errorf("дата %s вне интервала агрегации %s", observation.date, observation.interval)
+			return Observation{}, fmt.Errorf("date %s is outside aggregation interval %s", observation.date, observation.interval)
 		}
 	}
 	return observation, nil
@@ -286,7 +286,7 @@ func validateValidFraction(fraction *float64) error {
 		return err
 	}
 	if *fraction < 0 || *fraction > 1 {
-		return fmt.Errorf("valid_fraction %g вне диапазона [0, 1]", *fraction)
+		return fmt.Errorf("valid_fraction %g is outside range [0, 1]", *fraction)
 	}
 	return nil
 }
@@ -296,7 +296,7 @@ func requireFiniteOrNil(label string, value *float64) error {
 		return nil
 	}
 	if !isFinite(*value) {
-		return fmt.Errorf("%s не является конечным числом", label)
+		return fmt.Errorf("%s is not a finite number", label)
 	}
 	return nil
 }

@@ -8,11 +8,10 @@ import (
 	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
-	"github.com/Benzocloud/cosmohack/backend/internal/handler"
 )
 
 func TestAnalyses202And409(t *testing.T) {
-	q := handler.NewStubQueue(8)
+	q := newStubQueue(8)
 	h, st := newEnv(t, nil, q)
 	id := createArea(t, h)
 
@@ -128,7 +127,7 @@ func TestAnalyses404(t *testing.T) {
 }
 
 func TestQueueFull(t *testing.T) {
-	q := handler.NewStubQueue(8)
+	q := newStubQueue(8)
 	h, st := newEnv(t, nil, q)
 
 	var ids []string
@@ -176,7 +175,7 @@ func TestQueueFull(t *testing.T) {
 }
 
 func TestEnqueueFailAfterPut(t *testing.T) {
-	q := handler.NewStubQueue(8)
+	q := newStubQueue(8)
 	q.Fail = errors.New("boom")
 	h, st := newEnv(t, nil, q)
 	id := createArea(t, h)

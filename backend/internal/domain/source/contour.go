@@ -29,10 +29,10 @@ type OriginSpec struct {
 
 func NewOrigin(spec OriginSpec) (Origin, error) {
 	if spec.Provider == "" || spec.Dataset == "" {
-		return Origin{}, fmt.Errorf("происхождение контура без provider или dataset")
+		return Origin{}, fmt.Errorf("contour origin requires provider and dataset")
 	}
 	if spec.RetrievedAt.IsZero() {
-		return Origin{}, fmt.Errorf("происхождение контура без времени получения")
+		return Origin{}, fmt.Errorf("contour origin retrieval time is required")
 	}
 	return Origin{
 		provider:        spec.Provider,
@@ -100,10 +100,10 @@ func NewContour(id, name string, polygon *geom.Polygon, origin Origin, tags map[
 		return Contour{}, err
 	}
 	if polygon == nil {
-		return Contour{}, fmt.Errorf("контур %s без геометрии", id)
+		return Contour{}, fmt.Errorf("contour %s has no geometry", id)
 	}
 	if origin.IsZero() {
-		return Contour{}, fmt.Errorf("контур %s без происхождения", id)
+		return Contour{}, fmt.Errorf("contour %s has no origin", id)
 	}
 	copied := make(map[string]string, len(tags))
 	for key, value := range tags {

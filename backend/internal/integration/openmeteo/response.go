@@ -28,19 +28,19 @@ type responseDocument struct {
 func (d *responseDocument) validate() error {
 	if d.UTCOffsetSeconds != expectedOffsetSeconds {
 		return domain.NewProviderError(domain.FailureMalformed, ProviderName,
-			"сдвиг времени %d секунд вместо UTC", d.UTCOffsetSeconds)
+			"time offset is %d seconds instead of UTC", d.UTCOffsetSeconds)
 	}
 	if d.DailyUnits.Temperature != expectedTemperatureUnit {
 		return domain.NewProviderError(domain.FailureMalformed, ProviderName,
-			"единица температуры %q вместо %q", d.DailyUnits.Temperature, expectedTemperatureUnit)
+			"temperature unit is %q instead of %q", d.DailyUnits.Temperature, expectedTemperatureUnit)
 	}
 	if d.DailyUnits.Precipitation != expectedPrecipitationUnit {
 		return domain.NewProviderError(domain.FailureMalformed, ProviderName,
-			"единица осадков %q вместо %q", d.DailyUnits.Precipitation, expectedPrecipitationUnit)
+			"precipitation unit is %q instead of %q", d.DailyUnits.Precipitation, expectedPrecipitationUnit)
 	}
 	if len(d.Daily.Time) != len(d.Daily.Temperature) || len(d.Daily.Time) != len(d.Daily.Precipitation) {
 		return domain.NewProviderError(domain.FailureMalformed, ProviderName,
-			"длины массивов дат и значений не совпадают")
+			"date and value arrays have different lengths")
 	}
 	return nil
 }
@@ -53,7 +53,7 @@ func (d *responseDocument) days(period source.DateRange) ([]source.WeatherDay, [
 		date, err := source.ParseDate(text)
 		if err != nil {
 			return nil, nil, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
-				"дата %q не разбирается", text)
+				"date %q could not be parsed", text)
 		}
 		if !period.Contains(date) {
 			outside++
@@ -67,7 +67,7 @@ func (d *responseDocument) days(period source.DateRange) ([]source.WeatherDay, [
 		day, err := source.NewWeatherDay(date, d.Daily.Temperature[index], precipitation)
 		if err != nil {
 			return nil, nil, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
-				"погодные значения на %s не приняты", date)
+				"weather values for %s were rejected", date)
 		}
 		days = append(days, day)
 	}

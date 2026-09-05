@@ -88,7 +88,7 @@ func (p *Provider) FetchDaily(ctx context.Context, request source.WeatherRequest
 	cell, err := geom.NewCoordinate(document.Longitude, document.Latitude)
 	if err != nil {
 		return source.WeatherSeries{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
-			"ячейка реанализа вне допустимых координат")
+			"reanalysis cell is outside valid coordinates")
 	}
 	days, notes, err := document.days(request.Period())
 	if err != nil {
@@ -109,7 +109,7 @@ func (p *Provider) FetchDaily(ctx context.Context, request source.WeatherRequest
 	})
 	if err != nil {
 		return source.WeatherSeries{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
-			"описание погодного источника не построено")
+			"weather source descriptor could not be built")
 	}
 	return source.NewWeatherSeries(descriptor, cell, days, notes)
 }

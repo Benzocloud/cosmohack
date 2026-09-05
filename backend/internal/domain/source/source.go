@@ -45,19 +45,19 @@ type DescriptorSpec struct {
 }
 
 func NewDescriptor(spec DescriptorSpec) (Descriptor, error) {
-	if err := requireIdentifier("id источника", spec.ID); err != nil {
+	if err := requireIdentifier("source id", spec.ID); err != nil {
 		return Descriptor{}, err
 	}
 	if !spec.Kind.Valid() {
-		return Descriptor{}, fmt.Errorf("вид источника %q не поддерживается", spec.Kind)
+		return Descriptor{}, fmt.Errorf("source kind %q is unsupported", spec.Kind)
 	}
 	for label, value := range map[string]string{"provider": spec.Provider, "dataset": spec.Dataset, "mapping": spec.Mapping} {
 		if value == "" {
-			return Descriptor{}, fmt.Errorf("поле %s источника %s не заполнено", label, spec.ID)
+			return Descriptor{}, fmt.Errorf("source %s field is required for %s", label, spec.ID)
 		}
 	}
 	if spec.RetrievedAt.IsZero() {
-		return Descriptor{}, fmt.Errorf("время получения источника %s не задано", spec.ID)
+		return Descriptor{}, fmt.Errorf("source retrieval time is required for %s", spec.ID)
 	}
 	license := spec.License
 	if license != nil {
@@ -113,10 +113,10 @@ func (d Descriptor) IsZero() bool {
 
 func requireIdentifier(label, value string) error {
 	if value == "" {
-		return fmt.Errorf("%s не заполнен", label)
+		return fmt.Errorf("%s is required", label)
 	}
 	if len(value) > MaxIdentifierLength {
-		return fmt.Errorf("%s длиннее %d символов", label, MaxIdentifierLength)
+		return fmt.Errorf("%s exceeds %d characters", label, MaxIdentifierLength)
 	}
 	return nil
 }

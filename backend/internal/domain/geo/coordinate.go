@@ -16,13 +16,13 @@ type Coordinate struct {
 
 func NewCoordinate(lon, lat float64) (Coordinate, error) {
 	if math.IsNaN(lon) || math.IsInf(lon, 0) || math.IsNaN(lat) || math.IsInf(lat, 0) {
-		return Coordinate{}, NewValidationError(CodeInvalidCoordinate, "координата не является конечным числом")
+		return Coordinate{}, NewValidationError(CodeInvalidCoordinate, "coordinate is not a finite number")
 	}
 	if lon < minLongitude || lon > maxLongitude {
-		return Coordinate{}, NewValidationError(CodeInvalidCoordinate, "долгота %g вне диапазона [-180, 180]", lon)
+		return Coordinate{}, NewValidationError(CodeInvalidCoordinate, "longitude %g is outside range [-180, 180]", lon)
 	}
 	if lat < minLatitude || lat > maxLatitude {
-		return Coordinate{}, NewValidationError(CodeInvalidCoordinate, "широта %g вне диапазона [-90, 90]", lat)
+		return Coordinate{}, NewValidationError(CodeInvalidCoordinate, "latitude %g is outside range [-90, 90]", lat)
 	}
 	return Coordinate{lon: lon, lat: lat}, nil
 }

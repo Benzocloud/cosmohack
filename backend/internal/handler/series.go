@@ -22,7 +22,7 @@ func (h *handler) writeResultView(w http.ResponseWriter, r *http.Request, series
 		return
 	}
 
-	a, err := h.storage.GetArea(r.Context(), id)
+	a, err := h.areas.GetArea(r.Context(), id)
 	if err != nil {
 		writePersistenceErr(w, err)
 		return
@@ -51,7 +51,7 @@ func (h *handler) writeResultView(w http.ResponseWriter, r *http.Request, series
 		return
 	}
 
-	res, err := h.storage.GetResult(r.Context(), a.ID, resultVersion)
+	res, err := h.analysis.GetResult(r.Context(), a.ID, resultVersion)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			if explicitVersion {

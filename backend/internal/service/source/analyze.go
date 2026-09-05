@@ -95,17 +95,17 @@ func NewAnalyzeRequestBuilder(maxObservations, maxBodyBytes int) *AnalyzeRequest
 
 func (b *AnalyzeRequestBuilder) Build(snapshot *Snapshot, requestID string) (*AnalyzeRequest, error) {
 	if snapshot == nil {
-		return nil, fmt.Errorf("запрос анализа без снимка данных")
+		return nil, fmt.Errorf("analysis request has no data snapshot")
 	}
 	if err := domainsource.RequireIdentifier("request_id", requestID); err != nil {
 		return nil, err
 	}
 	observations := snapshot.observationDTOs()
 	if len(observations) == 0 {
-		return nil, fmt.Errorf("запрос анализа без наблюдений")
+		return nil, fmt.Errorf("analysis request has no observations")
 	}
 	if len(observations) > b.maxObservations {
-		return nil, fmt.Errorf("наблюдений %d, предел контракта %d", len(observations), b.maxObservations)
+		return nil, fmt.Errorf("observation count %d exceeds contract limit %d", len(observations), b.maxObservations)
 	}
 	if err := ensureStrictlyAscending(observations); err != nil {
 		return nil, err
@@ -129,7 +129,7 @@ func (b *AnalyzeRequestBuilder) Build(snapshot *Snapshot, requestID string) (*An
 		return nil, err
 	}
 	if len(body) > b.maxBodyBytes {
-		return nil, fmt.Errorf("тело запроса %d байт, предел контракта %d", len(body), b.maxBodyBytes)
+		return nil, fmt.Errorf("request body is %d bytes, contract limit is %d", len(body), b.maxBodyBytes)
 	}
 	return &AnalyzeRequest{payload: payload, body: body}, nil
 }
@@ -137,7 +137,7 @@ func (b *AnalyzeRequestBuilder) Build(snapshot *Snapshot, requestID string) (*An
 func ensureStrictlyAscending(observations []observationDTO) error {
 	for index := 1; index < len(observations); index++ {
 		if !observations[index-1].Date.Before(observations[index].Date) {
-			return fmt.Errorf("даты наблюдений не строго возрастают: %s после %s",
+			return fmt.Errorf("observation dates are not strictly ascending: %s after %s",
 				observations[index].Date, observations[index-1].Date)
 		}
 	}
@@ -148,10 +148,10 @@ func validateSourceReferences(payload analyzeRequestPayload) error {
 	kinds := make(map[string]domainsource.Kind, len(payload.Sources))
 	for _, item := range payload.Sources {
 		if _, exists := kinds[item.ID]; exists {
-			return fmt.Errorf("идентификатор источника %s повторяется", item.ID)
+			return fmt.Errorf("source identifier %s is duplicated", item.ID)
 		}
 		if !item.Kind.Valid() {
-			return fmt.Errorf("источник %s имеет вид %q", item.ID, item.Kind)
+			return fmt.Errorf("source %s has kind %q", item.ID, item.Kind)
 		}
 		kinds[item.ID] = item.Kind
 	}
@@ -170,10 +170,10 @@ func validateSourceReferences(payload analyzeRequestPayload) error {
 			}
 		}
 		if observation.Quality == domainsource.QualityUsable && observation.PrimaryNDVI == nil {
-			return fmt.Errorf("наблюдение %s помечено usable без значения", observation.Date)
+			return fmt.Errorf("observation %s is marked usable without a value", observation.Date)
 		}
 		if observation.Quality != domainsource.QualityMissing && observation.Interval == nil {
-			return fmt.Errorf("наблюдение %s без интервала агрегации", observation.Date)
+			return fmt.Errorf("observation %s has no aggregation interval", observation.Date)
 		}
 	}
 	return nil
@@ -185,10 +185,10 @@ func requireReference(kinds map[string]domainsource.Kind, sourceID *string, expe
 	}
 	kind, exists := kinds[*sourceID]
 	if !exists {
-		return fmt.Errorf("наблюдение %s ссылается на неизвестный источник %s", date, *sourceID)
+		return fmt.Errorf("observation %s references unknown source %s", date, *sourceID)
 	}
 	if kind != expected {
-		return fmt.Errorf("наблюдение %s ожидает источник вида %q, найден %q", date, expected, kind)
+		return fmt.Errorf("observation %s expects source kind %q, got %q", date, expected, kind)
 	}
 	return nil
 }

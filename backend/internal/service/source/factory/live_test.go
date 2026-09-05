@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Benzocloud/cosmohack/backend/internal/config"
 	"github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
+	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
 	"github.com/Benzocloud/cosmohack/backend/internal/integration/overpass"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source"
@@ -23,11 +25,17 @@ const (
 
 func liveSettings(t *testing.T) factory.Settings {
 	t.Helper()
-	settings, err := factory.SettingsFromEnv(os.LookupEnv)
-	if err != nil {
-		t.Fatalf("settings were not built: %v", err)
+	lookup := func(key string) (string, bool) {
+		if key == config.EnvDBURL {
+			return "live-test-placeholder", true
+		}
+		return os.LookupEnv(key)
 	}
-	return settings
+	cfg, err := config.LoadFrom(lookup)
+	if err != nil {
+		t.Fatalf("config was not loaded: %v", err)
+	}
+	return factory.SettingsFromConfig(cfg.Source, domainsource.Limits{}, nil)
 }
 
 func TestLiveOverpassReturnsContours(t *testing.T) {
@@ -68,11 +76,11 @@ func TestLiveOpenMeteoReturnsWeather(t *testing.T) {
 	if err != nil {
 		t.Fatalf("weather provider was not built: %v", err)
 	}
-	period, err := source.ParseDateRange(livePeriodFrom, livePeriodTo)
+	period, err := domainsource.ParseDateRange(livePeriodFrom, livePeriodTo)
 	if err != nil {
 		t.Fatalf("period was not built: %v", err)
 	}
-	request, err := source.NewWeatherRequest(geom.MustCoordinate(39.0, 45.25), period)
+	request, err := domainsource.NewWeatherRequest(geom.MustCoordinate(39.0, 45.25), period)
 	if err != nil {
 		t.Fatalf("weather request was not built: %v", err)
 	}
@@ -92,7 +100,7 @@ func TestLiveOpenMeteoReturnsWeather(t *testing.T) {
 func TestLiveCollectorProcessesPolygon(t *testing.T) {
 	settings := liveSettings(t)
 	if settings.CDSEClientID == "" || settings.CDSEClientSecret == "" {
-		t.Skipf("CDSE access is not configured: set %s и %s", factory.EnvCDSEClientID, factory.EnvCDSEClientSecret)
+		t.Skipf("CDSE access is not configured: set %s and %s", config.EnvCDSEClientID, config.EnvCDSEClientSecret)
 	}
 	assembly, err := factory.New(settings)
 	if err != nil {
@@ -109,7 +117,7 @@ func TestLiveCollectorProcessesPolygon(t *testing.T) {
 	if err != nil {
 		t.Fatalf("polygon was not built: %v", err)
 	}
-	period, err := source.ParseDateRange(livePeriodFrom, livePeriodTo)
+	period, err := domainsource.ParseDateRange(livePeriodFrom, livePeriodTo)
 	if err != nil {
 		t.Fatalf("period was not built: %v", err)
 	}

@@ -9,7 +9,7 @@ import (
 
 const DateLayout = "2006-01-02"
 
-var errEmptyDate = errors.New("дата не задана")
+var errEmptyDate = errors.New("date is required")
 
 type Date struct {
 	value time.Time
@@ -25,7 +25,7 @@ func ParseDate(text string) (Date, error) {
 	}
 	parsed, err := time.ParseInLocation(DateLayout, text, time.UTC)
 	if err != nil {
-		return Date{}, fmt.Errorf("дата %q не соответствует формату YYYY-MM-DD", text)
+		return Date{}, fmt.Errorf("date %q does not match format YYYY-MM-DD", text)
 	}
 	return Date{value: parsed}, nil
 }

@@ -86,7 +86,7 @@ func (i statisticsItem) dateRange() (source.DateRange, error) {
 	interval, buildErr := source.NewDateRange(from, last)
 	if buildErr != nil {
 		return source.DateRange{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, buildErr,
-			"интервал агрегации некорректен")
+			"aggregation interval is invalid")
 	}
 	return interval, nil
 }
@@ -133,7 +133,7 @@ func newSample(interval source.DateRange, value, validFraction *float64, usable 
 	sample, err := source.NewSatelliteSample(interval, value, validFraction, usable, reason)
 	if err != nil {
 		return source.SatelliteSample{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
-			"наблюдение интервала %s не принято", interval)
+			"observation for interval %s was rejected", interval)
 	}
 	return sample, nil
 }
@@ -141,7 +141,7 @@ func newSample(interval source.DateRange, value, validFraction *float64, usable 
 func parseInterval(value string) (source.Date, error) {
 	if value == "" {
 		return source.Date{}, domain.NewProviderError(domain.FailureMalformed, ProviderName,
-			"интервал агрегации не содержит дат")
+			"aggregation interval contains no dates")
 	}
 	if moment, err := time.Parse(time.RFC3339, value); err == nil {
 		return source.DateFromTime(moment), nil
@@ -149,7 +149,7 @@ func parseInterval(value string) (source.Date, error) {
 	date, err := source.ParseDate(value)
 	if err != nil {
 		return source.Date{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
-			"дата интервала %q не разбирается", value)
+			"aggregation interval date %q could not be parsed", value)
 	}
 	return date, nil
 }

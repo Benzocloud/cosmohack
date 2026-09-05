@@ -44,16 +44,16 @@ func DefaultLimits() Limits {
 
 func NewLimits(spec LimitsSpec) (Limits, error) {
 	if spec.MinAreaHectares <= 0 || spec.MaxAreaHectares <= spec.MinAreaHectares {
-		return Limits{}, fmt.Errorf("границы площади участка заданы неверно")
+		return Limits{}, fmt.Errorf("site area bounds are invalid")
 	}
 	if spec.MaxPolygonVertices < 4 || spec.MaxPolygonVertices > geom.MaxRingVertices {
-		return Limits{}, fmt.Errorf("предел вершин вне диапазона [4, %d]", geom.MaxRingVertices)
+		return Limits{}, fmt.Errorf("vertex limit is outside range [4, %d]", geom.MaxRingVertices)
 	}
 	if spec.MaxPeriodDays <= 0 || spec.MaxObservations <= 0 {
-		return Limits{}, fmt.Errorf("пределы периода и числа наблюдений должны быть положительными")
+		return Limits{}, fmt.Errorf("period and observation limits must be positive")
 	}
 	if spec.MaxSearchAreaSquare <= 0 {
-		return Limits{}, fmt.Errorf("предел площади поиска контуров должен быть положительным")
+		return Limits{}, fmt.Errorf("contour search area limit must be positive")
 	}
 	return Limits{
 		minAreaHectares:     spec.MinAreaHectares,
@@ -91,35 +91,35 @@ func (l Limits) MaxSearchAreaHectares() float64 {
 
 func (l Limits) ValidatePolygon(polygon *geom.Polygon) error {
 	if polygon == nil {
-		return domain.NewProviderError(domain.FailureInvalidRequest, LimitsProvider, "геометрия участка не задана")
+		return domain.NewProviderError(domain.FailureInvalidRequest, LimitsProvider, "site geometry is required")
 	}
 	if polygon.VertexCount() > l.maxPolygonVertices {
 		return domain.NewProviderError(domain.FailureLimitExceeded, LimitsProvider,
-			"вершин %d, предел %d", polygon.VertexCount(), l.maxPolygonVertices)
+			"%d vertices exceed limit %d", polygon.VertexCount(), l.maxPolygonVertices)
 	}
 	area := polygon.AreaHectares()
 	if area < l.minAreaHectares {
 		return domain.NewProviderError(domain.FailureLimitExceeded, LimitsProvider,
-			"площадь %.2f га меньше минимальной %.2f га", area, l.minAreaHectares)
+			"area %.2f ha is below minimum %.2f ha", area, l.minAreaHectares)
 	}
 	if area > l.maxAreaHectares {
 		return domain.NewProviderError(domain.FailureLimitExceeded, LimitsProvider,
-			"площадь %.2f га больше предельной %.2f га", area, l.maxAreaHectares)
+			"area %.2f ha exceeds maximum %.2f ha", area, l.maxAreaHectares)
 	}
 	return nil
 }
 
 func (l Limits) ValidatePeriod(period DateRange) error {
 	if period.IsZero() {
-		return domain.NewProviderError(domain.FailureInvalidRequest, LimitsProvider, "период анализа не задан")
+		return domain.NewProviderError(domain.FailureInvalidRequest, LimitsProvider, "analysis period is required")
 	}
 	if period.Days() > l.maxPeriodDays {
 		return domain.NewProviderError(domain.FailureLimitExceeded, LimitsProvider,
-			"период %d дней, предел %d", period.Days(), l.maxPeriodDays)
+			"period has %d days, limit is %d", period.Days(), l.maxPeriodDays)
 	}
 	if period.Days() > l.maxObservations {
 		return domain.NewProviderError(domain.FailureLimitExceeded, LimitsProvider,
-			"период даёт %d наблюдений, предел %d", period.Days(), l.maxObservations)
+			"period yields %d observations, limit is %d", period.Days(), l.maxObservations)
 	}
 	return nil
 }
@@ -127,7 +127,7 @@ func (l Limits) ValidatePeriod(period DateRange) error {
 func (l Limits) ValidateSearchArea(bbox geom.BBox) error {
 	if area := bbox.AreaHectares(); area > l.maxSearchAreaSquare {
 		return domain.NewProviderError(domain.FailureLimitExceeded, LimitsProvider,
-			"область поиска %.0f га больше предельной %.0f га", area, l.maxSearchAreaSquare)
+			"search area %.0f ha exceeds maximum %.0f ha", area, l.maxSearchAreaSquare)
 	}
 	return nil
 }

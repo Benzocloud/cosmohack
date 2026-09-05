@@ -41,24 +41,9 @@ type ContourFinder interface {
 	Find(ctx context.Context, minLon, minLat, maxLon, maxLat float64) ([]Contour, error)
 }
 
-// Storage is the handler's domain persistence port. Implementations own the
-// database mapping; HTTP handlers only exchange domain values.
-type Storage interface {
-	CreateArea(context.Context, domain.Area) error
-	UpdateArea(context.Context, domain.Area) error
-	GetArea(context.Context, string) (domain.Area, error)
-	ListAreas(context.Context) ([]domain.Area, error)
-	DeleteArea(context.Context, string) ([]string, error)
-	GetJob(context.Context, string) (domain.Job, error)
-	PutJobQueued(context.Context, domain.Job) error
-	PutJobQueuedWithPeriod(context.Context, domain.Job, domain.Period) error
-	DeleteJob(context.Context, string) error
-	GetResult(context.Context, string, string) (domain.AnalysisRecord, error)
-}
-
 type handler struct {
-	storage   Storage
 	areas     *area.Service
+	analysis  *analysisusecase.QueryService
 	scheduler *analysisusecase.Scheduler
 	contours  ContourFinder
 	queue     Queue
@@ -66,9 +51,9 @@ type handler struct {
 	gate      sync.Mutex
 }
 
-// NewMuxWithStorage builds routes over a domain persistence implementation.
-func NewMuxWithStorage(storage Storage, areas *area.Service, scheduler *analysisusecase.Scheduler, contours ContourFinder, queue Queue, lim Limits) *http.ServeMux {
-	h := &handler{storage: storage, areas: areas, scheduler: scheduler, contours: contours, queue: queue, limits: lim}
+// NewMux builds routes over application services.
+func NewMux(areas *area.Service, analyses *analysisusecase.QueryService, scheduler *analysisusecase.Scheduler, contours ContourFinder, queue Queue, lim Limits) *http.ServeMux {
+	h := &handler{areas: areas, analysis: analyses, scheduler: scheduler, contours: contours, queue: queue, limits: lim}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/areas", h.listAreas)
 	mux.HandleFunc("POST /api/areas", h.createArea)

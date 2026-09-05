@@ -23,11 +23,11 @@ func NewCollectRequest(areaID string, polygon *geom.Polygon, period domainsource
 	}
 
 	if polygon == nil {
-		return CollectRequest{}, domain.NewProviderError(domain.FailureInvalidRequest, domainsource.LimitsProvider, "геометрия участка не задана")
+		return CollectRequest{}, domain.NewProviderError(domain.FailureInvalidRequest, domainsource.LimitsProvider, "area geometry is required")
 	}
 
 	if period.IsZero() {
-		return CollectRequest{}, domain.NewProviderError(domain.FailureInvalidRequest, domainsource.LimitsProvider, "период анализа не задан")
+		return CollectRequest{}, domain.NewProviderError(domain.FailureInvalidRequest, domainsource.LimitsProvider, "analysis period is required")
 	}
 
 	return CollectRequest{areaID: areaID, polygon: polygon, period: period}, nil
@@ -61,7 +61,7 @@ func WithLimits(limits domainsource.Limits) CollectorOption {
 func WithClock(clock domain.Clock) CollectorOption {
 	return func(collector *Collector) error {
 		if clock == nil {
-			return errors.New("часы сборщика не заданы")
+			return errors.New("collector clock is required")
 		}
 
 		collector.clock = clock
@@ -79,11 +79,11 @@ type Collector struct {
 
 func NewCollector(satellite domainsource.SatelliteProvider, weather domainsource.WeatherProvider, options ...CollectorOption) (*Collector, error) {
 	if satellite == nil {
-		return nil, errors.New("сборщик без спутникового источника")
+		return nil, errors.New("collector satellite provider is required")
 	}
 
 	if weather == nil {
-		return nil, errors.New("сборщик без погодного источника")
+		return nil, errors.New("collector weather provider is required")
 	}
 
 	collector := &Collector{

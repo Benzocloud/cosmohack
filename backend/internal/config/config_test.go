@@ -8,7 +8,6 @@ func TestLoadFrom(t *testing.T) {
 		EnvDBTimeout:                 "2s",
 		EnvSatelliteAggregationDays:  "7",
 		EnvSatelliteMinValidFraction: "0.4",
-		EnvAnalysisWorkers:           "3",
 		EnvAnalysisQueueSize:         "12",
 	}
 	c, err := LoadFrom(func(key string) (string, bool) {
@@ -27,8 +26,27 @@ func TestLoadFrom(t *testing.T) {
 	if c.Source.CDSEStatisticsURL != DefaultCDSEStatisticsURL || c.Source.WeatherURL != DefaultWeatherURL {
 		t.Fatalf("source defaults = %+v", c.Source)
 	}
-	if c.HTTP.Addr != defaultHTTPAddr || c.Analysis.Workers != 3 || c.Analysis.QueueSize != 12 {
+	if c.HTTP.Addr != defaultHTTPAddr || c.Analysis.QueueSize != 12 {
 		t.Fatalf("defaults = %+v %+v", c.HTTP, c.Analysis)
+	}
+}
+
+func TestLoadFromRejectsInvalidQueueSize(t *testing.T) {
+	values := map[string]string{EnvDBURL: "postgres://localhost/cosmohack", EnvAnalysisQueueSize: "0"}
+	_, err := LoadFrom(func(key string) (string, bool) { value, ok := values[key]; return value, ok })
+	if err == nil {
+		t.Fatal("LoadFrom() accepted a non-positive analysis queue size")
+	}
+}
+
+func TestLoadFromUsesDefaultQueueSize(t *testing.T) {
+	values := map[string]string{EnvDBURL: "postgres://localhost/cosmohack"}
+	c, err := LoadFrom(func(key string) (string, bool) { value, ok := values[key]; return value, ok })
+	if err != nil {
+		t.Fatalf("LoadFrom() error = %v", err)
+	}
+	if c.Analysis.QueueSize != defaultAnalysisQueueSize {
+		t.Fatalf("queue size = %d, want %d", c.Analysis.QueueSize, defaultAnalysisQueueSize)
 	}
 }
 

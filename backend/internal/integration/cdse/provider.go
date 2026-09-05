@@ -19,7 +19,7 @@ const (
 	StatisticsEndpoint = "https://sh.dataspace.copernicus.eu/api/v1/statistics"
 	SourceID           = "satellite-cdse-s2l2a-ndvi"
 	Collection         = "sentinel-2-l2a"
-	License            = "Copernicus Sentinel data; условия использования Copernicus Data Space Ecosystem"
+	License            = "Copernicus Sentinel data; Copernicus Data Space Ecosystem terms of use"
 
 	defaultAggregationDays  = 5
 	defaultResolutionMeters = 10.0
@@ -125,7 +125,7 @@ func (p *Provider) FetchNDVI(ctx context.Context, request source.SatelliteReques
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, p.endpoint, bytes.NewReader(body))
 	if err != nil {
 		return source.SatelliteSeries{}, domain.WrapProviderError(domain.FailureInvalidRequest, ProviderName, err,
-			"запрос статистики не построен")
+			"statistics request could not be built")
 	}
 	httpRequest.Header.Set("Content-Type", "application/json")
 	httpRequest.Header.Set("Authorization", "Bearer "+token)
@@ -151,7 +151,7 @@ func (p *Provider) FetchNDVI(ctx context.Context, request source.SatelliteReques
 	})
 	if err != nil {
 		return source.SatelliteSeries{}, domain.WrapProviderError(domain.FailureMalformed, ProviderName, err,
-			"описание спутникового источника не построено")
+			"satellite source descriptor could not be built")
 	}
 	return source.NewSatelliteSeries(descriptor, samples, notes)
 }
@@ -176,7 +176,7 @@ func (b *requestBuilder) build(request source.SatelliteRequest) ([]byte, error) 
 	geometry, err := geom.NewPolygonCodec(0).Encode(request.Polygon())
 	if err != nil {
 		return nil, domain.WrapProviderError(domain.FailureInvalidRequest, ProviderName, err,
-			"геометрия не сериализована")
+			"geometry could not be serialized")
 	}
 	payload := map[string]any{
 		"input": map[string]any{
@@ -206,7 +206,7 @@ func (b *requestBuilder) build(request source.SatelliteRequest) ([]byte, error) 
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, domain.WrapProviderError(domain.FailureInvalidRequest, ProviderName, err,
-			"тело запроса не сериализовано")
+			"request body could not be serialized")
 	}
 	return body, nil
 }

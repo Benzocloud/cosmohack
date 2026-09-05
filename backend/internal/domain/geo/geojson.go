@@ -31,14 +31,14 @@ func NewPolygonCodec(maxBytes int) *PolygonCodec {
 
 func (c *PolygonCodec) Decode(payload []byte) (*Polygon, error) {
 	if len(bytes.TrimSpace(payload)) == 0 {
-		return nil, NewValidationError(CodeMalformedGeoJSON, "пустой документ")
+		return nil, NewValidationError(CodeMalformedGeoJSON, "document is empty")
 	}
 	if len(payload) > c.maxBytes {
-		return nil, NewValidationError(CodeMalformedGeoJSON, "документ больше предела %d байт", c.maxBytes)
+		return nil, NewValidationError(CodeMalformedGeoJSON, "document exceeds %d byte limit", c.maxBytes)
 	}
 	document := &geoJSONDocument{}
 	if err := json.Unmarshal(payload, document); err != nil {
-		return nil, NewValidationError(CodeMalformedGeoJSON, "документ не разбирается")
+		return nil, NewValidationError(CodeMalformedGeoJSON, "document cannot be parsed")
 	}
 	geometry, err := c.geometryOf(document)
 	if err != nil {
@@ -49,7 +49,7 @@ func (c *PolygonCodec) Decode(payload []byte) (*Polygon, error) {
 
 func (c *PolygonCodec) Encode(polygon *Polygon) ([]byte, error) {
 	if polygon == nil {
-		return nil, NewValidationError(CodeUnsupportedShape, "полигон не задан")
+		return nil, NewValidationError(CodeUnsupportedShape, "polygon is required")
 	}
 	ring := polygon.Ring()
 	coordinates := make([][]float64, 0, len(ring))
@@ -68,39 +68,39 @@ func (c *PolygonCodec) geometryOf(document *geoJSONDocument) (*geoJSONDocument, 
 		return document, nil
 	case typeFeature:
 		if document.Geometry == nil {
-			return nil, NewValidationError(CodeMalformedGeoJSON, "Feature без geometry")
+			return nil, NewValidationError(CodeMalformedGeoJSON, "feature has no geometry")
 		}
 		return c.geometryOf(document.Geometry)
 	case typeFeatureCollection:
 		if len(document.Features) != 1 {
-			return nil, NewValidationError(CodeUnsupportedShape, "ожидается ровно один объект, получено %d", len(document.Features))
+			return nil, NewValidationError(CodeUnsupportedShape, "expected exactly one object, got %d", len(document.Features))
 		}
 		return c.geometryOf(document.Features[0])
 	case "":
-		return nil, NewValidationError(CodeMalformedGeoJSON, "поле type отсутствует")
+		return nil, NewValidationError(CodeMalformedGeoJSON, "type field is missing")
 	default:
-		return nil, NewValidationError(CodeUnsupportedShape, "тип %q не поддерживается, ожидается Polygon", document.Type)
+		return nil, NewValidationError(CodeUnsupportedShape, "type %q is unsupported, expected Polygon", document.Type)
 	}
 }
 
 func (c *PolygonCodec) polygonOf(document *geoJSONDocument) (*Polygon, error) {
 	if len(document.Coordinates) == 0 {
-		return nil, NewValidationError(CodeMalformedGeoJSON, "coordinates отсутствуют")
+		return nil, NewValidationError(CodeMalformedGeoJSON, "coordinates are missing")
 	}
 	rings := make([][][]float64, 0, 1)
 	if err := json.Unmarshal(document.Coordinates, &rings); err != nil {
-		return nil, NewValidationError(CodeUnsupportedShape, "coordinates не соответствуют одиночному полигону")
+		return nil, NewValidationError(CodeUnsupportedShape, "coordinates do not represent a single polygon")
 	}
 	if len(rings) == 0 {
-		return nil, NewValidationError(CodeMalformedGeoJSON, "coordinates пусты")
+		return nil, NewValidationError(CodeMalformedGeoJSON, "coordinates are empty")
 	}
 	if len(rings) > 1 {
-		return nil, NewValidationError(CodeUnsupportedShape, "полигон с отверстиями не поддерживается")
+		return nil, NewValidationError(CodeUnsupportedShape, "polygons with holes are unsupported")
 	}
 	ring := make([]Coordinate, 0, len(rings[0]))
 	for index, pair := range rings[0] {
 		if len(pair) < 2 {
-			return nil, NewValidationError(CodeMalformedGeoJSON, "точка %d не содержит пары longitude/latitude", index)
+			return nil, NewValidationError(CodeMalformedGeoJSON, "point %d does not contain a longitude/latitude pair", index)
 		}
 		coordinate, err := NewCoordinate(pair[0], pair[1])
 		if err != nil {

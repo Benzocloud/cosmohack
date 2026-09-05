@@ -4,84 +4,75 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Benzocloud/cosmohack/backend/internal/integration/cdse"
-	"github.com/Benzocloud/cosmohack/backend/internal/integration/openmeteo"
-	"github.com/Benzocloud/cosmohack/backend/internal/integration/overpass"
+	"github.com/Benzocloud/cosmohack/backend/internal/config"
+	domainsource "github.com/Benzocloud/cosmohack/backend/internal/domain/source"
 	"github.com/Benzocloud/cosmohack/backend/internal/service/source/factory"
 )
 
-func lookupFrom(values map[string]string) factory.Lookup {
-	return func(key string) (string, bool) {
-		value, found := values[key]
-		return value, found
+func settings(overrides func(*config.SourceConfig)) factory.Settings {
+	cfg := config.SourceConfig{
+		CDSEStatisticsURL:   config.DefaultCDSEStatisticsURL,
+		CDSETokenURL:        config.DefaultCDSETokenURL,
+		OverpassURL:         config.DefaultOverpassURL,
+		OverpassFallbackURL: config.DefaultOverpassFallbackURL,
+		WeatherURL:          config.DefaultWeatherURL,
+		WeatherFallbackURL:  config.DefaultWeatherFallbackURL,
+		AggregationDays:     5,
+		MinValidFraction:    0.5,
 	}
+	overrides(&cfg)
+	return factory.SettingsFromConfig(cfg, domainsource.Limits{}, nil)
 }
 
-func TestSettingsFromEnvUsesDocumentedDefaults(t *testing.T) {
-	settings, err := factory.SettingsFromEnv(lookupFrom(map[string]string{}))
-	if err != nil {
-		t.Fatalf("settings were not built: %v", err)
+func TestSettingsFromConfigPreservesSourceConfig(t *testing.T) {
+	cfg := config.SourceConfig{
+		CDSEClientID:        "client",
+		CDSEClientSecret:    "very-secret-value",
+		CDSEStatisticsURL:   "https://cdse.example/statistics",
+		CDSETokenURL:        "https://cdse.example/token",
+		OverpassURL:         "https://overpass.example/primary",
+		OverpassFallbackURL: "https://overpass.example/fallback",
+		WeatherURL:          "https://weather.example/primary",
+		WeatherFallbackURL:  "https://weather.example/fallback",
+		AggregationDays:     7,
+		MinValidFraction:    0.4,
 	}
-	if settings.CDSEStatisticsURL != cdse.StatisticsEndpoint || settings.CDSETokenURL != cdse.TokenEndpoint {
-		t.Fatalf("CDSE endpoints %s / %s", settings.CDSEStatisticsURL, settings.CDSETokenURL)
-	}
-	if settings.OverpassURL != overpass.PrimaryEndpoint || settings.OverpassFallbackURL != overpass.FallbackEndpoint {
-		t.Fatalf("Overpass endpoints %s / %s", settings.OverpassURL, settings.OverpassFallbackURL)
-	}
-	if settings.WeatherURL != openmeteo.PrimaryEndpoint || settings.WeatherFallbackURL != openmeteo.FallbackEndpoint {
-		t.Fatalf("weather endpoints %s / %s", settings.WeatherURL, settings.WeatherFallbackURL)
-	}
-}
-
-func TestSettingsFromEnvRejectsInvalidNumbers(t *testing.T) {
-	cases := map[string]map[string]string{
-		"aggregation interval": {factory.EnvAggregationDays: "five"},
-		"valid fraction":       {factory.EnvMinValidFraction: "half"},
-	}
-	for name, values := range cases {
-		t.Run(name, func(t *testing.T) {
-			if _, err := factory.SettingsFromEnv(lookupFrom(values)); err == nil {
-				t.Fatal("invalid setting was accepted")
-			}
-		})
+	got := factory.SettingsFromConfig(cfg, domainsource.Limits{}, nil)
+	if got.CDSEClientID != cfg.CDSEClientID || got.CDSEClientSecret != cfg.CDSEClientSecret ||
+		got.CDSEStatisticsURL != cfg.CDSEStatisticsURL || got.CDSETokenURL != cfg.CDSETokenURL ||
+		got.OverpassURL != cfg.OverpassURL || got.OverpassFallbackURL != cfg.OverpassFallbackURL ||
+		got.WeatherURL != cfg.WeatherURL || got.WeatherFallbackURL != cfg.WeatherFallbackURL ||
+		got.AggregationDays != cfg.AggregationDays || got.MinValidFraction != cfg.MinValidFraction {
+		t.Fatalf("settings were not adapted: %+v", got)
 	}
 }
 
 func TestSettingsHideSecret(t *testing.T) {
-	settings, err := factory.SettingsFromEnv(lookupFrom(map[string]string{
-		factory.EnvCDSEClientID:     "client",
-		factory.EnvCDSEClientSecret: "very-secret-value",
-	}))
-	if err != nil {
-		t.Fatalf("settings were not built: %v", err)
-	}
+	settings := settings(func(cfg *config.SourceConfig) {
+		cfg.CDSEClientID = "client"
+		cfg.CDSEClientSecret = "very-secret-value"
+	})
 	if strings.Contains(settings.String(), "very-secret-value") {
 		t.Fatal("secret leaked into settings string")
 	}
 }
 
 func TestNewRequiresCredentials(t *testing.T) {
-	settings, err := factory.SettingsFromEnv(lookupFrom(map[string]string{}))
-	if err != nil {
-		t.Fatalf("settings were not built: %v", err)
-	}
-	if _, err := factory.New(settings); err == nil {
+	if _, err := factory.New(settings(func(*config.SourceConfig) {})); err == nil {
 		t.Fatal("assembly succeeded without CDSE credentials")
 	}
 }
 
 func TestNewBuildsCollectorAndFinder(t *testing.T) {
-	settings, err := factory.SettingsFromEnv(lookupFrom(map[string]string{
-		factory.EnvCDSEClientID:     "client",
-		factory.EnvCDSEClientSecret: "secret",
-		factory.EnvOverpassURL:      "https://overpass.example.org/api/interpreter",
-		factory.EnvWeatherURL:       "https://weather.example.org/v1/archive",
-		factory.EnvAggregationDays:  "7",
-		factory.EnvMinValidFraction: "0.4",
-	}))
-	if err != nil {
-		t.Fatalf("settings were not built: %v", err)
-	}
+	settings := settings(func(cfg *config.SourceConfig) {
+		cfg.CDSEClientID = "client"
+		cfg.CDSEClientSecret = "secret"
+		cfg.OverpassURL = "https://overpass.example.org/api/interpreter"
+		cfg.WeatherURL = "https://weather.example.org/v1/archive"
+		cfg.AggregationDays = 7
+		cfg.MinValidFraction = 0.4
+	})
+	var err error
 	assembly, err := factory.New(settings)
 	if err != nil {
 		t.Fatalf("assembly failed: %v", err)
@@ -95,14 +86,11 @@ func TestNewBuildsCollectorAndFinder(t *testing.T) {
 }
 
 func TestNewRejectsBrokenEndpoint(t *testing.T) {
-	settings, err := factory.SettingsFromEnv(lookupFrom(map[string]string{
-		factory.EnvCDSEClientID:     "client",
-		factory.EnvCDSEClientSecret: "secret",
-		factory.EnvOverpassURL:      "overpass-without-scheme",
-	}))
-	if err != nil {
-		t.Fatalf("settings were not built: %v", err)
-	}
+	settings := settings(func(cfg *config.SourceConfig) {
+		cfg.CDSEClientID = "client"
+		cfg.CDSEClientSecret = "secret"
+		cfg.OverpassURL = "overpass-without-scheme"
+	})
 	if _, err := factory.New(settings); err == nil {
 		t.Fatal("invalid provider endpoint was accepted")
 	}

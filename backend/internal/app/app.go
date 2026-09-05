@@ -33,16 +33,16 @@ const (
 // Некорректная конфигурация ML и недоступная PostgreSQL возвращают ошибку до
 // открытия слушателя.
 func Run(ctx context.Context) error {
-	// Проверяем ML до базы, чтобы ошибка адреса была видна при старте, а не при
-	// первом анализе.
-	mlCfg, err := mlservice.ConfigFromEnv()
+	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}
 
-	cfg, err := config.Load()
+	mlCfg := mlservice.DefaultConfig(cfg.ML.BaseURL)
+	mlCfg.ExpectedModelVersion = cfg.ML.ExpectedModelVersion
+	client, err := mlservice.New(mlCfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("build ml client: %w", err)
 	}
 
 	db, err := appPostgres.Open(ctx, cfg.Postgres)
@@ -60,11 +60,6 @@ func Run(ctx context.Context) error {
 		return fmt.Errorf("build repository: %w", err)
 	}
 
-	client, err := mlservice.New(mlCfg)
-	if err != nil {
-		return fmt.Errorf("build ml client: %w", err)
-	}
-
 	limits := domainsource.DefaultLimits()
 
 	sources, err := factory.New(factory.SettingsFromConfig(cfg.Source, limits, time.Now))
@@ -72,14 +67,14 @@ func Run(ctx context.Context) error {
 		return fmt.Errorf("build source providers: %w", err)
 	}
 
-	// Один воркер-исполнитель: очередь ≤8 внутри Go, сбор → ML → PostgreSQL.
-	executor := analysis.New(storage, newB1Collector(sources.Collector()), client)
+	// Один воркер-исполнитель: сбор → ML → PostgreSQL.
+	executor := analysis.New(storage, newB1Collector(sources.Collector()), client, cfg.Analysis.QueueSize)
 	if err := executor.Start(ctx); err != nil {
 		return err
 	}
 
 	queue := &executorQueue{executor}
-	mux := handler.NewMuxWithStorage(storage, area.New(storage), analysis.NewScheduler(storage, queue), b1ContourFinder{finder: sources.ContourFinder()}, queue, handler.Limits{
+	mux := handler.NewMux(area.New(storage), analysis.NewQueryService(storage), analysis.NewScheduler(storage, queue), b1ContourFinder{finder: sources.ContourFinder()}, queue, handler.Limits{
 		AreaHaMax:     sources.Limits().MaxAreaHectares(),
 		VerticesMax:   sources.Limits().MaxPolygonVertices(),
 		PeriodDaysMax: sources.Limits().MaxPeriodDays(),

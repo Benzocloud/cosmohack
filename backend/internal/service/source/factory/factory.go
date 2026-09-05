@@ -1,9 +1,7 @@
 package factory
 
 import (
-	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/config"
@@ -16,26 +14,8 @@ import (
 )
 
 const (
-	errSettingsLookup = "source settings lookup is nil"
-	errInvalidInteger = "source setting %s must be an integer"
-	errInvalidNumber  = "source setting %s must be a number"
+	settingsSecretPlaceholder = "(redacted)"
 )
-
-const (
-	EnvCDSEClientID           = "CDSE_CLIENT_ID"
-	EnvCDSEClientSecret       = "CDSE_CLIENT_SECRET"
-	EnvCDSEStatisticsURL      = "CDSE_STATISTICS_URL"
-	EnvCDSETokenURL           = "CDSE_TOKEN_URL"
-	EnvOverpassURL            = "OVERPASS_URL"
-	EnvOverpassFallbackURL    = "OVERPASS_FALLBACK_URL"
-	EnvWeatherURL             = "WEATHER_URL"
-	EnvWeatherFallbackURL     = "WEATHER_FALLBACK_URL"
-	EnvAggregationDays        = "SATELLITE_AGGREGATION_DAYS"
-	EnvMinValidFraction       = "SATELLITE_MIN_VALID_FRACTION"
-	settingsSecretPlaceholder = "(скрыто)"
-)
-
-type Lookup func(key string) (string, bool)
 
 type Settings struct {
 	CDSEClientID        string
@@ -74,35 +54,6 @@ func SettingsFromConfig(cfg config.SourceConfig, limits domainsource.Limits, clo
 func (s Settings) String() string {
 	return fmt.Sprintf("Settings{cdse_client_id=%q, cdse_client_secret=%s, statistics=%q, overpass=%q, weather=%q}",
 		s.CDSEClientID, settingsSecretPlaceholder, s.CDSEStatisticsURL, s.OverpassURL, s.WeatherURL)
-}
-
-func SettingsFromEnv(lookup Lookup) (Settings, error) {
-	if lookup == nil {
-		return Settings{}, errors.New(errSettingsLookup)
-	}
-	settings := Settings{
-		CDSEClientID:        value(lookup, EnvCDSEClientID, ""),
-		CDSEClientSecret:    value(lookup, EnvCDSEClientSecret, ""),
-		CDSEStatisticsURL:   value(lookup, EnvCDSEStatisticsURL, cdse.StatisticsEndpoint),
-		CDSETokenURL:        value(lookup, EnvCDSETokenURL, cdse.TokenEndpoint),
-		OverpassURL:         value(lookup, EnvOverpassURL, overpass.PrimaryEndpoint),
-		OverpassFallbackURL: value(lookup, EnvOverpassFallbackURL, overpass.FallbackEndpoint),
-		WeatherURL:          value(lookup, EnvWeatherURL, openmeteo.PrimaryEndpoint),
-		WeatherFallbackURL:  value(lookup, EnvWeatherFallbackURL, openmeteo.FallbackEndpoint),
-		Limits:              domainsource.DefaultLimits(),
-		Clock:               time.Now,
-	}
-	days, err := integer(lookup, EnvAggregationDays, 0)
-	if err != nil {
-		return Settings{}, err
-	}
-	settings.AggregationDays = days
-	fraction, err := fractional(lookup, EnvMinValidFraction, 0)
-	if err != nil {
-		return Settings{}, err
-	}
-	settings.MinValidFraction = fraction
-	return settings, nil
 }
 
 type Assembly struct {
@@ -170,35 +121,4 @@ func (a *Assembly) ContourFinder() domainsource.ContourFinder {
 
 func (a *Assembly) Limits() domainsource.Limits {
 	return a.limits
-}
-
-func value(lookup Lookup, key, fallback string) string {
-	if found, ok := lookup(key); ok && found != "" {
-		return found
-	}
-	return fallback
-}
-
-func integer(lookup Lookup, key string, fallback int) (int, error) {
-	raw, ok := lookup(key)
-	if !ok || raw == "" {
-		return fallback, nil
-	}
-	parsed, err := strconv.Atoi(raw)
-	if err != nil {
-		return 0, fmt.Errorf(errInvalidInteger, key)
-	}
-	return parsed, nil
-}
-
-func fractional(lookup Lookup, key string, fallback float64) (float64, error) {
-	raw, ok := lookup(key)
-	if !ok || raw == "" {
-		return fallback, nil
-	}
-	parsed, err := strconv.ParseFloat(raw, 64)
-	if err != nil {
-		return 0, fmt.Errorf(errInvalidNumber, key)
-	}
-	return parsed, nil
 }

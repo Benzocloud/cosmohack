@@ -37,7 +37,7 @@ func (h *handler) getJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	j, err := h.storage.GetJob(r.Context(), id)
+	j, err := h.analysis.GetJob(r.Context(), id)
 	if err != nil {
 		writePersistenceErr(w, err)
 		return

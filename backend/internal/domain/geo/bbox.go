@@ -23,10 +23,10 @@ func NewBBox(minLon, minLat, maxLon, maxLat float64) (BBox, error) {
 		}
 	}
 	if minLon >= maxLon || minLat >= maxLat {
-		return BBox{}, NewValidationError(CodeInvalidBBox, "нижний угол должен быть строго меньше верхнего")
+		return BBox{}, NewValidationError(CodeInvalidBBox, "lower corner must be strictly less than upper corner")
 	}
 	if maxLon-minLon >= maxBBoxSpanDegrees {
-		return BBox{}, NewValidationError(CodeAntimeridianSpan, "ширина области %g градусов не поддерживается", maxLon-minLon)
+		return BBox{}, NewValidationError(CodeAntimeridianSpan, "area width of %g degrees is unsupported", maxLon-minLon)
 	}
 	return BBox{minLon: minLon, minLat: minLat, maxLon: maxLon, maxLat: maxLat}, nil
 }
@@ -34,13 +34,13 @@ func NewBBox(minLon, minLat, maxLon, maxLat float64) (BBox, error) {
 func ParseBBox(value string) (BBox, error) {
 	parts := strings.Split(strings.TrimSpace(value), ",")
 	if len(parts) != 4 {
-		return BBox{}, NewValidationError(CodeInvalidBBox, "ожидается minLon,minLat,maxLon,maxLat")
+		return BBox{}, NewValidationError(CodeInvalidBBox, "expected minLon,minLat,maxLon,maxLat")
 	}
 	numbers := make([]float64, 0, 4)
 	for _, part := range parts {
 		number, err := strconv.ParseFloat(strings.TrimSpace(part), 64)
 		if err != nil {
-			return BBox{}, NewValidationError(CodeInvalidBBox, "значение %q не является числом", part)
+			return BBox{}, NewValidationError(CodeInvalidBBox, "value %q is not a number", part)
 		}
 		numbers = append(numbers, number)
 	}
