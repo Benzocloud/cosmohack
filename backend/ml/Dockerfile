@@ -1,8 +1,7 @@
-# Образ ML-сервиса (зона кода — xsqclown, Dockerfile — B4). Сборка из корня
-# репозитория: docker build -f backend/ml/Dockerfile .
-# Сервис загружает версионированный артефакт модели один раз на процесс;
-# обучение при сборке и старте не выполняется. Артефакт входит в образ либо
-# монтируется только для чтения по версии (MODEL_ARTIFACT / MODEL_VERSION).
+# Образ ML-сервиса. Сборка всегда выполняется из корня репозитория:
+#   docker build -f backend/ml/Dockerfile .
+# Обучение при сборке и старте не выполняется: образ содержит импортированный
+# артефакт и его manifest, а сервис загружает их один раз на процесс.
 FROM python:3.12-slim
 
 WORKDIR /app/ml
@@ -11,12 +10,23 @@ WORKDIR /app/ml
 COPY backend/ml/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Пакет vegetation_ml и HTTP-адаптер поставляет ML-владелец.
-COPY backend/ml/ ./
+# В runtime попадает только пакет сервиса; тесты, batch-скрипты и исходный
+# manifest остаются за пределами образа.
+COPY backend/ml/vegetation_ml/ ./vegetation_ml/
 
-# Версионированный артефакт модели: файл в образе или read-only монтирование.
-ENV MODEL_ARTIFACT=/app/ml/artifacts/model
-ENV MODEL_VERSION=unset
+# Единственный production-артефакт этого выпуска. Будущие версии получают
+# новый manifest и явно добавляются в отдельный выпуск образа.
+COPY artifacts/restoration.pkl /app/ml/artifacts/restoration.pkl
+COPY backend/ml/model-manifest.json /app/ml/artifacts/manifest.json
 
+# Runtime не должен иметь права записи в код или модель.
+RUN groupadd --system --gid 10001 vegetation \
+    && useradd --system --uid 10001 --gid 10001 --no-create-home \
+       --shell /usr/sbin/nologin vegetation
+
+ENV VEGETATION_ML_MODEL=/app/ml/artifacts/restoration.pkl
+ENV VEGETATION_ML_MANIFEST=/app/ml/artifacts/manifest.json
+
+USER 10001:10001
 EXPOSE 8000
-CMD ["python", "-m", "vegetation_ml.http"]
+ENTRYPOINT ["python", "-m", "vegetation_ml"]

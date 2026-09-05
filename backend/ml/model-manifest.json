@@ -1,0 +1,6 @@
+{
+  "model_version": "ndvi-gapfill-0.2.0+hgb",
+  "schema_version": "1.0",
+  "feature_profile": "ndvi-multisensor-v1",
+  "sha256": "65029052d379d4074f3060c5e45677a1863c6fced2ec8ff369dde277f625f67c"
+}

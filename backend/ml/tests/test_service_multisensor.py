@@ -47,6 +47,8 @@ def trained_model(request):
 def model_client(monkeypatch, tmp_path, trained_model):
     """Сервис с загруженным артефактом: доступен расширенный профиль."""
     monkeypatch.setenv(service.MODEL_PATH_ENV, str(tmp_path / "absent.pkl"))
+    monkeypatch.setenv(service.ALLOW_FALLBACK_ENV, "true")
+    monkeypatch.setenv(service.ENABLE_MULTISENSOR_ENV, "true")
     with TestClient(service.app) as client:
         service._model["artifact"] = trained_model
         yield client
@@ -57,6 +59,8 @@ def model_client(monkeypatch, tmp_path, trained_model):
 def bare_client(monkeypatch, tmp_path):
     """Сервис без артефакта: расширенный профиль не объявлен и не принимается."""
     monkeypatch.setenv(service.MODEL_PATH_ENV, str(tmp_path / "absent.pkl"))
+    monkeypatch.setenv(service.ALLOW_FALLBACK_ENV, "true")
+    monkeypatch.delenv(service.ENABLE_MULTISENSOR_ENV, raising=False)
     with TestClient(service.app) as client:
         yield client
 
@@ -247,7 +251,7 @@ def test_indices_must_match_primary_ndvi(model_client, synthetic):
             break
     response = model_client.post("/v1/analyze", json=req)
     assert response.status_code == 422
-    assert "не совпадает" in response.json()["error"]["message"]
+    assert "does not match" in response.json()["error"]["message"]
 
 
 def test_peer_cannot_be_the_area_itself(model_client, synthetic):
@@ -255,7 +259,7 @@ def test_peer_cannot_be_the_area_itself(model_client, synthetic):
     req["peers"][0]["area_id"] = req["area_id"]
     response = model_client.post("/v1/analyze", json=req)
     assert response.status_code == 422
-    assert "сам участок" in response.json()["error"]["message"]
+    assert "must not be listed as a peer" in response.json()["error"]["message"]
 
 
 def test_duplicate_peer_ids_are_rejected(model_client, synthetic):
@@ -263,7 +267,7 @@ def test_duplicate_peer_ids_are_rejected(model_client, synthetic):
     req["peers"][1]["area_id"] = req["peers"][0]["area_id"]
     response = model_client.post("/v1/analyze", json=req)
     assert response.status_code == 422
-    assert "уникальны" in response.json()["error"]["message"]
+    assert "unique" in response.json()["error"]["message"]
 
 
 def test_too_many_peers_are_rejected(model_client, synthetic):

@@ -34,7 +34,6 @@ DATABASE_URL=${DATABASE_URL:?set DATABASE_URL for the PostgreSQL deployment}
 CDSE_CLIENT_ID=${CDSE_CLIENT_ID:?set CDSE_CLIENT_ID for the satellite provider}
 CDSE_CLIENT_SECRET=${CDSE_CLIENT_SECRET:?set CDSE_CLIENT_SECRET for the satellite provider}
 DB_TIMEOUT=${DB_TIMEOUT:-5s}
-ML_ARTIFACTS_DIR_HOST=${ML_ARTIFACTS_DIR_HOST:-./data/ml-artifacts}
 MIGRATIONS_DIR_HOST=${MIGRATIONS_DIR_HOST:-../backend/migrations}
 CURRENT_MANIFEST=current-manifest.json
 PREVIOUS_MANIFEST=previous-manifest.json
@@ -58,7 +57,6 @@ DATABASE_URL=${DATABASE_URL}
 CDSE_CLIENT_ID=${CDSE_CLIENT_ID}
 CDSE_CLIENT_SECRET=${CDSE_CLIENT_SECRET}
 DB_TIMEOUT=${DB_TIMEOUT}
-ML_ARTIFACTS_DIR_HOST=${ML_ARTIFACTS_DIR_HOST}
 MIGRATIONS_DIR_HOST=${MIGRATIONS_DIR_HOST}
 EOF
   chmod 600 release.env
@@ -143,17 +141,24 @@ main() {
   docker compose version >/dev/null || { log "docker compose not found"; exit 1; }
 
   log "logging in to the private ghcr.io"
-  echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin || rollback
+  if ! echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin; then
+    log "registry login failed; current release remains running"
+    exit 1
+  fi
 
   log "pulling images"
-  docker pull "$GO_IMAGE" || rollback
-  docker pull "$ML_IMAGE" || rollback
+  if ! docker pull "$GO_IMAGE"; then
+    log "go image pull failed; current release remains running"
+    exit 1
+  fi
+  if ! docker pull "$ML_IMAGE"; then
+    log "ml image pull failed; current release remains running"
+    exit 1
+  fi
 
   [[ -f $CURRENT_MANIFEST ]] && cp "$CURRENT_MANIFEST" "$PREVIOUS_MANIFEST"
   write_release_env
 
-  # ML-контейнеру нужен доступ к read-only каталогу артефактов.
-  install -d -m 0750 "$ML_ARTIFACTS_DIR_HOST"
   install -d -m 0755 "$MIGRATIONS_DIR_HOST"
 
   log "applying database migrations"

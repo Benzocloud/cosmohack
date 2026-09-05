@@ -48,8 +48,6 @@ services:
     image: ${ML_IMAGE:?ML_IMAGE is required}
     environment:
       MODEL_VERSION: ${MODEL_VERSION:?MODEL_VERSION is required}
-    volumes:
-      - ${ML_ARTIFACTS_DIR_HOST:-./data/ml-artifacts}:/app/ml/artifacts:ro
     expose:
       - "8000"
     healthcheck:

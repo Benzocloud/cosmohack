@@ -3,12 +3,15 @@
 .github
 .agent
 data
-artifacts
+# Keep only the imported release model; future artifacts remain excluded.
+artifacts/*
+!artifacts/restoration.pkl
 submission.csv
 reports
 deploy
 README.md
 frontend/node_modules
 frontend/dist
-backend/ml/artifacts
+**/__pycache__
+**/*.pyc
 **/.DS_Store

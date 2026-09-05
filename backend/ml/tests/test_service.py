@@ -14,6 +14,7 @@ from vegetation_ml import service, web_analysis
 def client(monkeypatch, tmp_path):
     """Сервис без артефакта модели: доступен только базовый профиль."""
     monkeypatch.setenv(service.MODEL_PATH_ENV, str(tmp_path / "absent.pkl"))
+    monkeypatch.setenv(service.ALLOW_FALLBACK_ENV, "true")
     with TestClient(service.app) as c:
         yield c
 
@@ -82,7 +83,21 @@ def test_readyz_reports_contract_and_model(client):
     assert body["schema_version"] == "1.0"
     assert body["feature_profiles"] == ["ndvi-weather-v1"]
     assert body["model_version"] == web_analysis.model_version(None)
-    assert body["schema_versions"] == ["1.0", "1.1"]
+    assert body["schema_versions"] == ["1.0"]
+
+
+@pytest.mark.parametrize("corrupt", [False, True])
+def test_missing_or_invalid_artifact_blocks_readiness(monkeypatch, tmp_path, corrupt):
+    model_path = tmp_path / "restoration.pkl"
+    if corrupt:
+        model_path.write_bytes(b"not a model")
+    monkeypatch.setenv(service.MODEL_PATH_ENV, str(model_path))
+    monkeypatch.delenv(service.ALLOW_FALLBACK_ENV, raising=False)
+    with TestClient(service.app) as c:
+        response = c.get("/readyz")
+    assert response.status_code == 503
+    assert response.json()["status"] == "not_ready"
+    assert "model artifact" in response.json()["reason"]
 
 
 def test_analyze_echoes_request_and_restores_gaps(client):
@@ -179,7 +194,7 @@ def test_duplicate_dates_are_rejected(client):
     pts[5] = copy.deepcopy(pts[4])
     r = client.post("/v1/analyze", json=_request(pts))
     assert r.status_code == 422
-    assert "уникальны" in r.json()["error"]["message"]
+    assert "unique" in r.json()["error"]["message"]
 
 
 def test_unsorted_dates_are_rejected(client):
@@ -218,7 +233,7 @@ def test_date_outside_its_interval_is_rejected(client):
     pts[3]["interval"] = {"from": "2026-01-01", "to": "2026-01-02"}
     r = client.post("/v1/analyze", json=_request(pts))
     assert r.status_code == 422
-    assert "интервал" in r.json()["error"]["message"]
+    assert "interval" in r.json()["error"]["message"]
 
 
 def test_negative_precipitation_is_rejected(client):

@@ -18,10 +18,12 @@ Set `ML_STUB_MODE=busy`, `ML_STUB_MODE=timeout`, or `ML_STUB_MODE=invalid` to
 exercise the corresponding client error paths. The real `ml` service remains
 unchanged and production still requires `ML_IMAGE`.
 
-When `DEPLOY_ENABLED=true` and the real ML package is not present, the main
-branch pipeline publishes this image and deploys the production `go` service
-with it as `ML_IMAGE`. The regular production deployment remains gated on the
-real ML package; the stub deployment uses the same PostgreSQL migrations and
-readiness checks. Both deploy paths require the `CDSE_CLIENT_ID` and
+When `DEPLOY_ENABLED=true` and the production marker is absent, the main branch
+pipeline publishes this image and deploys the production `go` service with it
+as `ML_IMAGE`. Once `backend/ml/PRODUCTION_READY` is committed, the real ML
+image becomes the only automatic production choice. The pipeline continues to
+publish this stub image so the previous release manifest can roll back to a
+known compatible pair; selecting it for a new deployment remains explicit.
+Both deploy paths require the `CDSE_CLIENT_ID` and
 `CDSE_CLIENT_SECRET` repository secrets because the production Go composition
 initializes the satellite source at startup.

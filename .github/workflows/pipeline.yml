@@ -18,6 +18,7 @@ concurrency:
 env:
   GOLANGCI_LINT_VERSION: v2.13.2
   GOVULNCHECK_VERSION: v1.7.0
+  RUFF_VERSION: 0.12.12
 
 jobs:
   go-checks:
@@ -86,8 +87,8 @@ jobs:
         if: ${{ hashFiles('backend/ml/requirements.txt') != '' }}
         working-directory: backend/ml
         run: |
-          pip install --no-cache-dir -r requirements-dev.txt
-          pip install --no-cache-dir ruff
+          python -m pip install --no-cache-dir -r requirements-dev.txt
+          python -m pip install --no-cache-dir "ruff==${RUFF_VERSION}"
           ruff check .
           python -m pytest tests -q
 
@@ -128,6 +129,28 @@ jobs:
           context: .
           file: ./backend/ml/Dockerfile
           push: false
+          load: true
+          tags: cosmohack/ml:ci
+      - name: run ML image contract smoke test
+        if: ${{ hashFiles('backend/ml/requirements.txt') != '' }}
+        working-directory: backend/ml
+        run: |
+          set -euo pipefail
+          container=cosmohack-ml-ci
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          docker run -d --name "$container" cosmohack/ml:ci
+          ready=false
+          for _ in $(seq 1 30); do
+            if docker exec "$container" python -c 'import json, urllib.request; body=json.load(urllib.request.urlopen("http://127.0.0.1:8000/readyz")); assert body["status"] == "ready", body' >/dev/null 2>&1; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = true || { docker logs "$container"; exit 1; }
+          docker exec "$container" python -c 'import hashlib, json, urllib.request; body=json.load(urllib.request.urlopen("http://127.0.0.1:8000/readyz")); manifest=json.load(open("/app/ml/artifacts/manifest.json")); artifact=open("/app/ml/artifacts/restoration.pkl", "rb").read(); assert body["status"] == "ready", body; assert body["schema_version"] == "1.0", body; assert body["feature_profiles"] == ["ndvi-weather-v1"], body; assert body["model_version"] == manifest["model_version"], body; assert hashlib.sha256(artifact).hexdigest() == manifest["sha256"], manifest'
+          docker cp "$GITHUB_WORKSPACE/backend/testdata/ml-http/analyze_request_example.json" "$container:/tmp/analyze_request.json"
+          docker exec "$container" python -c 'import json, urllib.request; payload=json.load(open("/tmp/analyze_request.json")); request=urllib.request.Request("http://127.0.0.1:8000/v1/analyze", data=json.dumps(payload).encode(), headers={"Content-Type":"application/json", "Accept":"application/json"}); response=urllib.request.urlopen(request); result=json.load(response); assert result["request_id"] == payload["request_id"], result; assert result["area_id"] == payload["area_id"], result; assert result["input_revision"] == payload["input_revision"], result; assert result["schema_version"] == payload["schema_version"] == "1.0", result; assert result["feature_profile"] == payload["feature_profile"] == "ndvi-weather-v1", result; assert isinstance(result["series"], list) and result["series"], result'
       - name: build development ML stub image (no push)
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
         with:
@@ -191,7 +214,7 @@ jobs:
     # когда владелец включил переменную DEPLOY_ENABLED. Runner находится на
     # целевой машине, поэтому SSH-доставка не используется.
     # Секреты: GHCR_USER/GHCR_TOKEN (read:packages), DATABASE_URL;
-    # переменная MODEL_VERSION.
+    # версия модели читается из зафиксированного manifest.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.publish.outputs.ml_present == 'true' && vars.DEPLOY_ENABLED == 'true'
     needs: publish
     runs-on: self-hosted
@@ -206,10 +229,11 @@ jobs:
           GO_DIGEST: ${{ needs.publish.outputs.go_digest }}
           ML_DIGEST: ${{ needs.publish.outputs.ml_digest }}
           IMAGE_REPO: ${{ needs.publish.outputs.image_repo }}
-          MODEL_VERSION: ${{ vars.MODEL_VERSION }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/opt/cosmohack' }}
         run: |
+          MODEL_VERSION=$(sed -n 's/.*"model_version": *"\([^"]*\)".*/\1/p' backend/ml/model-manifest.json)
+          export MODEL_VERSION
           test -n "$GHCR_USER" && test -n "$GHCR_TOKEN" \
             && test -n "$CDSE_CLIENT_ID" && test -n "$CDSE_CLIENT_SECRET" \
             && test -n "$MODEL_VERSION" \

@@ -9,15 +9,25 @@
 from __future__ import annotations
 
 import math
-from datetime import date
+import re
+from datetime import date, datetime, timezone
 from itertools import pairwise
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictInt,
+    StrictStr,
+    field_validator,
+    model_validator,
+)
 
 SCHEMA_VERSION = "1.0"
 SCHEMA_VERSION_EXTENDED = "1.1"
 SUPPORTED_SCHEMA_VERSIONS = (SCHEMA_VERSION, SCHEMA_VERSION_EXTENDED)
+PRODUCTION_SCHEMA_VERSIONS = (SCHEMA_VERSION,)
 
 FEATURE_PROFILE = "ndvi-weather-v1"
 PROFILE_MULTISENSOR = "ndvi-multisensor-v1"
@@ -34,7 +44,8 @@ SENSOR_INDEX_FIELDS = ("s2_ndvi", "s2_evi", "s2_ndwi",
 NDVI_PRIORITY = ("s2_ndvi", "landsat_ndvi", "modis_ndvi")
 NDVI_MATCH_TOLERANCE = 1e-9
 
-Id = Annotated[str, Field(min_length=1, max_length=MAX_ID_LENGTH)]
+Id = Annotated[StrictStr, Field(min_length=1, max_length=MAX_ID_LENGTH)]
+NonEmptyText = Annotated[StrictStr, Field(min_length=1)]
 
 
 class Strict(BaseModel):
@@ -42,22 +53,60 @@ class Strict(BaseModel):
 
 
 def _finite(value, field: str):
-    """NaN и Inf запрещены во всех числах контракта."""
-    if value is not None and isinstance(value, float) and not math.isfinite(value):
-        raise ValueError(f"поле {field} должно быть конечным числом")
+    """Validate a JSON number while preserving integer values for float fields."""
+    if value is None:
+        return value
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field} must be a number or null")  # noqa: TRY004
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError(f"{field} must be finite")
     return value
+
+
+def _utc_rfc3339(value: str) -> str:
+    """Require an RFC3339 timestamp with an explicit UTC offset."""
+    if not isinstance(value, str):
+        raise ValueError("retrieved_at must be a string")  # noqa: TRY004
+    if not re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})",
+            value):
+        raise ValueError("retrieved_at must be an RFC3339 timestamp")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("retrieved_at must be an RFC3339 timestamp") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() != timezone.utc.utcoffset(parsed):
+        raise ValueError("retrieved_at must use UTC")
+    return value
+
+
+def _strict_date(value, field: str) -> date:
+    """Require the wire format YYYY-MM-DD for contract dates."""
+    if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise ValueError(f"{field} must use YYYY-MM-DD")
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(f"{field} must use a valid YYYY-MM-DD date") from exc
 
 
 class Period(Strict):
     from_: date = Field(alias="from")
     to: date
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    # The wire contract exposes the alias ``from`` only; accepting the Python
+    # attribute name ``from_`` would silently widen the JSON schema.
+    model_config = ConfigDict(extra="forbid", populate_by_name=False)
+
+    @field_validator("from_", "to", mode="before")
+    @classmethod
+    def dates_are_strict(cls, value, info):
+        return _strict_date(value, f"period.{info.field_name}")
 
     @model_validator(mode="after")
     def check_order(self):
         if self.from_ > self.to:
-            raise ValueError("начало периода позже конца")
+            raise ValueError("period start must not be after period end")
         return self
 
 
@@ -78,11 +127,10 @@ class Indices(Strict):
     modis_ndvi: float | None
     modis_evi: float | None
 
-    @model_validator(mode="after")
-    def check_finite(self):
-        for name in SENSOR_INDEX_FIELDS:
-            _finite(getattr(self, name), f"indices.{name}")
-        return self
+    @field_validator(*SENSOR_INDEX_FIELDS, mode="before")
+    @classmethod
+    def numbers_are_finite(cls, v, info):
+        return _finite(v, f"indices.{info.field_name}")
 
     def primary(self) -> float | None:
         """Значение по приоритету s2 → landsat → modis."""
@@ -96,7 +144,7 @@ class Indices(Strict):
 class AreaContext(Strict):
     """Свойства участка, не меняющиеся по датам."""
 
-    crop_type: str | None
+    crop_type: StrictStr | None
 
 
 class PeerObservation(Strict):
@@ -107,7 +155,12 @@ class PeerObservation(Strict):
     quality: Literal["usable", "unusable", "missing"] | None
     indices: Indices | None
 
-    @field_validator("primary_ndvi")
+    @field_validator("date", mode="before")
+    @classmethod
+    def date_is_strict(cls, value):
+        return _strict_date(value, "peer observation date")
+
+    @field_validator("primary_ndvi", mode="before")
     @classmethod
     def finite(cls, v, info):
         return _finite(v, info.field_name)
@@ -128,9 +181,10 @@ class PeerSeries(Strict):
     def check_dates(self):
         dates = [o.date for o in self.observations]
         if len(dates) != len(set(dates)):
-            raise ValueError(f"даты соседнего участка {self.area_id} должны быть уникальны")
+            raise ValueError(f"peer area {self.area_id} observation dates must be unique")
         if any(b <= a for a, b in pairwise(dates)):
-            raise ValueError(f"даты соседнего участка {self.area_id} должны строго возрастать")
+            raise ValueError(
+                f"peer area {self.area_id} observation dates must be strictly ascending")
         return self
 
 
@@ -139,9 +193,14 @@ class Source(Strict):
     kind: Literal["satellite", "weather", "reference"]
     provider: Id
     dataset: Id
-    mapping: str
-    retrieved_at: str
-    license: str | None
+    mapping: NonEmptyText
+    retrieved_at: StrictStr
+    license: StrictStr | None
+
+    @field_validator("retrieved_at")
+    @classmethod
+    def retrieved_at_is_utc(cls, v):
+        return _utc_rfc3339(v)
 
 
 class Weather(Strict):
@@ -149,7 +208,7 @@ class Weather(Strict):
     temperature_mean_c: float | None
     precipitation_sum_mm: float | None
 
-    @field_validator("temperature_mean_c", "precipitation_sum_mm")
+    @field_validator("temperature_mean_c", "precipitation_sum_mm", mode="before")
     @classmethod
     def finite(cls, v, info):
         return _finite(v, info.field_name)
@@ -157,7 +216,7 @@ class Weather(Strict):
     @model_validator(mode="after")
     def check_precip(self):
         if self.precipitation_sum_mm is not None and self.precipitation_sum_mm < 0:
-            raise ValueError("осадки не могут быть отрицательными")
+            raise ValueError("precipitation_sum_mm must not be negative")
         return self
 
 
@@ -165,17 +224,20 @@ class Reference(Strict):
     source_id: Id
     mean: float
     std: float
-    n_reference_years: int
+    n_reference_years: StrictInt
     target_year_excluded: Literal[True]
+
+    @field_validator("mean", "std", mode="before")
+    @classmethod
+    def numbers_are_finite(cls, v, info):
+        return _finite(v, f"reference.{info.field_name}")
 
     @model_validator(mode="after")
     def check_values(self):
-        _finite(self.mean, "reference.mean")
-        _finite(self.std, "reference.std")
         if self.std < 0:
-            raise ValueError("reference.std не может быть отрицательным")
+            raise ValueError("reference.std must not be negative")
         if self.n_reference_years <= 0:
-            raise ValueError("reference.n_reference_years должно быть положительным")
+            raise ValueError("reference.n_reference_years must be positive")
         return self
 
 
@@ -183,15 +245,20 @@ class Observation(Strict):
     date: date
     primary_ndvi: float | None
     quality: Literal["usable", "unusable", "missing"] | None
-    ndvi_source_id: str | None
+    ndvi_source_id: Id | None
     interval: Period | None
     valid_fraction: float | None
-    missing_reason: str | None
+    missing_reason: StrictStr | None
     weather: Weather | None
     reference: Reference | None
     indices: Indices | None = None
 
-    @field_validator("primary_ndvi", "valid_fraction")
+    @field_validator("date", mode="before")
+    @classmethod
+    def date_is_strict(cls, value):
+        return _strict_date(value, "observation date")
+
+    @field_validator("primary_ndvi", "valid_fraction", mode="before")
     @classmethod
     def finite(cls, v, info):
         return _finite(v, info.field_name)
@@ -200,34 +267,33 @@ class Observation(Strict):
     def check_point(self):
         quality = self.quality or "missing"
         if self.valid_fraction is not None and not 0.0 <= self.valid_fraction <= 1.0:
-            raise ValueError("valid_fraction должен лежать в диапазоне от 0 до 1")
+            raise ValueError("valid_fraction must be between 0 and 1")
         if quality in ("usable", "unusable"):
             if self.primary_ndvi is None:
-                raise ValueError(f"точка {self.date} с quality={quality} требует числовой primary_ndvi")
+                raise ValueError(f"{self.date} quality={quality} requires numeric primary_ndvi")
             if self.ndvi_source_id is None or self.interval is None:
-                raise ValueError(f"точка {self.date} с quality={quality} требует источник и интервал")
+                raise ValueError(f"{self.date} quality={quality} requires source and interval")
             if not self.interval.from_ <= self.date <= self.interval.to:
-                raise ValueError(f"дата {self.date} лежит вне своего интервала агрегации")
+                raise ValueError(f"{self.date} is outside its aggregation interval")
         if quality == "unusable" and not self.missing_reason:
-            raise ValueError(f"точка {self.date} с quality=unusable требует missing_reason")
+            raise ValueError(f"{self.date} quality=unusable requires missing_reason")
         if quality == "missing":
             if not self.missing_reason:
-                raise ValueError(f"точка {self.date} с quality=missing требует missing_reason")
+                raise ValueError(f"{self.date} quality=missing requires missing_reason")
             if self.primary_ndvi is not None:
-                raise ValueError(f"точка {self.date} с quality=missing не может иметь primary_ndvi")
+                raise ValueError(f"{self.date} quality=missing must not have primary_ndvi")
         if self.indices is not None:
             expected = self.indices.primary()
             if self.primary_ndvi is None and expected is not None:
                 raise ValueError(
-                    f"точка {self.date}: indices содержат наблюдение, а primary_ndvi пуст")
+                    f"{self.date}: indices contain an observation but primary_ndvi is null")
             if self.primary_ndvi is not None and expected is None:
-                raise ValueError(
-                    f"точка {self.date}: primary_ndvi задан, а все indices пусты")
+                raise ValueError(f"{self.date}: primary_ndvi is set but all indices are null")
             if (self.primary_ndvi is not None and expected is not None
                     and abs(self.primary_ndvi - expected) > NDVI_MATCH_TOLERANCE):
                 raise ValueError(
-                    f"точка {self.date}: primary_ndvi не совпадает с первым доступным "
-                    "индексом в порядке s2 → landsat → modis")
+                    f"{self.date}: primary_ndvi does not match the first available index "
+                    "in s2 → landsat → modis order")
         return self
 
     @property
@@ -236,15 +302,15 @@ class Observation(Strict):
 
 
 class AnalyzeRequest(Strict):
-    schema_version: str
+    schema_version: Literal[SCHEMA_VERSION, SCHEMA_VERSION_EXTENDED]
     request_id: Id
     area_id: Id
     input_revision: Id
-    mode: str
-    feature_profile: str
+    mode: Literal[MODE]
+    feature_profile: Literal[FEATURE_PROFILE, PROFILE_MULTISENSOR]
     analysis_period: Period
     sources: list[Source]
-    observations: list[Observation] = Field(max_length=MAX_OBSERVATIONS)
+    observations: list[Observation] = Field(min_length=1, max_length=MAX_OBSERVATIONS)
     area_context: AreaContext | None = None
     peers: list[PeerSeries] | None = Field(default=None, max_length=MAX_PEERS)
 
@@ -256,46 +322,49 @@ class AnalyzeRequest(Strict):
     def check_consistency(self):
         ids = [s.id for s in self.sources]
         if len(ids) != len(set(ids)):
-            raise ValueError("идентификаторы источников должны быть уникальны")
+            raise ValueError("source IDs must be unique")
         kinds = {s.id: s.kind for s in self.sources}
 
         dates = [o.date for o in self.observations]
         if len(dates) != len(set(dates)):
-            raise ValueError("даты наблюдений должны быть уникальны")
+            raise ValueError("observation dates must be unique")
         if any(b <= a for a, b in pairwise(dates)):
-            raise ValueError("даты наблюдений должны строго возрастать")
+            raise ValueError("observation dates must be strictly ascending")
 
         for o in self.observations:
             if o.ndvi_source_id is not None and kinds.get(o.ndvi_source_id) != "satellite":
-                raise ValueError(f"ndvi_source_id {o.ndvi_source_id} не ссылается на источник satellite")
+                raise ValueError(
+                    f"ndvi_source_id {o.ndvi_source_id} does not reference a satellite source")
             if o.weather is not None and kinds.get(o.weather.source_id) != "weather":
-                raise ValueError(f"weather.source_id {o.weather.source_id} не ссылается на источник weather")
+                raise ValueError(
+                    f"weather.source_id {o.weather.source_id} does not reference a weather source")
             if o.reference is not None and kinds.get(o.reference.source_id) != "reference":
-                raise ValueError(f"reference.source_id {o.reference.source_id} не ссылается на источник reference")
+                raise ValueError(
+                    f"reference.source_id {o.reference.source_id} does not reference a reference source")
 
         inside = [d for d in dates if self.analysis_period.from_ <= d <= self.analysis_period.to]
         if not inside:
-            raise ValueError("в analysis_period не попадает ни одна переданная точка")
+            raise ValueError("analysis_period must contain at least one observation")
 
         if not self.is_multisensor:
             if any(o.indices is not None for o in self.observations):
                 raise ValueError(
-                    f"поле indices доступно только в профиле {PROFILE_MULTISENSOR}")
+                    f"indices is only available in profile {PROFILE_MULTISENSOR}")
             if self.area_context is not None or self.peers is not None:
                 raise ValueError(
-                    f"поля area_context и peers доступны только в профиле {PROFILE_MULTISENSOR}")
+                    f"area_context and peers are only available in profile {PROFILE_MULTISENSOR}")
 
         if self.peers is not None:
             peer_ids = [p.area_id for p in self.peers]
             if len(peer_ids) != len(set(peer_ids)):
-                raise ValueError("идентификаторы соседних участков должны быть уникальны")
+                raise ValueError("peer area IDs must be unique")
             if self.area_id in peer_ids:
-                raise ValueError("сам участок не может быть в списке соседей")
+                raise ValueError("the analyzed area must not be listed as a peer")
 
         total = len(self.observations) + sum(len(p.observations) for p in (self.peers or []))
         if total > MAX_TOTAL_POINTS:
             raise ValueError(
-                f"суммарное число точек {total} превышает предел {MAX_TOTAL_POINTS}")
+                f"total observation points {total} exceed the limit of {MAX_TOTAL_POINTS}")
         return self
 
 
@@ -303,7 +372,8 @@ class UnsupportedContract(ValueError):
     """Версия схемы, режим или профиль признаков не поддерживаются."""
 
 
-def check_contract(payload: dict, available_profiles=(FEATURE_PROFILE,)) -> None:
+def check_contract(payload: dict, available_profiles=(FEATURE_PROFILE,),
+                   supported_versions=SUPPORTED_SCHEMA_VERSIONS) -> None:
     """Проверяет поля, несовпадение которых даёт unsupported_contract.
 
     available_profiles — то, что процесс реально может обслужить: расширенный
@@ -312,17 +382,17 @@ def check_contract(payload: dict, available_profiles=(FEATURE_PROFILE,)) -> None
     ему не сообщили.
     """
     version = payload.get("schema_version")
-    if version not in SUPPORTED_SCHEMA_VERSIONS:
+    if version not in supported_versions:
         raise UnsupportedContract(
-            "поддерживаются schema_version " + ", ".join(SUPPORTED_SCHEMA_VERSIONS))
+            "supported schema_version values: " + ", ".join(supported_versions))
     if payload.get("mode") != MODE:
-        raise UnsupportedContract(f"поддерживается только mode={MODE}")
+        raise UnsupportedContract(f"only mode={MODE} is supported")
 
     profile = payload.get("feature_profile")
     if profile not in available_profiles:
         raise UnsupportedContract(
-            "поддерживаются feature_profile " + ", ".join(available_profiles))
+            "supported feature_profile values: " + ", ".join(available_profiles))
     if profile == PROFILE_MULTISENSOR and version == SCHEMA_VERSION:
         raise UnsupportedContract(
-            f"профиль {PROFILE_MULTISENSOR} требует schema_version="
+            f"profile {PROFILE_MULTISENSOR} requires schema_version="
             f"{SCHEMA_VERSION_EXTENDED}")

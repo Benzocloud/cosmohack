@@ -82,24 +82,24 @@ revert merge-коммита. Upstream-репозиторий остаётся н
 
 ## MLI-01 — воспроизводимый ML-образ и артефакт
 
-**Статус:** planned. **Зависимость:** MLI-00.
+**Статус:** review. **Зависимость:** MLI-00.
 
 **Область:** `backend/ml/Dockerfile`, `.dockerignore`,
 `backend/ml/vegetation_ml/service.py`, `deploy/compose.yaml`, manifest модели.
 
-- [ ] Исправить entry point на `python -m vegetation_ml` и добавить
+- [x] Исправить entry point на `python -m vegetation_ml` и добавить
   непривилегированного runtime-пользователя.
-- [ ] Зафиксировать Python 3.12 как runtime, если установка всех pinned wheels и
+- [x] Зафиксировать Python 3.12 как runtime, если установка всех pinned wheels и
   68 тестов проходит; иначе синхронно изменить Docker, CI и README.
-- [ ] Для хакатонного выпуска упаковать уже импортированный
+- [x] Для хакатонного выпуска упаковать уже импортированный
   `artifacts/restoration.pkl` в ML-образ вместе с manifest. Не обучать модель в
   Docker build или startup. Будущие артефакты этим исключением не добавлять.
-- [ ] Добавить SHA-256 артефакта в manifest и проверять его перед загрузкой.
-- [ ] Передать сервису `VEGETATION_ML_MODEL=/app/ml/artifacts/restoration.pkl`;
+- [x] Добавить SHA-256 артефакта в manifest и проверять его перед загрузкой.
+- [x] Передать сервису `VEGETATION_ML_MODEL=/app/ml/artifacts/restoration.pkl`;
   убрать bind mount, который перекрывает файл внутри image.
-- [ ] Сделать production readiness `503`, если заявленный HGB-артефакт отсутствует,
+- [x] Сделать production readiness `503`, если заявленный HGB-артефакт отсутствует,
   повреждён или не загружается. Локальный fallback запускать явным режимом.
-- [ ] Вынести `model_version` в один manifest и использовать его в `/readyz`,
+- [x] Вынести `model_version` в один manifest и использовать его в `/readyz`,
   `/v1/analyze`, Go `ML_MODEL_VERSION` и release manifest.
 
 **Проверки:** Docker build; запуск контейнера без volume; `/readyz` сообщает
@@ -111,25 +111,25 @@ revert merge-коммита. Upstream-репозиторий остаётся н
 
 ## MLI-02 — контракт v1.0 между Go и Python
 
-**Статус:** planned. **Зависимость:** MLI-01.
+**Статус:** review. **Зависимость:** MLI-01.
 
 **Область:** `.agent/contracts/go-ml-http.md`, `backend/testdata/ml-http/`,
 `backend/ml/vegetation_ml/contracts.py`, `service.py`, Python tests и Go ML
 client tests. Математику модели в Go не переносить.
 
-- [ ] Зафиксировать v1.0 единственным production-профилем первого выпуска;
+- [x] Зафиксировать v1.0 единственным production-профилем первого выпуска;
   дополнительные поля readiness считать совместимыми, но не активировать v1.1.
-- [ ] Взять реальный JSON из `AnalyzeRequestBuilder`, а не вручную написанный
+- [x] Взять реальный JSON из `AnalyzeRequestBuilder`, а не вручную написанный
   похожий объект, и принять его строгой Pydantic-схемой.
 - [ ] Ответ Python тем же запросом прогнать через Go `validateResult`: точные
   echo-поля, даты, original/imputed/missing, status/severity/events и ограничения.
-- [ ] Свести `Source.mapping` к одному типу во всех документах, Go DTO,
+- [x] Свести `Source.mapping` к одному типу во всех документах, Go DTO,
   Python-модели и общих фикстурах.
-- [ ] Проверить JSON `null`, пустые observations, NaN/Inf, неизвестные поля,
+- [x] Проверить JSON `null`, пустые observations, NaN/Inf, неизвестные поля,
   лимит 1 MiB, busy 429, not-ready 503 и internal error 500.
-- [ ] Все runtime error messages и logs в Python перевести на английский;
+- [x] Все runtime error messages и logs в Python перевести на английский;
   пользовательскую локализацию оставить frontend.
-- [ ] Проверить, что отмена Go-запроса не освобождает Python-slot до окончания
+- [x] Проверить, что отмена Go-запроса не освобождает Python-slot до окончания
   расчёта и автоматического повторного POST нет.
 
 **Проверки:** `ruff check .`, `python -m pytest tests -q`, `go test ./...`,
@@ -140,23 +140,23 @@ client tests. Математику модели в Go не переносить.
 
 ## MLI-03 — CI/CD настоящего ML
 
-**Статус:** planned. **Зависимости:** MLI-01/02.
+**Статус:** review. **Зависимости:** MLI-01/02.
 
 **Область:** `.github/workflows/pipeline.yml`, `deploy/`, README.
 
-- [ ] Python job устанавливает только зафиксированные runtime/dev зависимости,
+- [x] Python job устанавливает только зафиксированные runtime/dev зависимости,
   запускает ruff и полный pytest.
-- [ ] Docker job запускает собранный образ, ждёт `/readyz` и выполняет один
+- [x] Docker job запускает собранный образ, ждёт `/readyz` и выполняет один
   контрактный POST; успешной сборки image без запуска недостаточно.
 - [ ] После прохождения MLI-01/02 добавить `backend/ml/PRODUCTION_READY`:
   только этот явный marker переключает publish/deploy со stub на реальный ML.
 - [ ] После первого успешного production rollout оставить stub только в явном
   локальном Compose-профиле и как проверенный rollback image.
-- [ ] Deploy передаёт согласованную model version, поднимает ML, проверяет
+- [x] Deploy передаёт согласованную model version, поднимает ML, проверяет
   readiness и только затем переключает Go на новый digest.
-- [ ] Rollback возвращает предыдущую совместимую пару Go+ML; схема PostgreSQL в
+- [x] Rollback возвращает предыдущую совместимую пару Go+ML; схема PostgreSQL в
   этом переходе не меняется.
-- [ ] Секреты и данные организаторов не включать в image, logs или artifacts CI.
+- [x] Секреты и данные организаторов не включать в image, logs или artifacts CI.
 
 **Готово:** зелёный main публикует два digest и deploy использует настоящий ML;
 stub не может быть выбран production job автоматически.
