@@ -20,6 +20,8 @@ export type Ring = [number, number][];
 
 interface UseTerraDrawOptions {
   map: MaplibreMap | null;
+  /** Подложка: смена style удаляет слои адаптера, экземпляр нужно пересоздать. */
+  basemap: string;
   drawing: boolean;
   /** Синхронизация поставленных вершин черновика в draft-store. */
   onVerticesChange?: (vertices: Ring) => void;
@@ -81,6 +83,7 @@ function replayClicks(map: MaplibreMap, ring: Ring): void {
 
 export function useTerraDraw({
   map,
+  basemap,
   drawing,
   onVerticesChange,
   onFinish,
@@ -89,6 +92,10 @@ export function useTerraDraw({
   const drawRef = useRef<TerraDraw | null>(null);
   const mapLatest = useRef<MaplibreMap | null>(map);
   mapLatest.current = map;
+  const initializedMap = useRef<MaplibreMap | null>(null);
+  const initializedBasemap = useRef<string | null>(null);
+  const drawingLatest = useRef(drawing);
+  drawingLatest.current = drawing;
   const finishRef = useRef(onFinish);
   finishRef.current = onFinish;
   const verticesRef = useRef(onVerticesChange);
@@ -96,67 +103,100 @@ export function useTerraDraw({
   const incompleteRef = useRef(onIncomplete);
   incompleteRef.current = onIncomplete;
 
-  // Один экземпляр на карту; stop() при размонтировании карты
+  // Один экземпляр на карту и подложку. MapLibre удаляет пользовательские
+  // source/layer при setStyle, поэтому ждём новый style и регистрируем адаптер заново.
   useEffect(() => {
-    if (!map || drawRef.current) return undefined;
-    const draw = new TerraDraw({
-      adapter: new TerraDrawMapLibreGLAdapter({ map }),
-      // StaticMode в v1.33 нет: «спокойный» режим — SelectMode
-      modes: [
-        new TerraDrawFreehandMode({
-          minDistance: 4,
-          smoothing: 0.35,
-          autoClose: false,
-          drawInteraction: 'click-drag',
-          styles: {
-            closingPointOpacity: 0,
-            closingPointOutlineOpacity: 0,
-            closingPointWidth: 0,
-            closingPointOutlineWidth: 0,
-          },
-        }),
-        new TerraDrawSelectMode(),
-      ],
-    });
-    draw.start();
-    draw.setMode('select');
-    drawRef.current = draw;
-    if (import.meta.env.DEV) {
-      (window as unknown as { __agroDraw?: TerraDraw }).__agroDraw = draw;
+    if (!map) return undefined;
+
+    let cancelled = false;
+    let onPointerUp: (() => void) | undefined;
+    let draw: TerraDraw | undefined;
+
+    const initialize = () => {
+      if (cancelled) return;
+      draw = new TerraDraw({
+        adapter: new TerraDrawMapLibreGLAdapter({ map, prefixId: `td-${basemap}` }),
+        // StaticMode в v1.33 нет: «спокойный» режим — SelectMode
+        modes: [
+          new TerraDrawFreehandMode({
+            minDistance: 4,
+            smoothing: 0.35,
+            autoClose: false,
+            drawInteraction: 'click-drag',
+            styles: {
+              closingPointOpacity: 0,
+              closingPointOutlineOpacity: 0,
+              closingPointWidth: 0,
+              closingPointOutlineWidth: 0,
+            },
+          }),
+          new TerraDrawSelectMode(),
+        ],
+      });
+      draw.start();
+      draw.setMode(drawingLatest.current ? 'freehand' : 'select');
+      drawRef.current = draw;
+      initializedMap.current = map;
+      initializedBasemap.current = basemap;
+      if (import.meta.env.DEV) {
+        (window as unknown as { __agroDraw?: TerraDraw }).__agroDraw = draw;
+      }
+
+      draw.on('change', () => {
+        if (draw?.getMode() !== 'freehand') return;
+        verticesRef.current?.(draftVertices(draw));
+      });
+      draw.on('finish', (id, context) => {
+        if (context.action !== 'draw' || !draw) return;
+        const feature = draw.getSnapshotFeature(id);
+        if (!feature || feature.geometry.type !== 'Polygon') return;
+        const closed = feature.geometry.coordinates[0] as Ring;
+        // закрытое кольцо: последняя точка дублирует первую — отдаем незамкнутый набор
+        const ring = closed.slice(0, -1);
+        verticesRef.current?.([]);
+        finishRef.current?.(ring);
+      });
+
+      // При отпускании свободной линии без возврата к началу Terra Draw оставляет
+      // черновик открытым. Сообщаем UI об ошибке, не изменяя траекторию пользователя.
+      onPointerUp = () => {
+        window.setTimeout(() => {
+          if (draw?.getMode() === 'freehand' && draftFeature(draw)) {
+            incompleteRef.current?.();
+          }
+        }, 0);
+      };
+      map.getCanvas().addEventListener('pointerup', onPointerUp);
+    };
+
+    const waitForStyle = () => {
+      if (cancelled) return;
+      if (map.isStyleLoaded()) {
+        initialize();
+        return;
+      }
+      map.once('style.load', waitForStyle);
+    };
+    // На смене basemap старый style ещё может считаться загруженным. Ждём
+    // style.load, чтобы адаптер не зарегистрировал слои, которые setStyle тут же удалит.
+    if (initializedMap.current === map && initializedBasemap.current !== null) {
+      map.once('style.load', waitForStyle);
+    } else {
+      waitForStyle();
     }
 
-    draw.on('change', () => {
-      if (draw.getMode() !== 'freehand') return;
-      verticesRef.current?.(draftVertices(draw));
-    });
-    draw.on('finish', (id, context) => {
-      if (context.action !== 'draw') return;
-      const feature = draw.getSnapshotFeature(id);
-      if (!feature || feature.geometry.type !== 'Polygon') return;
-      const closed = feature.geometry.coordinates[0] as Ring;
-      // закрытое кольцо: последняя точка дублирует первую — отдаем незамкнутый набор
-      const ring = closed.slice(0, -1);
-      verticesRef.current?.([]);
-      finishRef.current?.(ring);
-    });
-
-    // При отпускании свободной линии без возврата к началу Terra Draw оставляет
-    // черновик открытым. Сообщаем UI об ошибке, не изменяя траекторию пользователя.
-    const onPointerUp = () => {
-      window.setTimeout(() => {
-        if (draw.getMode() === 'freehand' && draftFeature(draw)) {
-          incompleteRef.current?.();
-        }
-      }, 0);
-    };
-    map.getCanvas().addEventListener('pointerup', onPointerUp);
-
     return () => {
-      draw.stop();
-      map.getCanvas().removeEventListener('pointerup', onPointerUp);
-      drawRef.current = null;
+      cancelled = true;
+      map.off('style.load', waitForStyle);
+      if (onPointerUp) map.getCanvas().removeEventListener('pointerup', onPointerUp);
+      try {
+        draw?.stop();
+      } catch {
+        // setStyle уже мог удалить terra-draw layers до React cleanup.
+      }
+      if (drawRef.current === draw) drawRef.current = null;
     };
-  }, [map]);
+  }, [map, basemap]);
 
   // Пересоздание чертёжных слоёв после смены подложки: setStyle уничтожает
   // слои адаптера, поэтому экземпляр пересоздаётся на каждом basemap-ключе

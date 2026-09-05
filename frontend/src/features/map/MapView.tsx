@@ -97,7 +97,7 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
   const [drawWarning, setDrawWarning] = useState<string | null>(null);
 
   const drawing = drawMode === 'drawing';
-  // В моке стартуем строго над фикстурными контурами; иначе — сохранённый вид/центр РФ
+  // В моке стартуем над фикстурными контурами; иначе — сохранённый вид/Ростов-на-Дону
   const initialView = useMemo(
     () => (demoMode ? MOCK_MAP_VIEW : (readLastMapView() ?? DEFAULT_MAP_VIEW)),
     [demoMode],
@@ -109,6 +109,7 @@ export function MapView({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile
   };
   const draw = useTerraDraw({
     map: mapInstance,
+    basemap,
     drawing,
     onVerticesChange: setVertices,
     onFinish: handleFinish,

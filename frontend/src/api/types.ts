@@ -19,6 +19,7 @@ export interface Area {
   name: string;
   geometry: GeoJSON.Polygon;
   source: { kind: 'contour' | 'drawn'; label: string; externalId?: string }; // label: «Контур OpenStreetMap», «Нарисован вручную»
+  period?: Period;
   createdAt: string;
   lastResult?: ResultMeta; // сохранённый результат (может быть от старого периода)
   activeJob?: JobMeta; // текущая задача, если есть

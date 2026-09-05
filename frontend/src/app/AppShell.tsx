@@ -1,15 +1,17 @@
-import { useAreas } from '@/api/queries';
+import { useArea, useAreas, useResultBundle } from '@/api/queries';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { AnalysisTimeline, AreaCard, type ResultViewProps } from '@/features/analysis/ResultPanel';
 import { AreaList } from '@/features/areas/AreaList';
 import { MapView } from '@/features/map/MapView';
 import { Header } from '@/features/shell/Header';
 import { MobileTabBar } from '@/features/shell/MobileTabBar';
 import { EMPTY, SCAFFOLD } from '@/lib/labels';
 import { useBreakpoint } from '@/lib/useMediaQuery';
+import { useSelection } from '@/store/selection';
 import { useUi } from '@/store/ui';
-import { PanelRight, Rows3, Sprout } from 'lucide-react';
+import { PanelRight, Rows3 } from 'lucide-react';
 import { useState } from 'react';
 
 /**
@@ -22,8 +24,9 @@ import { useState } from 'react';
  * минимальный список участков. Карточка и график остаются заглушками (FE-2/FE-4).
  */
 
-function AreasPanel() {
-  const areasCount = useAreas().data?.length ?? 0;
+export function AreasPanel() {
+  const areasQuery = useAreas();
+  const areasCount = areasQuery.data?.length ?? 0;
   const requestDraw = useUi((s) => s.requestDraw);
   const setMobileTab = useUi((s) => s.setMobileTab);
   return (
@@ -43,7 +46,20 @@ function AreasPanel() {
           {SCAFFOLD.drawArea}
         </Button>
       </div>
-      {areasCount > 0 ? (
+      {areasQuery.isPending ? (
+        <div className="space-y-2 p-4" aria-label="Загрузка списка участков">
+          <div className="h-10 animate-pulse rounded-md bg-surface-muted" />
+          <div className="h-10 animate-pulse rounded-md bg-surface-muted" />
+          <div className="h-10 animate-pulse rounded-md bg-surface-muted" />
+        </div>
+      ) : areasQuery.isError ? (
+        <div className="space-y-3 p-4" role="alert">
+          <p className="text-sm text-verdict-confirmed">Не удалось загрузить список участков.</p>
+          <Button size="sm" variant="outline" onClick={() => void areasQuery.refetch()}>
+            Повторить
+          </Button>
+        </div>
+      ) : areasCount > 0 ? (
         <AreaList />
       ) : (
         <p className="p-4 text-sm text-ink-secondary">{EMPTY.noAreas}</p>
@@ -52,57 +68,27 @@ function AreasPanel() {
   );
 }
 
-function ChartPlaceholder() {
-  return (
-    <div
-      aria-label={SCAFFOLD.placeholderChart}
-      className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 bg-surface px-6 text-center"
-    >
-      <span className="text-sm font-medium text-ink">История вегетации появится здесь</span>
-      <span className="max-w-sm text-xs leading-relaxed text-ink-tertiary">
-        Выберите участок, чтобы увидеть динамику NDVI, сезонный фон и даты наблюдений.
-      </span>
-    </div>
-  );
-}
+function useSelectedResult(): ResultViewProps {
+  const selectedAreaId = useSelection((s) => s.selectedAreaId);
+  const areasQuery = useAreas();
+  const areaQuery = useArea(selectedAreaId);
+  // Список даёт имя/геометрию сразу, detail-запрос добавляет актуальный результат.
+  const listArea = areasQuery.data?.find((area) => area.id === selectedAreaId);
+  const area = areaQuery.data ?? listArea;
+  const result = useResultBundle(selectedAreaId, area?.lastResult?.resultVersion ?? null);
 
-function WeatherPlaceholder() {
-  return (
-    <div
-      aria-label={SCAFFOLD.placeholderWeather}
-      className="flex flex-col items-center justify-center gap-1 border-t border-border bg-surface-muted text-center"
-    >
-      <span className="text-sm font-medium text-ink">Погодный контекст</span>
-      <span className="text-xs text-ink-tertiary">Станет доступен после выбора участка</span>
-    </div>
-  );
-}
-
-function CardPanel() {
-  return (
-    <section aria-label={SCAFFOLD.openAreaCard} className="flex h-full flex-col">
-      <div className="border-b border-border px-5 py-4">
-        <p className="text-2xs font-medium uppercase tracking-[0.12em] text-ink-tertiary">
-          Карточка участка
-        </p>
-        <h2 className="mt-1 text-base font-semibold tracking-[-0.01em]">
-          {SCAFFOLD.noAreaSelected}
-        </h2>
-      </div>
-      <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
-        <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-action-soft text-action">
-          <Sprout className="size-5" aria-hidden />
-        </div>
-        <p className="max-w-[220px] text-sm font-medium text-ink">Начните с выбора участка</p>
-        <p className="mt-2 max-w-[240px] text-xs leading-relaxed text-ink-tertiary">
-          Здесь появятся показатели поля, события и рекомендации по результатам анализа.
-        </p>
-      </div>
-    </section>
-  );
+  return {
+    area,
+    areaLoading: areaQuery.isPending && !area,
+    areaError: areaQuery.error,
+    result,
+    onRetryArea: () => void areaQuery.refetch(),
+    onRetryResult: () => void result.refetch(),
+  };
 }
 
 function DesktopLayout() {
+  const result = useSelectedResult();
   return (
     <div className="flex min-h-0 flex-1">
       <aside className="w-[300px] shrink-0 border-r border-border bg-surface">
@@ -113,19 +99,19 @@ function DesktopLayout() {
           <MapView variant="desktop" />
         </div>
         {/* Нижняя зона 440px: график ~300 + погода (§2.4) */}
-        <div className="grid h-[440px] shrink-0 grid-rows-[1fr_140px] border-t border-border bg-surface">
-          <ChartPlaceholder />
-          <WeatherPlaceholder />
+        <div className="h-[440px] shrink-0 border-t border-border bg-surface">
+          <AnalysisTimeline {...result} />
         </div>
       </main>
       <aside className="w-[380px] shrink-0 border-l border-border bg-surface">
-        <CardPanel />
+        <AreaCard {...result} />
       </aside>
     </div>
   );
 }
 
 function TabletLayout() {
+  const result = useSelectedResult();
   const [listOpen, setListOpen] = useState(false);
   const cardOpen = useUi((s) => s.cardOpen);
   const setCardOpen = useUi((s) => s.setCardOpen);
@@ -169,14 +155,13 @@ function TabletLayout() {
               <SheetHeader className="border-b border-border">
                 <SheetTitle className="text-sm">{SCAFFOLD.openAreaCard}</SheetTitle>
               </SheetHeader>
-              <p className="p-4 text-sm text-ink-secondary">{SCAFFOLD.placeholderCard}</p>
+              <AreaCard {...result} />
             </SheetContent>
           </Sheet>
         </div>
         {/* Низ 400px на планшете (§6.2) */}
-        <div className="grid h-[400px] shrink-0 grid-rows-[1fr_120px] border-t border-border bg-surface">
-          <ChartPlaceholder />
-          <WeatherPlaceholder />
+        <div className="h-[400px] shrink-0 border-t border-border bg-surface">
+          <AnalysisTimeline {...result} />
         </div>
       </main>
     </div>
@@ -184,6 +169,7 @@ function TabletLayout() {
 }
 
 function MobileLayout() {
+  const result = useSelectedResult();
   const mobileTab = useUi((s) => s.mobileTab);
   const cardOpen = useUi((s) => s.cardOpen);
   const setCardOpen = useUi((s) => s.setCardOpen);
@@ -201,22 +187,12 @@ function MobileLayout() {
                 <DrawerHeader>
                   <DrawerTitle className="text-base">{SCAFFOLD.openAreaCard}</DrawerTitle>
                 </DrawerHeader>
-                <p className="px-4 pb-6 text-sm text-ink-secondary">{SCAFFOLD.placeholderCard}</p>
+                <AreaCard {...result} />
               </DrawerContent>
             </Drawer>
           </div>
         )}
-        {mobileTab === 'analysis' && (
-          <div className="flex h-full flex-col">
-            {/* График 240px по ширине экрана (§6.3) */}
-            <div className="flex h-[240px] shrink-0 items-center justify-center border-b border-border text-sm text-ink-tertiary">
-              {SCAFFOLD.placeholderChart}
-            </div>
-            <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-ink-tertiary">
-              {SCAFFOLD.placeholderWeather}
-            </div>
-          </div>
-        )}
+        {mobileTab === 'analysis' && <AnalysisTimeline {...result} />}
       </main>
       <MobileTabBar />
     </>

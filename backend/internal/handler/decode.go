@@ -1,6 +1,10 @@
 package handler
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	geom "github.com/Benzocloud/cosmohack/backend/internal/domain/geo"
+)
 
 func decodeCreateArea(body []byte) (createAreaRequest, error) {
 	var raw createAreaRawRequest
@@ -21,9 +25,20 @@ func decodeCreateArea(body []byte) (createAreaRequest, error) {
 	if peek.Type != "Polygon" {
 		return req, nil
 	}
-	if err := json.Unmarshal(raw.Geometry, &req.Geometry); err != nil {
+
+	codec := geom.NewPolygonCodec(maxBodyBytes)
+	polygon, err := codec.Decode(raw.Geometry)
+	if err != nil {
 		return req, errInvalidGeometry
 	}
+	canonical, err := codec.Encode(polygon)
+	if err != nil {
+		return req, errInvalidGeometry
+	}
+	if err := json.Unmarshal(canonical, &req.Geometry); err != nil {
+		return req, errInvalidGeometry
+	}
+
 	return req, nil
 }
 

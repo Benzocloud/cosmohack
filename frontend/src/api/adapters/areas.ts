@@ -141,6 +141,9 @@ export function adaptArea(raw: AreaRaw): Area {
       label: sourceLabel,
       externalId: raw.source?.external_id ?? raw.source?.contour_id,
     },
+    ...(raw.period?.from && raw.period?.to
+      ? { period: { from: raw.period.from, to: raw.period.to } }
+      : {}),
     createdAt: requireString(raw.created_at, 'created_at'),
     lastResult: shown ? adaptResultMeta(shown) : undefined,
     activeJob:

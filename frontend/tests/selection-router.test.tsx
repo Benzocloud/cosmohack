@@ -46,6 +46,31 @@ describe('синхронизация выделения с URL', () => {
     expect(useSelection.getState().selectedAreaId).toBe('a2');
   });
 
+  it('сохраняет маршрут панели и search при изменении выделения', async () => {
+    const history = createMemoryHistory({
+      initialEntries: ['/panel.html?mock=1&dev=states'],
+    });
+    const router = createAppRouter(history);
+    render(<RouterProvider router={router} />);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    selectionActions.selectArea('a2');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    selectionActions.selectEvent('e2');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    selectionActions.selectDate('2024-06-01');
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(router.state.location.pathname).toBe('/panel.html');
+    expect(router.state.location.search).toMatchObject({
+      area: 'a2',
+      event: 'e2',
+      date: '2024-06-01',
+      mock: '1',
+      dev: 'states',
+    });
+  });
+
   it('null снимает параметр с URL', async () => {
     const history = createMemoryHistory({ initialEntries: ['/?area=a1&event=e1'] });
     const router = createAppRouter(history);

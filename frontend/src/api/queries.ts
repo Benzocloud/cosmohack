@@ -57,12 +57,13 @@ async function fetchSeries(areaId: string, version?: string): Promise<Series> {
 
 /** События приходят конвертом с result_version — нужен для сборки bundle одной версии. */
 interface EventsEnvelope {
+  areaId: string;
   resultVersion: string | null;
   events: AnalysisEvent[];
 }
 
 async function fetchEvents(areaId: string, version?: string): Promise<EventsEnvelope> {
-  const raw = await apiGet<{ result_version?: string; events?: EventRaw[] }>(
+  const raw = await apiGet<{ area_id?: string; result_version?: string; events?: EventRaw[] }>(
     '/api/areas/{id}/events',
     {
       path: { id: areaId },
@@ -70,6 +71,7 @@ async function fetchEvents(areaId: string, version?: string): Promise<EventsEnve
     },
   );
   return {
+    areaId: typeof raw.area_id === 'string' ? raw.area_id : '',
     resultVersion: raw.result_version ?? null,
     events: adaptEventList(raw),
   };
@@ -158,22 +160,27 @@ export function useResultBundle(areaId: string | null | undefined, version?: str
   const seriesQuery = useQuery({
     queryKey: ['series', areaId, version ?? null],
     queryFn: () => fetchSeries(areaId as string, version ?? undefined),
-    enabled: !!areaId,
+    // null явно означает, что у участка ещё нет опубликованного результата.
+    enabled: !!areaId && version !== null,
     placeholderData: keepPreviousData,
   });
   const eventsQuery = useQuery({
     queryKey: ['events', areaId, version ?? null],
     queryFn: () => fetchEvents(areaId as string, version ?? undefined),
-    enabled: !!areaId,
+    enabled: !!areaId && version !== null,
     placeholderData: keepPreviousData,
   });
   const areaQuery = useArea(areaId);
 
   const series = seriesQuery.data;
   const eventsEnvelope = eventsQuery.data;
+  const isFetching = seriesQuery.isFetching || eventsQuery.isFetching;
   const matched =
     !!series &&
     !!eventsEnvelope &&
+    version !== null &&
+    series.areaId === areaId &&
+    eventsEnvelope.areaId === areaId &&
     eventsEnvelope.resultVersion !== null &&
     series.resultVersion === eventsEnvelope.resultVersion &&
     (!version || series.resultVersion === version);
@@ -182,15 +189,18 @@ export function useResultBundle(areaId: string | null | undefined, version?: str
   const metaMatched = matched && meta?.resultVersion === series?.resultVersion;
 
   return {
-    bundle: matched
-      ? {
-          meta: metaMatched ? meta : undefined,
-          series,
-          events: eventsEnvelope.events,
-        }
-      : undefined,
-    isLoading: seriesQuery.isPending || eventsQuery.isPending,
-    versionMismatch: !matched && !!(series || eventsEnvelope),
+    bundle:
+      matched && !isFetching
+        ? {
+            meta: metaMatched ? meta : undefined,
+            series,
+            events: eventsEnvelope.events,
+          }
+        : undefined,
+    isLoading: seriesQuery.isPending || eventsQuery.isPending || isFetching,
+    versionMismatch: !isFetching && !matched && !!(series || eventsEnvelope),
+    error: seriesQuery.error ?? eventsQuery.error,
+    refetch: () => Promise.all([seriesQuery.refetch(), eventsQuery.refetch(), areaQuery.refetch()]),
   };
 }
 

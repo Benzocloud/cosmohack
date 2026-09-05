@@ -194,9 +194,28 @@
   const start = () => {
     // loadedmetadata мог выстрелить до инициализации — берём длительность напрямую.
     if (!duration && Number.isFinite(video.duration)) duration = video.duration;
+    // На мобильных браузерах одного seek через currentTime недостаточно для
+    // запуска декодера. Тихо прогреваем видео и сразу ставим на паузу: дальше
+    // кадр по-прежнему выбирается прокруткой.
+    video.muted = true;
+    const playback = video.play();
+    if (playback && typeof playback.then === 'function') {
+      playback.then(() => video.pause()).catch(() => {});
+    }
     measure();
     requestAnimationFrame(tick);
   };
+
+  // Если autoplay заблокирован политикой мобильного браузера, первое касание
+  // даёт необходимый user gesture для того же короткого прогрева.
+  const primeOnTouch = () => {
+    video.muted = true;
+    const playback = video.play();
+    if (playback && typeof playback.then === 'function') {
+      playback.then(() => video.pause()).catch(() => {});
+    }
+  };
+  addEventListener('touchstart', primeOnTouch, { once: true, passive: true });
 
   if (video.readyState >= 1) start();
   else video.addEventListener('loadedmetadata', start, { once: true });

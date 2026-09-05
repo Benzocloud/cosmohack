@@ -300,6 +300,7 @@ func TestCreateValidation(t *testing.T) {
 		{name: "geom_open_ring", body: open, code: 400, errCode: "invalid_geometry"},
 		{name: "geom_not_polygon", body: []byte(`{"name":"a","period":{"from":"2024-01-01","to":"2024-01-02"},"geometry":{"type":"Point","coordinates":[1,2]},"source":{"kind":"drawn"}}`), code: 400, errCode: "invalid_geometry"},
 		{name: "geom_few_points", body: []byte(`{"name":"a","period":{"from":"2024-01-01","to":"2024-01-02"},"geometry":{"type":"Polygon","coordinates":[[[0,0],[1,0],[0,0]]]},"source":{"kind":"drawn"}}`), code: 400, errCode: "invalid_geometry"},
+		{name: "geom_duplicate_degenerate", body: []byte(`{"name":"a","period":{"from":"2024-01-01","to":"2024-01-02"},"geometry":{"type":"Polygon","coordinates":[[[0,0],[0,0],[0,0],[0,0],[0,0]]]},"source":{"kind":"drawn"}}`), code: 400, errCode: "invalid_geometry"},
 		{name: "geom_lat_as_lon", body: []byte(`{"name":"a","period":{"from":"2024-01-01","to":"2024-01-02"},"geometry":{"type":"Polygon","coordinates":[[[200,10],[201,10],[201,11],[200,11],[200,10]]]},"source":{"kind":"drawn"}}`), code: 400, errCode: "invalid_geometry"},
 		{name: "geom_self_intersection", body: []byte(`{"name":"a","period":{"from":"2024-01-01","to":"2024-01-02"},"geometry":{"type":"Polygon","coordinates":[[[0,0],[1,1],[0,1],[1,0],[0,0]]]},"source":{"kind":"drawn"}}`), code: 400, errCode: "invalid_geometry"},
 		{name: "period_backwards", body: []byte(`{"name":"a","period":{"from":"2024-12-01","to":"2024-01-02"},"geometry":{"type":"Polygon","coordinates":[[[37.5,55.7],[37.6,55.7],[37.6,55.8],[37.5,55.8],[37.5,55.7]]]},"source":{"kind":"drawn"}}`), code: 400, errCode: "invalid_period"},
@@ -330,6 +331,34 @@ func TestCreateValidation(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestCreateNormalizesRepeatedVertices(t *testing.T) {
+	h, st := newEnv(t, nil, nil)
+	body := []byte(`{"name":"normalized","period":{"from":"2024-01-01","to":"2024-01-02"},"geometry":{"type":"Polygon","coordinates":[[[39,45],[39,45],[39.01,45],[39.01,45.01],[39,45.01],[39,45.01],[39,45]]]},"source":{"kind":"drawn"}}`)
+
+	w := doJSON(t, h, http.MethodPost, "/api/areas", body)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("code=%d body=%s", w.Code, w.Body.String())
+	}
+
+	var response struct {
+		ID string `json:"id"`
+	}
+	decode(t, w, &response)
+	area, err := st.getArea(response.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := area.Geometry.Coordinates[0]; len(got) != 5 {
+		t.Fatalf("normalized ring points=%d, want 5: %v", len(got), got)
+	}
+	for i := 1; i < len(area.Geometry.Coordinates[0]); i++ {
+		if area.Geometry.Coordinates[0][i][0] == area.Geometry.Coordinates[0][i-1][0] &&
+			area.Geometry.Coordinates[0][i][1] == area.Geometry.Coordinates[0][i-1][1] {
+			t.Fatalf("adjacent duplicate at %d: %v", i, area.Geometry.Coordinates[0])
+		}
 	}
 }
 

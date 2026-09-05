@@ -84,3 +84,83 @@ func TestJobNotFound(t *testing.T) {
 		t.Fatalf("%d %s", w.Code, w.Body.String())
 	}
 }
+
+func TestCompletedResultVisibleAfterHandlerRestart(t *testing.T) {
+	h, st := newEnv(t, nil, nil)
+	id := createArea(t, h)
+	w := doJSON(t, h, http.MethodPost, "/api/areas/"+id+"/analyses", nil)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("start analysis: %d %s", w.Code, w.Body.String())
+	}
+	var started struct {
+		JobID string `json:"job_id"`
+	}
+	decode(t, w, &started)
+	if err := st.SetJobRunning(started.JobID, "analyze"); err != nil {
+		t.Fatal(err)
+	}
+	area, err := st.getArea(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	version := "result-" + newTestID()
+	result := domain.AnalysisRecord{
+		AreaID:         id,
+		ResultVersion:  version,
+		Period:         area.Period,
+		ComputedAt:     time.Now().UTC(),
+		SchemaVersion:  "1.0",
+		FeatureProfile: "ndvi-weather-v1",
+		ModelVersion:   "test-model",
+		Method:         "nearest_mean",
+		Status:         domain.StatusNormal,
+		Series:         []domain.SeriesPoint{},
+		Weather:        []domain.WeatherPoint{},
+		Provenance:     map[string]any{"source": "test"},
+		Limitations:    []string{},
+		Events:         []domain.AnomalyEvent{},
+	}
+	if err := st.PutResult(id, area.Generation, started.JobID, result); err != nil {
+		t.Fatal(err)
+	}
+
+	// Rebuild the handler over the same persisted store, as after an app restart.
+	h = newEnvWithStore(t, st, nil, nil)
+	paths := []string{
+		"/api/areas/" + id,
+		"/api/areas",
+		"/api/areas/" + id + "/series",
+		"/api/areas/" + id + "/events",
+	}
+	for _, path := range paths {
+		w = doJSON(t, h, http.MethodGet, path, nil)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET %s: %d %s", path, w.Code, w.Body.String())
+		}
+		var payload any
+		decode(t, w, &payload)
+		switch path {
+		case "/api/areas/" + id:
+			areaPayload := payload.(map[string]any)
+			shown := areaPayload["shown_result"].(map[string]any)
+			if shown["result_version"] != version {
+				t.Fatalf("area shown result=%v", shown)
+			}
+		case "/api/areas":
+			list := payload.(map[string]any)
+			areas := list["areas"].([]any)
+			shown := areas[0].(map[string]any)["shown_result"].(map[string]any)
+			if shown["result_version"] != version {
+				t.Fatalf("list shown result=%v", shown)
+			}
+		case "/api/areas/" + id + "/series":
+			if payload.(map[string]any)["result_version"] != version {
+				t.Fatalf("series result=%v", payload)
+			}
+		case "/api/areas/" + id + "/events":
+			if payload.(map[string]any)["result_version"] != version {
+				t.Fatalf("events result=%v", payload)
+			}
+		}
+	}
+}

@@ -70,7 +70,8 @@ function SearchSync() {
             next[key as keyof AppSearch] = value as string;
           }
         }
-        router.navigate({ to: '/', search: next, replace: true });
+        const currentPath = router.state.location.pathname === '/panel.html' ? '/panel.html' : '/';
+        router.navigate({ to: currentPath, search: next, replace: true });
       },
     });
   }, [router]);

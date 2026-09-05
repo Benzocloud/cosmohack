@@ -273,6 +273,7 @@ export const handlers: HttpHandler[] = [
     // версия событий эхом возвращается, как у series: bundle собирается при совпадении
     return HttpResponse.json({
       _synthetic: true,
+      area_id: String(params.id),
       result_version: version ?? base.version,
       events: (base.events as Array<Record<string, unknown>>).map((event) => {
         const period = event.period as { from?: string; to?: string } | undefined;
