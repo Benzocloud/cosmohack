@@ -9,12 +9,12 @@ if (!rootElement) {
 }
 
 async function bootstrap() {
-  // MSW включается при ?mock=1 или VITE_MOCK=1 (corrections §3).
+  // Query-параметр включает MSW только в dev; production mock требует явной сборки VITE_MOCK=1.
   // Значение параметра нормализуем от лишних кавычек (частая ошибка ручного ввода).
   const mockParam = new URLSearchParams(window.location.search)
     .get('mock')
     ?.replace(/^["']+|["']+$/g, '');
-  if (import.meta.env.VITE_MOCK === '1' || mockParam === '1') {
+  if (import.meta.env.VITE_MOCK === '1' || (import.meta.env.DEV && mockParam === '1')) {
     const { enableMockWorker } = await import('@/api/mocks/start');
     await enableMockWorker();
   }

@@ -2,5 +2,5 @@ import { setupWorker } from 'msw/browser';
 
 import { handlers } from './handlers';
 
-/** Браузерный воркер MSW; включается только при ?mock=1 или VITE_MOCK=1. */
+/** Браузерный воркер MSW для dev-сервера или явной VITE_MOCK=1-сборки. */
 export const worker = setupWorker(...handlers);

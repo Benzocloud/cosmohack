@@ -273,7 +273,7 @@ export function AnalysisTimeline({
 
   const { series, events } = result.bundle;
   return (
-    <div className="min-h-0 overflow-y-auto p-4">
+    <div className="h-full min-h-0 overflow-y-auto p-4">
       <div className="rounded-md border border-border bg-surface">
         <div className="border-b border-border px-4 py-3">
           <h3 className="text-sm font-medium">Динамика NDVI</h3>

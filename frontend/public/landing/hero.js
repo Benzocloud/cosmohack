@@ -34,19 +34,16 @@
   const outline = document.querySelector('.field-polygon__outline');
   const dots = document.querySelectorAll('.field-polygon__dots circle');
 
-  const demoAreas = {
+  const exampleAreas = {
     'area-normal': { name: 'Поле Южное', status: 'Без отклонений' },
     'area-candidate': { name: 'Поле Северное', status: 'Возможное изменение' },
     'area-confirmed': { name: 'Поле у Тимашевска', status: 'Подтверждённое изменение' },
   };
-  let selectedAreaId = 'area-normal';
   const areaOptions = document.querySelectorAll('[data-area-id]');
   const regionTrigger = document.querySelector('[data-region-trigger]');
   const regionValue = document.querySelector('[data-region-value]');
   const regionMenu = document.querySelector('[data-region-menu]');
   const regionOptions = document.querySelectorAll('[data-region]');
-  const runAnalysis = document.querySelector('[data-run-analysis]');
-  const demoScroll = document.querySelector('[data-scroll-demo]');
 
   // Шапка нужна во время hero, но не должна висеть над отдельным CTA-футером.
   if (footer && siteHeader && 'IntersectionObserver' in window) {
@@ -55,10 +52,9 @@
     }, { threshold: 0.05 });
     footerObserver.observe(footer);
   }
-  const selectDemoArea = (id) => {
-    const area = demoAreas[id];
+  const selectExampleArea = (id) => {
+    const area = exampleAreas[id];
     if (!area) return;
-    selectedAreaId = id;
     areaOptions.forEach((option) => {
       const active = option.dataset.areaId === id;
       option.classList.toggle('is-selected', active);
@@ -68,11 +64,11 @@
     });
   };
   areaOptions.forEach((option) => {
-    option.addEventListener('click', () => selectDemoArea(option.dataset.areaId));
+    option.addEventListener('click', () => selectExampleArea(option.dataset.areaId));
     option.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
-        selectDemoArea(option.dataset.areaId);
+        selectExampleArea(option.dataset.areaId);
       }
     });
   });
@@ -86,14 +82,6 @@
     regionMenu.hidden = true;
     regionTrigger.setAttribute('aria-expanded', 'false');
   }));
-  runAnalysis?.addEventListener('click', () => {
-    window.location.href = `/panel.html?mock=1&area=${encodeURIComponent(selectedAreaId)}`;
-  });
-  demoScroll?.addEventListener('click', () => {
-    const target = hero.offsetTop + hero.offsetHeight * 0.84;
-    window.scrollTo({ top: target, behavior: 'smooth' });
-  });
-
   if (reduced) {
     // Статичный вариант: стилл начала + орбитальная копия, без скраба.
     video.remove();

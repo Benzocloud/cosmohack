@@ -13,6 +13,7 @@ const BASEMAP_STORAGE_KEY = 'agropulse.basemap';
 function initialDemoMode(): boolean {
   if (typeof window === 'undefined') return false;
   if (import.meta.env.VITE_MOCK === '1') return true;
+  if (!import.meta.env.DEV) return false;
   const mock = new URLSearchParams(window.location.search)
     .get('mock')
     ?.replace(/^["']+|["']+$/g, '');
@@ -30,7 +31,7 @@ export interface UiState {
   listCollapsed: boolean;
   /** Планшет/мобиль: карточка участка открыта поверх карты. */
   cardOpen: boolean;
-  /** ?mock=1 или VITE_MOCK=1: фикстуры + бейдж «Демонстрационные данные». */
+  /** Dev ?mock=1 или явная VITE_MOCK=1-сборка: фикстуры + бейдж. */
   demoMode: boolean;
   /** Подложка карты; выбор сохраняется в localStorage (FE-3). */
   basemap: Basemap;

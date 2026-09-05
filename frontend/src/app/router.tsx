@@ -24,7 +24,7 @@ if (import.meta.env.DEV) {
 
 /**
  * Панель доступна на /panel.html; состояние живёт в query-параметрах — area,
- * event, date, mock, dev. Корень приложения занят самостоятельным лендингом.
+ * event, date и dev-only mock/dev. Корень приложения занят самостоятельным лендингом.
  */
 export interface AppSearch {
   area?: string;
@@ -52,7 +52,11 @@ function SearchSync() {
 
   useEffect(() => {
     useSelection.getState().setFromSearch(search);
-    useUi.getState().setDemoMode(search.mock === '1' || import.meta.env.VITE_MOCK === '1');
+    useUi
+      .getState()
+      .setDemoMode(
+        import.meta.env.VITE_MOCK === '1' || (import.meta.env.DEV && search.mock === '1'),
+      );
   }, [search]);
 
   useEffect(() => {

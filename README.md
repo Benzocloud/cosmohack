@@ -28,7 +28,7 @@ DATABASE_URL='postgres://cosmohack:cosmohack@127.0.0.1:5432/cosmohack?sslmode=di
 
 Веб-приложение собрано в одном frontend-пакете: `/` открывает лендинг
 TERRALENS, а `/panel.html` — рабочую панель. Кнопки лендинга переходят в панель
-на том же origin и сохраняют demo-параметры в query string.
+на том же origin без включения демонстрационных данных.
 
 ## ML-сервис (`backend/ml`)
 
