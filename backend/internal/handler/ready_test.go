@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -39,5 +41,16 @@ func TestRegister_Ready(t *testing.T) {
 	mux.ServeHTTP(postRec, postReq)
 	if postRec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("POST status = %d, want %d", postRec.Code, http.StatusMethodNotAllowed)
+	}
+}
+
+func TestRegister_ReadyDependencyFailure(t *testing.T) {
+	mux := http.NewServeMux()
+	Register(mux, func(context.Context) error { return errors.New("database unavailable") })
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
 	}
 }

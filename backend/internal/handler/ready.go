@@ -4,9 +4,11 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/Benzocloud/cosmohack/backend/internal/domain"
 )
@@ -25,12 +27,30 @@ type readyResponse struct {
 	FeatureProfiles []string `json:"feature_profiles"`
 }
 
+// ReadinessCheck is supplied by the composition root for dependencies such as
+// PostgreSQL. The handler owns only the short request timeout.
+type ReadinessCheck func(context.Context) error
+
 // Register подключает публичные маршруты к mux.
-func Register(mux *http.ServeMux) {
-	mux.HandleFunc("GET /readyz", handleReady)
+func Register(mux *http.ServeMux, checks ...ReadinessCheck) {
+	var check ReadinessCheck
+	if len(checks) > 0 {
+		check = checks[0]
+	}
+	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
+		handleReady(w, r, check)
+	})
 }
 
-func handleReady(w http.ResponseWriter, r *http.Request) {
+func handleReady(w http.ResponseWriter, r *http.Request, check ReadinessCheck) {
+	if check != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := check(ctx); err != nil {
+			writeError(w, http.StatusServiceUnavailable, "not_ready", "service dependencies are unavailable", true)
+			return
+		}
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(readyResponse{
