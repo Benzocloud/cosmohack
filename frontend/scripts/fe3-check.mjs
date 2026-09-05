@@ -18,7 +18,7 @@ const check = (name, ok, extra = '') => {
 // ---------- Десктоп 1440: контуры → участок → анализ → перекраска ----------
 {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  await page.goto(`${BASE}/?mock=1`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/panel.html?mock=1`, { waitUntil: 'load' });
   await page.waitForTimeout(2500); // карта + useAreas
 
   // 1. найти контуры
@@ -56,7 +56,7 @@ const check = (name, ok, extra = '') => {
 // ---------- Десктоп: спутник ----------
 {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  await page.goto(`${BASE}/?mock=1`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/panel.html?mock=1`, { waitUntil: 'load' });
   await page.waitForTimeout(2500);
   await page.click('button:has-text("Спутник")');
   await page.waitForTimeout(3500); // загрузка тайлов Esri
@@ -73,7 +73,7 @@ const check = (name, ok, extra = '') => {
 // ---------- Десктоп: empty/failed контуры ----------
 {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  await page.goto(`${BASE}/?mock=1&mock_case=empty`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/panel.html?mock=1&mock_case=empty`, { waitUntil: 'load' });
   await page.waitForTimeout(2500);
   await page.click('button:has-text("Найти контуры в этой области")');
   await page.waitForTimeout(1000);
@@ -84,7 +84,7 @@ const check = (name, ok, extra = '') => {
   await page.close();
 
   const page2 = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  await page2.goto(`${BASE}/?mock=1&mock_case=failed`, { waitUntil: 'load' });
+  await page2.goto(`${BASE}/panel.html?mock=1&mock_case=failed`, { waitUntil: 'load' });
   await page2.waitForTimeout(2500);
   await page2.click('button:has-text("Найти контуры в этой области")');
   await page2.waitForTimeout(1000);
@@ -102,7 +102,7 @@ const check = (name, ok, extra = '') => {
     hasTouch: true,
   });
   const page = await context.newPage();
-  await page.goto(`${BASE}/?mock=1`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/panel.html?mock=1`, { waitUntil: 'load' });
   await page.waitForTimeout(2500);
   await page.click('nav[aria-label="Основная навигация"] button:has-text("Карта")');
   await page.waitForTimeout(1500);

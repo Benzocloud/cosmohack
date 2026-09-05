@@ -26,6 +26,10 @@ DATABASE_URL='postgres://cosmohack:cosmohack@127.0.0.1:5432/cosmohack?sslmode=di
 Готовность: `curl http://127.0.0.1:8080/readyz` — собственная готовность Go;
 готовность ML проверяется отдельно (`GET /readyz` ML-сервиса).
 
+Веб-приложение собрано в одном frontend-пакете: `/` открывает лендинг
+TERRALENS, а `/panel.html` — рабочую панель. Кнопки лендинга переходят в панель
+на том же origin и сохраняют demo-параметры в query string.
+
 ## ML-сервис (backend/ml) — ожидается от ML-владельца
 
 Код сервиса, пакет `vegetation_ml` и независимая batch CLI принадлежат
@@ -57,8 +61,8 @@ GO_IMAGE=cosmohack-go ML_IMAGE=cosmohack-ml MODEL_VERSION=dev docker compose up 
 - PostgreSQL хранится в named volume `postgres-data`; одноразовый сервис
   `migrate` применяет `backend/migrations` до запуска Go. ML получает только
   read-only каталог артефактов (`ML_ARTIFACTS_DIR_HOST`).
-- `frontend/dist` попадает в образ Go в `/app/public`; до поставки frontend
-  используется явно помеченная минимальная страница.
+- `frontend/dist` попадает в образ Go в `/app/public`; корневой `index.html` —
+  лендинг, `panel.html` — рабочая панель.
 
 ## Деплой и откат
 

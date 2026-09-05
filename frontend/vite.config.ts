@@ -1,6 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
+
+const frontendRoot = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
@@ -19,6 +22,12 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    rollupOptions: {
+      input: {
+        landing: resolve(frontendRoot, 'index.html'),
+        panel: resolve(frontendRoot, 'panel.html'),
+      },
+    },
     // Инвариант команды: сборка не зависит от сети к бэкенду и переменных окружения
     sourcemap: false,
   },

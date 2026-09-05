@@ -23,9 +23,8 @@ if (import.meta.env.DEV) {
 }
 
 /**
- * Единственный маршрут '/' (corrections §2): SPA-fallback у Go не обещан,
- * всё состояние живёт в query-параметрах — area, event, date, mock, dev.
- * Никаких путей /app и редиректов.
+ * Панель доступна на /panel.html; состояние живёт в query-параметрах — area,
+ * event, date, mock, dev. Корень приложения занят самостоятельным лендингом.
  */
 export interface AppSearch {
   area?: string;
@@ -119,7 +118,13 @@ const indexRoute = createRoute({
   component: IndexPage,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute]);
+const panelRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/panel.html',
+  component: IndexPage,
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, panelRoute]);
 
 /** Фабрика для тестов: memory history изолирует URL между тестами. */
 export function createAppRouter(history?: RouterHistory) {

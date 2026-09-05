@@ -10,7 +10,7 @@ export default defineConfig({
   fullyParallel: true,
   reporter: [['list']],
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5173/panel.html',
     trace: 'off',
   },
   projects: [

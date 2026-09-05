@@ -54,7 +54,7 @@ try {
       hasTouch: shot.mobile,
     });
     const page = await context.newPage();
-    await page.goto('http://localhost:5173/?mock=1', { waitUntil: 'load' });
+    await page.goto('http://localhost:5173/panel.html?mock=1', { waitUntil: 'load' });
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(400);
     await page.screenshot({ path: path.resolve('docs/screens', shot.file) });

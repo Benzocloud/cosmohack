@@ -87,7 +87,7 @@
     regionTrigger.setAttribute('aria-expanded', 'false');
   }));
   runAnalysis?.addEventListener('click', () => {
-    window.location.href = `http://localhost:5173/?mock=1&area=${encodeURIComponent(selectedAreaId)}`;
+    window.location.href = `/panel.html?mock=1&area=${encodeURIComponent(selectedAreaId)}`;
   });
   demoScroll?.addEventListener('click', () => {
     const target = hero.offsetTop + hero.offsetHeight * 0.84;
